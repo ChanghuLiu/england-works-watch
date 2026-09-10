@@ -1,0 +1,93 @@
+name: England Works Watch PayAI Discovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/england-works-watch-payai-discovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-payai-bazaar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Scan full PayAI Bazaar and stats
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import time
+          import urllib.parse
+          import urllib.request
+
+          BASE='https://facilitator.payai.network'
+          NEEDLES=[
+              'england works watch',
+              'england-works-watch-production.up.railway.app',
+              'mcp://tool/assess_change_impact',
+              'mcp://tool/batch_assess_changes',
+          ]
+          page_size=200
+          max_pages=200
+          scanned=0
+          matches=[]
+          total=None
+
+          def get_json(url):
+              last=None
+              for attempt in range(3):
+                  try:
+                      req=urllib.request.Request(url,headers={'User-Agent':'england-works-watch-discovery-audit/1.0'})
+                      with urllib.request.urlopen(req,timeout=30) as r:
+                          return json.loads(r.read().decode())
+                  except Exception as e:
+                      last=e
+                      if attempt < 2:
+                          time.sleep(attempt+1)
+              raise last
+
+          stats=get_json(BASE+'/discovery/stats')
+          print('PAYAI_STATS='+json.dumps(stats,sort_keys=True))
+
+          for page in range(max_pages):
+              offset=page*page_size
+              qs=urllib.parse.urlencode({'limit':page_size,'offset':offset})
+              data=get_json(BASE+'/discovery/resources?'+qs)
+              items=data.get('items',[]) if isinstance(data,dict) else []
+              if not isinstance(items,list):
+                  items=[]
+              pagination=data.get('pagination') or {} if isinstance(data,dict) else {}
+              try:
+                  total=int(pagination.get('total'))
+              except (TypeError,ValueError):
+                  pass
+              scanned += len(items)
+              for item in items:
+                  if not isinstance(item,dict):
+                      continue
+                  hay=json.dumps(item,sort_keys=True).lower()
+                  if any(n in hay for n in NEEDLES):
+                      matches.append(item)
+              if page % 25 == 0:
+                  print(f'progress scanned={scanned} total={total if total is not None else "unknown"}')
+              if not items:
+                  break
+              if total is not None and offset+len(items) >= total:
+                  break
+
+          complete = total is not None and scanned >= total
+          print(f'PAYAI_CATALOG_TOTAL={total if total is not None else "unknown"}')
+          print(f'PAYAI_CATALOG_SCANNED={scanned}')
+          print(f'PAYAI_SCAN_COMPLETE={str(complete).upper()}')
+          print(f'ENGLAND_WORKS_WATCH_MATCHES={len(matches)}')
+          for item in matches[:20]:
+              print('MATCH='+json.dumps(item,sort_keys=True))
+          if not complete:
+              raise SystemExit('PayAI catalog scan incomplete')
+          print('PAYAI_BAZAAR=' + ('FOUND' if matches else 'ABSENT'))
+          PY
