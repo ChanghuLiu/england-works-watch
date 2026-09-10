@@ -1,0 +1,18 @@
+{
+  "service": "England Works Watch",
+  "tool": "assess_change_impact",
+  "validation_class": "owned_mainnet_smoke",
+  "payer": "0x1d9f172E0A3354E915F2881b5da2b2BD5b32f07c",
+  "network": "eip155:8453",
+  "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  "amount_atomic": "20000",
+  "amount_usdc": "0.02",
+  "pay_to": "0xDAAef0FD525278aAD0bA11066A96c338642A3d1A",
+  "transaction": "0x4823f8e8f4b55e005927de00e44509a890a451310ba05b2caff3b31d9c18e7ae",
+  "settlement_success": true,
+  "settled_at_utc": "2026-09-08T23:36:59Z",
+  "decision_marker": "AFFECTED",
+  "decision_code": "EW-ABS-REPORT",
+  "evidence": "Railway production logs: PayAI /verify HTTP 200, business handler success, PayAI /settle HTTP 200, x402_settle_success success=True.",
+  "client_receipt_note": "The local smoke adapter dropped x402/payment-response metadata after successful settlement; the server/facilitator settlement itself completed successfully. Do not repeat the owner payment."
+}

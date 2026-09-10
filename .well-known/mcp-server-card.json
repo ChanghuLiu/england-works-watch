@@ -1,0 +1,13 @@
+{
+  "name":"England Works Watch",
+  "version":"0.1.0",
+  "description":"UK sponsor compliance/change intelligence for Skilled Worker sponsor duties.",
+  "transport":"streamable-http",
+  "endpoint":"https://england-works-watch-production.up.railway.app/mcp",
+  "free_tools":["england_works_watch_info","licensing_source_status","list_supported_change_events"],
+  "paid_tools":["assess_change_impact","batch_assess_changes"],
+  "decision_labels":["AFFECTED","NOT_AFFECTED","REVIEW_REQUIRED","INSUFFICIENT_INPUT"],
+  "payment":{"protocol":"x402-v2","network":"eip155:8453","asset":"USDC"},
+  "evidence":"Official GOV.UK sponsor guidance with version, effective date and locator.",
+  "safety":"Evidence-first sponsor compliance preflight; not legal advice."
+}

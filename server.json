@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ChanghuLiu/england-works-watch",
+  "description": "UKVI sponsor: absence, salary, role/code, home-working, delayed start, stop sponsorship, TUPE, M&A.",
+  "version": "0.1.1",
+  "packages": [],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://england-works-watch-production.up.railway.app/mcp"
+    }
+  ],
+  "repository": {
+    "url": "https://github.com/ChanghuLiu/england-works-watch",
+    "source": "github"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "benchmark": "england-works-watch-tool-selection-v1",
+  "cases": [
+    {"query":"What does England Works Watch cover and how much do calls cost?","expected_tool":"england_works_watch_info"},
+    {"query":"Show me the MCP endpoint and payment prices","expected_tool":"england_works_watch_info"},
+    {"query":"What is this service and is it legal advice?","expected_tool":"england_works_watch_info"},
+    {"query":"Which network and x402 prices does this MCP use?","expected_tool":"england_works_watch_info"},
+    {"query":"Give me product scope and discovery metadata","expected_tool":"england_works_watch_info"},
+
+    {"query":"Are the GOV.UK sponsor guidance sources current?","expected_tool":"licensing_source_status"},
+    {"query":"Check official source freshness before I rely on a decision","expected_tool":"licensing_source_status"},
+    {"query":"Has any source fingerprint changed or gone stale?","expected_tool":"licensing_source_status"},
+    {"query":"Which official guidance sources are blocking decisions?","expected_tool":"licensing_source_status"},
+    {"query":"I need the evidence lifecycle and review status","expected_tool":"licensing_source_status"},
+
+    {"query":"What sponsor change event types are supported?","expected_tool":"list_supported_change_events"},
+    {"query":"List the change categories I can assess","expected_tool":"list_supported_change_events"},
+    {"query":"Does this support salary, role and work location changes?","expected_tool":"list_supported_change_events"},
+    {"query":"Which sponsor events can the tool handle?","expected_tool":"list_supported_change_events"},
+    {"query":"Show the V0.1 supported events list","expected_tool":"list_supported_change_events"},
+
+    {"query":"A Skilled Worker has been absent without authorisation for 11 working days. What must the sponsor do?","expected_tool":"assess_change_impact"},
+    {"query":"Assess a salary reduction for one Skilled Worker","expected_tool":"assess_change_impact"},
+    {"query":"Does moving one sponsored worker to permanent home working trigger reporting?","expected_tool":"assess_change_impact"},
+    {"query":"Determine the impact of a TUPE transfer for this sponsor event","expected_tool":"assess_change_impact"},
+    {"query":"Check whether this one role change is affected and what action is required","expected_tool":"assess_change_impact"},
+
+    {"query":"Assess these 8 sponsor changes in one request","expected_tool":"batch_assess_changes"},
+    {"query":"I have a list of salary, absence and location changes. Evaluate them together","expected_tool":"batch_assess_changes"},
+    {"query":"Run sponsor compliance preflight for 20 employee change events","expected_tool":"batch_assess_changes"},
+    {"query":"Batch check these multiple Skilled Worker events","expected_tool":"batch_assess_changes"},
+    {"query":"Evaluate all 5 changes and return counts by outcome","expected_tool":"batch_assess_changes"}
+  ]
+}

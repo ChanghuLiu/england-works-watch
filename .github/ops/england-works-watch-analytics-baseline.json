@@ -1,0 +1,108 @@
+{
+  "analytics": {
+    "business_tool_events_by_actor": {
+      "owned_ci": 44,
+      "unattributed": 5
+    },
+    "business_tool_events_by_client": {
+      "github-england-works-watch-smoke": 25,
+      "undeclared": 24
+    },
+    "by_actor_class": {
+      "owned_ci": 92,
+      "unattributed": 30
+    },
+    "by_actor_outcome": {
+      "owned_ci": {
+        "error": 44,
+        "ok": 48
+      },
+      "unattributed": {
+        "error": 5,
+        "ok": 25
+      }
+    },
+    "by_actor_tool": {
+      "owned_ci": {
+        "assess_change_impact": 44,
+        "england_works_watch_info": 24,
+        "licensing_source_status": 24
+      },
+      "unattributed": {
+        "assess_change_impact": 4,
+        "batch_assess_changes": 1,
+        "england_works_watch_info": 2,
+        "licensing_source_status": 23
+      }
+    },
+    "by_declared_client": {
+      "github-england-works-watch-smoke": 75,
+      "undeclared": 47
+    },
+    "by_outcome": {
+      "error": 49,
+      "ok": 73
+    },
+    "by_tool": {
+      "assess_change_impact": 48,
+      "batch_assess_changes": 1,
+      "england_works_watch_info": 26,
+      "licensing_source_status": 47
+    },
+    "paid_funnel": {
+      "challenge": 49
+    },
+    "paid_funnel_by_actor": {
+      "owned_ci": {
+        "challenge": 44
+      },
+      "unattributed": {
+        "challenge": 5
+      }
+    },
+    "paid_funnel_by_client": {
+      "github-england-works-watch-smoke": {
+        "challenge": 25
+      },
+      "undeclared": {
+        "challenge": 24
+      }
+    },
+    "privacy": "No employer/worker facts, raw MCP metadata, payment signatures, private keys or seed phrases are stored. Declared client names are sanitized software identifiers supplied through MCP metadata.",
+    "total_events": 122,
+    "unattributed_paid_events": [
+      {
+        "declared_client": "github-england-works-watch-smoke",
+        "occurred_at": "2026-09-08T15:15:13Z",
+        "payment_state": "challenge",
+        "tool": "assess_change_impact"
+      },
+      {
+        "declared_client": "undeclared",
+        "occurred_at": "2026-09-08T15:38:38Z",
+        "payment_state": "challenge",
+        "tool": "batch_assess_changes"
+      },
+      {
+        "declared_client": "undeclared",
+        "occurred_at": "2026-09-08T15:38:40Z",
+        "payment_state": "challenge",
+        "tool": "assess_change_impact"
+      },
+      {
+        "declared_client": "undeclared",
+        "occurred_at": "2026-09-08T17:12:11Z",
+        "payment_state": "challenge",
+        "tool": "assess_change_impact"
+      },
+      {
+        "declared_client": "undeclared",
+        "occurred_at": "2026-09-08T17:12:12Z",
+        "payment_state": "challenge",
+        "tool": "assess_change_impact"
+      }
+    ]
+  },
+  "captured_at_utc": "2026-09-08T22:53:30.775088+00:00",
+  "source": "https://england-works-watch-production.up.railway.app/analytics/summary"
+}

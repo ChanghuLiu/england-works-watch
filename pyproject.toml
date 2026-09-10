@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "england-works-watch"
+version = "0.1.1"
+description = "UK sponsor compliance/change intelligence for Skilled Worker sponsors"
+requires-python = ">=3.12"
+dependencies = ["mcp==2.1.1", "uvicorn==0.52.4", "starlette==1.6.0", "pydantic>=2.13,<3"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<9"]
+x402 = ["x402[fastapi,evm]>=2.21,<2.22"]
+
+[project.scripts]
+england-works-watch = "england_works_watch.entrypoint:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

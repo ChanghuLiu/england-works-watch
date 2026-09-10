@@ -1,0 +1,19 @@
+{
+  "rule_pack_version": "2026-08-28.1",
+  "effective_date": "2026-08-28",
+  "scope": "UK Skilled Worker sponsor duties and sponsor change-impact preflight only",
+  "rules": [
+    {"rule_id":"SPONSOR-REPORT-10","source_id":"sponsor-part3","locator":"C1.13-C1.16","proposition":"Report specified sponsored-worker changes generally within 10 working days."},
+    {"rule_id":"SPONSOR-ABSENCE-10","source_id":"sponsor-part3","locator":"C1.15","proposition":"Report unauthorised absence exceeding 10 consecutive working days."},
+    {"rule_id":"SPONSOR-WORK-LOCATION","source_id":"sponsor-part3","locator":"C1.21-C1.25","proposition":"Report new normal work locations including a new branch/client site or permanent/full-time home working; hybrid-only or occasional day-to-day changes need not be reported when the main office is unchanged."},
+    {"rule_id":"SPONSOR-STOP-SPONSORING","source_id":"sponsor-part3","locator":"C1.26","proposition":"Report when sponsorship ends or the worker no longer requires sponsorship for specified reasons."},
+    {"rule_id":"SPONSOR-ORG-20","source_id":"sponsor-part3","locator":"C2 reporting organisation changes","proposition":"Report significant sponsor-organisation changes generally within 20 working days."},
+    {"rule_id":"SPONSOR-TUPE-MERGER","source_id":"sponsor-part3","locator":"C4 mergers, takeovers and similar changes","proposition":"Mergers, takeovers and TUPE transfers have sponsor-licence and reporting consequences; certain same-job transfers need no new CoS if the receiving sponsor has the relevant licence."},
+    {"rule_id":"SW-START-28","source_id":"sponsor-part2","locator":"S3 start dates","proposition":"A sponsored worker should generally start no later than 28 days after the relevant start-date trigger; after that the sponsor must report the new start/reason or stop sponsorship."},
+    {"rule_id":"SW-UNPAID-4W","source_id":"sponsor-part2","locator":"S4 unpaid or reduced pay","proposition":"Unpaid or reduced-pay absence over 4 weeks in total generally requires sponsorship to stop unless a permitted exception or accepted compelling reason applies."},
+    {"rule_id":"SW-UNPAID-EXCEPTIONS","source_id":"sponsor-part2","locator":"S4 permitted absences","proposition":"Listed exceptions include statutory family leave, sick leave, humanitarian crisis, industrial action, jury service and court-witness absence; extended absence remains reportable."},
+    {"rule_id":"SW-ROLE-CHANGE","source_id":"sponsor-part2","locator":"S9 changes of employment","proposition":"Same-occupation eligible changes can normally continue with reporting; different occupation-code changes generally require a new CoS and approved change-of-employment application before the new job starts."},
+    {"rule_id":"SW-SALARY-CHANGE","source_id":"skilled-worker","locator":"SK8 salary reductions","proposition":"A salary reduction may be report-only if the same salary option remains met, may require a new CoS/application if another Skilled Worker salary basis remains available, or may require sponsorship to stop if salary requirements are no longer met."},
+    {"rule_id":"SPONSOR-RECORDS","source_id":"appendix-d","locator":"record-keeping duties","proposition":"Sponsors must retain prescribed records and evidence supporting sponsored-worker compliance."}
+  ]
+}
