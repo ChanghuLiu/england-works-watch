@@ -1,108 +1,326 @@
 {
   "analytics": {
-    "business_tool_events_by_actor": {
-      "owned_ci": 44,
-      "unattributed": 5
-    },
-    "business_tool_events_by_client": {
-      "github-england-works-watch-smoke": 25,
-      "undeclared": 24
-    },
     "by_actor_class": {
-      "owned_ci": 92,
-      "unattributed": 30
-    },
-    "by_actor_outcome": {
-      "owned_ci": {
-        "error": 44,
-        "ok": 48
-      },
-      "unattributed": {
-        "error": 5,
-        "ok": 25
-      }
-    },
-    "by_actor_tool": {
-      "owned_ci": {
-        "assess_change_impact": 44,
-        "england_works_watch_info": 24,
-        "licensing_source_status": 24
-      },
-      "unattributed": {
-        "assess_change_impact": 4,
-        "batch_assess_changes": 1,
-        "england_works_watch_info": 2,
-        "licensing_source_status": 23
-      }
-    },
-    "by_declared_client": {
-      "github-england-works-watch-smoke": 75,
-      "undeclared": 47
-    },
-    "by_outcome": {
-      "error": 49,
-      "ok": 73
+      "declared_external": 7,
+      "owned_ci": 159,
+      "unattributed": 1304
     },
     "by_tool": {
-      "assess_change_impact": 48,
+      "__machine_discovery__": 1272,
+      "assess_change_impact": 87,
       "batch_assess_changes": 1,
-      "england_works_watch_info": 26,
-      "licensing_source_status": 47
+      "england_works_watch_info": 44,
+      "licensing_source_status": 65,
+      "list_supported_change_events": 1
     },
+    "classification_note": "Exact owner client names are excluded. A sanitized declared client name that is not on the owner allow-list is classified as declared_external. Requests without a usable client identity remain unattributed and are never counted as confirmed customers. Discovery HTTP hits are raw-only by design.",
+    "commercial_funnel": {
+      "discovery": {
+        "confirmed_external": null,
+        "measured": true,
+        "note": "Privacy-minimal hits to machine capability/discovery routes. No IP/UA/query data is stored, so raw discovery is not a customer count.",
+        "raw": 1272
+      },
+      "free_business_call": {
+        "confirmed_external": 6,
+        "measured": true,
+        "note": "Free MCP info/source/event calls; confirmed external requires a non-owned declared software identity.",
+        "raw": 110
+      },
+      "paid_challenge": {
+        "confirmed_external": 1,
+        "measured": true,
+        "note": "x402 challenges; owner CI and unattributed traffic are excluded from confirmed external.",
+        "raw": 87
+      },
+      "paid_executed": {
+        "confirmed_external": 0,
+        "measured": true,
+        "note": "Settled/verified paid business executions; owner validation is technical proof only.",
+        "raw": 1
+      },
+      "repeat_paid": {
+        "confirmed_external": 0,
+        "measured": true,
+        "note": "Count of non-owned declared software integrations with at least two successful paid executions in the window.",
+        "raw": 0,
+        "repeat_executions_beyond_first": 0
+      }
+    },
+    "discovery_by_route": {
+      "/": 26,
+      "/.well-known/agent-card.json": 30,
+      "/.well-known/agent.json": 8,
+      "/.well-known/ai-catalog.json": 3,
+      "/.well-known/api-catalog": 5,
+      "/.well-known/glama.json": 11,
+      "/.well-known/mcp.json": 12,
+      "/.well-known/mcp/server-card.json": 11,
+      "/.well-known/x402": 13,
+      "/llms.txt": 10,
+      "/mcp": 1105,
+      "/openapi.json": 14,
+      "/robots.txt": 17,
+      "/sitemap.xml": 7
+    },
+    "generated_at": "2026-09-10T19:23:27Z",
+    "hours": null,
     "paid_funnel": {
-      "challenge": 49
+      "challenge": 87,
+      "paid_executed": 1
     },
     "paid_funnel_by_actor": {
+      "declared_external": {
+        "challenge": 1
+      },
       "owned_ci": {
-        "challenge": 44
+        "challenge": 79
       },
       "unattributed": {
-        "challenge": 5
+        "challenge": 7,
+        "paid_executed": 1
       }
     },
-    "paid_funnel_by_client": {
-      "github-england-works-watch-smoke": {
-        "challenge": 25
+    "payment_errors": 0,
+    "privacy": "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or query strings are stored. Only sanitized self-declared software identifiers are retained for paid/free attribution and repeat-use aggregation.",
+    "total_events": 1470,
+    "windows": {
+      "24h": {
+        "by_actor_class": {
+          "declared_external": 2,
+          "unattributed": 1081
+        },
+        "by_tool": {
+          "__machine_discovery__": 1081,
+          "england_works_watch_info": 1,
+          "licensing_source_status": 1
+        },
+        "commercial_funnel": {
+          "discovery": {
+            "confirmed_external": null,
+            "measured": true,
+            "note": "Privacy-minimal hits to machine capability/discovery routes. No IP/UA/query data is stored, so raw discovery is not a customer count.",
+            "raw": 1081
+          },
+          "free_business_call": {
+            "confirmed_external": 2,
+            "measured": true,
+            "note": "Free MCP info/source/event calls; confirmed external requires a non-owned declared software identity.",
+            "raw": 2
+          },
+          "paid_challenge": {
+            "confirmed_external": 0,
+            "measured": true,
+            "note": "x402 challenges; owner CI and unattributed traffic are excluded from confirmed external.",
+            "raw": 0
+          },
+          "paid_executed": {
+            "confirmed_external": 0,
+            "measured": true,
+            "note": "Settled/verified paid business executions; owner validation is technical proof only.",
+            "raw": 0
+          },
+          "repeat_paid": {
+            "confirmed_external": 0,
+            "measured": true,
+            "note": "Count of non-owned declared software integrations with at least two successful paid executions in the window.",
+            "raw": 0,
+            "repeat_executions_beyond_first": 0
+          }
+        },
+        "discovery_by_route": {
+          "/": 22,
+          "/.well-known/agent-card.json": 22,
+          "/.well-known/agent.json": 2,
+          "/.well-known/ai-catalog.json": 1,
+          "/.well-known/api-catalog": 1,
+          "/.well-known/glama.json": 2,
+          "/.well-known/mcp.json": 3,
+          "/.well-known/mcp/server-card.json": 3,
+          "/.well-known/x402": 6,
+          "/llms.txt": 3,
+          "/mcp": 997,
+          "/openapi.json": 7,
+          "/robots.txt": 11,
+          "/sitemap.xml": 1
+        },
+        "hours": 24,
+        "paid_funnel": {},
+        "paid_funnel_by_actor": {},
+        "payment_errors": 0,
+        "privacy": "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or query strings are stored. Only sanitized self-declared software identifiers are retained for paid/free attribution and repeat-use aggregation.",
+        "total_events": 1083
       },
-      "undeclared": {
-        "challenge": 24
+      "7d": {
+        "by_actor_class": {
+          "declared_external": 7,
+          "owned_ci": 159,
+          "unattributed": 1304
+        },
+        "by_tool": {
+          "__machine_discovery__": 1272,
+          "assess_change_impact": 87,
+          "batch_assess_changes": 1,
+          "england_works_watch_info": 44,
+          "licensing_source_status": 65,
+          "list_supported_change_events": 1
+        },
+        "commercial_funnel": {
+          "discovery": {
+            "confirmed_external": null,
+            "measured": true,
+            "note": "Privacy-minimal hits to machine capability/discovery routes. No IP/UA/query data is stored, so raw discovery is not a customer count.",
+            "raw": 1272
+          },
+          "free_business_call": {
+            "confirmed_external": 6,
+            "measured": true,
+            "note": "Free MCP info/source/event calls; confirmed external requires a non-owned declared software identity.",
+            "raw": 110
+          },
+          "paid_challenge": {
+            "confirmed_external": 1,
+            "measured": true,
+            "note": "x402 challenges; owner CI and unattributed traffic are excluded from confirmed external.",
+            "raw": 87
+          },
+          "paid_executed": {
+            "confirmed_external": 0,
+            "measured": true,
+            "note": "Settled/verified paid business executions; owner validation is technical proof only.",
+            "raw": 1
+          },
+          "repeat_paid": {
+            "confirmed_external": 0,
+            "measured": true,
+            "note": "Count of non-owned declared software integrations with at least two successful paid executions in the window.",
+            "raw": 0,
+            "repeat_executions_beyond_first": 0
+          }
+        },
+        "discovery_by_route": {
+          "/": 26,
+          "/.well-known/agent-card.json": 30,
+          "/.well-known/agent.json": 8,
+          "/.well-known/ai-catalog.json": 3,
+          "/.well-known/api-catalog": 5,
+          "/.well-known/glama.json": 11,
+          "/.well-known/mcp.json": 12,
+          "/.well-known/mcp/server-card.json": 11,
+          "/.well-known/x402": 13,
+          "/llms.txt": 10,
+          "/mcp": 1105,
+          "/openapi.json": 14,
+          "/robots.txt": 17,
+          "/sitemap.xml": 7
+        },
+        "hours": 168,
+        "paid_funnel": {
+          "challenge": 87,
+          "paid_executed": 1
+        },
+        "paid_funnel_by_actor": {
+          "declared_external": {
+            "challenge": 1
+          },
+          "owned_ci": {
+            "challenge": 79
+          },
+          "unattributed": {
+            "challenge": 7,
+            "paid_executed": 1
+          }
+        },
+        "payment_errors": 0,
+        "privacy": "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or query strings are stored. Only sanitized self-declared software identifiers are retained for paid/free attribution and repeat-use aggregation.",
+        "total_events": 1470
+      },
+      "all_time": {
+        "by_actor_class": {
+          "declared_external": 7,
+          "owned_ci": 159,
+          "unattributed": 1304
+        },
+        "by_tool": {
+          "__machine_discovery__": 1272,
+          "assess_change_impact": 87,
+          "batch_assess_changes": 1,
+          "england_works_watch_info": 44,
+          "licensing_source_status": 65,
+          "list_supported_change_events": 1
+        },
+        "commercial_funnel": {
+          "discovery": {
+            "confirmed_external": null,
+            "measured": true,
+            "note": "Privacy-minimal hits to machine capability/discovery routes. No IP/UA/query data is stored, so raw discovery is not a customer count.",
+            "raw": 1272
+          },
+          "free_business_call": {
+            "confirmed_external": 6,
+            "measured": true,
+            "note": "Free MCP info/source/event calls; confirmed external requires a non-owned declared software identity.",
+            "raw": 110
+          },
+          "paid_challenge": {
+            "confirmed_external": 1,
+            "measured": true,
+            "note": "x402 challenges; owner CI and unattributed traffic are excluded from confirmed external.",
+            "raw": 87
+          },
+          "paid_executed": {
+            "confirmed_external": 0,
+            "measured": true,
+            "note": "Settled/verified paid business executions; owner validation is technical proof only.",
+            "raw": 1
+          },
+          "repeat_paid": {
+            "confirmed_external": 0,
+            "measured": true,
+            "note": "Count of non-owned declared software integrations with at least two successful paid executions in the window.",
+            "raw": 0,
+            "repeat_executions_beyond_first": 0
+          }
+        },
+        "discovery_by_route": {
+          "/": 26,
+          "/.well-known/agent-card.json": 30,
+          "/.well-known/agent.json": 8,
+          "/.well-known/ai-catalog.json": 3,
+          "/.well-known/api-catalog": 5,
+          "/.well-known/glama.json": 11,
+          "/.well-known/mcp.json": 12,
+          "/.well-known/mcp/server-card.json": 11,
+          "/.well-known/x402": 13,
+          "/llms.txt": 10,
+          "/mcp": 1105,
+          "/openapi.json": 14,
+          "/robots.txt": 17,
+          "/sitemap.xml": 7
+        },
+        "hours": null,
+        "paid_funnel": {
+          "challenge": 87,
+          "paid_executed": 1
+        },
+        "paid_funnel_by_actor": {
+          "declared_external": {
+            "challenge": 1
+          },
+          "owned_ci": {
+            "challenge": 79
+          },
+          "unattributed": {
+            "challenge": 7,
+            "paid_executed": 1
+          }
+        },
+        "payment_errors": 0,
+        "privacy": "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or query strings are stored. Only sanitized self-declared software identifiers are retained for paid/free attribution and repeat-use aggregation.",
+        "total_events": 1470
       }
-    },
-    "privacy": "No employer/worker facts, raw MCP metadata, payment signatures, private keys or seed phrases are stored. Declared client names are sanitized software identifiers supplied through MCP metadata.",
-    "total_events": 122,
-    "unattributed_paid_events": [
-      {
-        "declared_client": "github-england-works-watch-smoke",
-        "occurred_at": "2026-09-08T15:15:13Z",
-        "payment_state": "challenge",
-        "tool": "assess_change_impact"
-      },
-      {
-        "declared_client": "undeclared",
-        "occurred_at": "2026-09-08T15:38:38Z",
-        "payment_state": "challenge",
-        "tool": "batch_assess_changes"
-      },
-      {
-        "declared_client": "undeclared",
-        "occurred_at": "2026-09-08T15:38:40Z",
-        "payment_state": "challenge",
-        "tool": "assess_change_impact"
-      },
-      {
-        "declared_client": "undeclared",
-        "occurred_at": "2026-09-08T17:12:11Z",
-        "payment_state": "challenge",
-        "tool": "assess_change_impact"
-      },
-      {
-        "declared_client": "undeclared",
-        "occurred_at": "2026-09-08T17:12:12Z",
-        "payment_state": "challenge",
-        "tool": "assess_change_impact"
-      }
-    ]
+    }
   },
-  "captured_at_utc": "2026-09-08T22:53:30.775088+00:00",
+  "captured_at_utc": "2026-09-10T19:23:27.194085+00:00",
   "source": "https://england-works-watch-production.up.railway.app/analytics/summary"
 }
