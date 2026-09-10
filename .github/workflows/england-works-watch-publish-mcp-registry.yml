@@ -1,0 +1,72 @@
+name: England Works Watch Publish MCP Registry
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server.json'
+      - '.github/workflows/england-works-watch-publish-mcp-registry.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install pinned MCP publisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz"
+          curl --fail --location --silent --show-error "$url" -o /tmp/mcp-publisher.tar.gz
+          echo "a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc  /tmp/mcp-publisher.tar.gz" | sha256sum --check --strict
+          tar -xzf /tmp/mcp-publisher.tar.gz -C /tmp mcp-publisher
+          chmod +x /tmp/mcp-publisher
+          /tmp/mcp-publisher --help >/dev/null
+      - name: Authenticate with GitHub OIDC
+        run: /tmp/mcp-publisher login github-oidc
+      - name: Publish remote server metadata idempotently
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          output=$(/tmp/mcp-publisher publish ./server.json 2>&1)
+          rc=$?
+          set -e
+          printf '%s\n' "$output"
+          if [ "$rc" -ne 0 ]; then
+            if printf '%s\n' "$output" | grep -Fq 'cannot publish duplicate version'; then
+              echo 'MCP_REGISTRY_PUBLISH=ALREADY_EXISTS'
+            else
+              exit "$rc"
+            fi
+          else
+            echo 'MCP_REGISTRY_PUBLISH=CREATED'
+          fi
+      - name: Verify registry listing
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            curl --fail --silent --show-error \
+              "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.ChanghuLiu/england-works-watch" \
+              -o /tmp/registry.json
+            if python - <<'PY'
+          import json
+          payload=json.load(open('/tmp/registry.json'))
+          for item in payload.get('servers', []):
+              server=item.get('server', item)
+              if server.get('name')=='io.github.ChanghuLiu/england-works-watch' and server.get('version')=='0.1.1':
+                  print('MCP_REGISTRY_LISTING=PASS name=io.github.ChanghuLiu/england-works-watch version=0.1.1')
+                  raise SystemExit(0)
+          raise SystemExit(1)
+          PY
+            then exit 0; fi
+            sleep 5
+          done
+          cat /tmp/registry.json
+          exit 1
