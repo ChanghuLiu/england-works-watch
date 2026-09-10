@@ -1,0 +1,37 @@
+name: England Works Watch CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[x402,test]'
+      - run: pytest -q
+      - run: python scripts/acceptance_report.py
+      - run: python scripts/validate_pack.py
+      - name: Gate agent tool-selection metadata
+        run: python scripts/selection_benchmark.py
+      - name: Compile operational smoke scripts
+        run: python -m py_compile scripts/paid_mcp_buyer_smoke.py scripts/post_settlement_verify.py
+
+  official-source-audit:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/audit_sources.py
