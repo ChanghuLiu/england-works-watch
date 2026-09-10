@@ -1,6 +1,6 @@
 {
   "name":"England Works Watch",
-  "version":"0.1.0",
+  "version":"0.1.1",
   "description":"UK sponsor compliance/change intelligence for Skilled Worker sponsor duties.",
   "transport":"streamable-http",
   "endpoint":"https://england-works-watch-production.up.railway.app/mcp",
