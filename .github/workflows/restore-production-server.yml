@@ -1,0 +1,40 @@
+name: Restore Verified Production Server
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/restore-production-server.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore verified production server from pre-split source
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            'https://raw.githubusercontent.com/ChanghuLiu/projectpermit-mcp/main/england-works-watch/src/england_works_watch/server.py' \
+            -o src/england_works_watch/server.py
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/england_works_watch/server.py')
+          s=p.read_text()
+          s=s.replace('SERVICE_VERSION = "0.1.0"', 'SERVICE_VERSION = "0.1.1"')
+          s=s.replace('https://github.com/ChanghuLiu/projectpermit-mcp/tree/main/england-works-watch', 'https://github.com/ChanghuLiu/england-works-watch')
+          p.write_text(s)
+          assert 'SERVICE_VERSION = "0.1.1"' in s
+          assert 'projectpermit-mcp/tree/main/england-works-watch' not in s
+          PY
+          git diff --check
+          git diff -- src/england_works_watch/server.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/england_works_watch/server.py
+          git commit -m 'Restore verified production server after repo split'
+          git push
