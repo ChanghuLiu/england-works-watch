@@ -1,0 +1,57 @@
+name: England Works Watch Capture Analytics
+
+on:
+  push:
+    paths:
+      - '.github/workflows/england-works-watch-capture-analytics.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Capture public aggregate analytics
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://england-works-watch-production.up.railway.app/analytics/summary'
+          mkdir -p .github/ops
+          tmp="$(mktemp)"
+          curl --fail --silent --show-error --location --max-time 30 "$URL" -o "$tmp"
+          python - <<'PY' "$tmp" '.github/ops/england-works-watch-analytics-baseline.json'
+          import json, sys
+          from datetime import datetime, timezone
+          src, dst = sys.argv[1], sys.argv[2]
+          with open(src, encoding='utf-8') as fh:
+              payload = json.load(fh)
+          snapshot = {
+              'captured_at_utc': datetime.now(timezone.utc).isoformat(),
+              'source': 'https://england-works-watch-production.up.railway.app/analytics/summary',
+              'analytics': payload,
+          }
+          with open(dst, 'w', encoding='utf-8') as fh:
+              json.dump(snapshot, fh, indent=2, sort_keys=True)
+              fh.write('\n')
+          print(json.dumps(snapshot, sort_keys=True))
+          PY
+      - name: Persist baseline snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/ops/england-works-watch-analytics-baseline.json
+          if git diff --cached --quiet; then
+            echo 'No analytics snapshot change.'
+            exit 0
+          fi
+          git commit -m 'ops: capture England conversion analytics snapshot'
+          git push origin HEAD:main
