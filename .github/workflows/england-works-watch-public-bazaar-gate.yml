@@ -1,0 +1,49 @@
+name: England Works Watch Public Bazaar Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'data/**'
+      - 'pyproject.toml'
+      - '.github/workflows/england-works-watch-public-bazaar-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-bazaar-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      MCP_URL: "https://england-works-watch-production.up.railway.app/mcp"
+      PAY_TO: "0xDAAef0FD525278aAD0bA11066A96c338642A3d1A"
+    steps:
+      - name: Verify public unpaid MCP challenge exposes Bazaar metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          body='{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"assess_change_impact","arguments":{"payload":{"event_type":"unauthorised_absence","route":"skilled_worker","consecutive_working_days":11}},"_meta":{"englandworkswatch/actor":"owned_ci","io.modelcontextprotocol/protocolVersion":"2025-11-25"}}}'
+          curl --fail --silent --show-error --max-time 30 \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            --data "$body" "$MCP_URL" -o /tmp/challenge.body
+          cat /tmp/challenge.body
+
+          grep -q 'x402Version' /tmp/challenge.body
+          grep -q 'eip155:8453' /tmp/challenge.body
+          grep -q '20000' /tmp/challenge.body
+          grep -qi "$PAY_TO" /tmp/challenge.body
+          grep -q '"name"[[:space:]]*:[[:space:]]*"USD Coin"' /tmp/challenge.body
+          grep -q '"version"[[:space:]]*:[[:space:]]*"2"' /tmp/challenge.body
+          grep -q 'extensions' /tmp/challenge.body
+          grep -q 'bazaar' /tmp/challenge.body
+          grep -q 'assess_change_impact' /tmp/challenge.body
+          grep -q 'streamable-http' /tmp/challenge.body
+          grep -q 'inputSchema' /tmp/challenge.body
+          grep -q 'unauthorised_absence' /tmp/challenge.body
+          ! grep -q 'EW-ABS-REPORT' /tmp/challenge.body
+          ! grep -q 'SPONSOR-ABSENCE-10' /tmp/challenge.body
+          echo 'PUBLIC_X402_BAZAAR_EXTENSION=PASS'
