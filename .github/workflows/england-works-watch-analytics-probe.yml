@@ -1,0 +1,30 @@
+name: England Works Watch Analytics Probe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/england-works-watch-analytics-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read public aggregate analytics
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://england-works-watch-production.up.railway.app/analytics/summary'
+          curl --fail --silent --show-error --location --max-time 30 "$URL" -o /tmp/analytics.json
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/analytics.json'))
+          print(json.dumps(p, sort_keys=True))
+          ps=p.get('payment_state_counts') or p.get('payment_states') or p.get('payment_state') or {}
+          print('payment_state_counts='+json.dumps(ps, sort_keys=True))
+          print('total_events='+str(p.get('total_events', p.get('events', p.get('total', 'unknown')))))
+          PY
