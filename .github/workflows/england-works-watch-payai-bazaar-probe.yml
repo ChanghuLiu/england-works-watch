@@ -1,0 +1,58 @@
+name: England Works Watch PayAI Bazaar Probe
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 */6 * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/england-works-watch-payai-bazaar-probe.yml'
+      - '.github/ops/england-works-watch-paid-smoke.json'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query PayAI Bazaar by England payee
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, urllib.parse, urllib.request
+          BASE='https://facilitator.payai.network/discovery/resources'
+          PAY_TO='0xDAAef0FD525278aAD0bA11066A96c338642A3d1A'
+          EXPECTED={'assess_change_impact','batch_assess_changes'}
+          params={
+              'type':'mcp',
+              'payTo':PAY_TO,
+              'network':'eip155:8453',
+              'extensions':'bazaar',
+              'limit':100,
+              'offset':0,
+          }
+          url=BASE+'?'+urllib.parse.urlencode(params)
+          req=urllib.request.Request(url, headers={'Accept':'application/json','User-Agent':'England-Works-Watch-Bazaar-Probe/1.0'})
+          with urllib.request.urlopen(req, timeout=30) as r:
+              payload=json.load(r)
+          items=payload.get('items') if isinstance(payload,dict) else payload
+          if not isinstance(items,list):
+              raise SystemExit('PAYAI_BAZAAR_UNEXPECTED_SHAPE '+json.dumps(payload)[:1000])
+          matches=[]
+          for item in items:
+              if not isinstance(item,dict):
+                  continue
+              bazaar=((item.get('extensions') or {}).get('bazaar') or {}).get('info') or {}
+              inp=bazaar.get('input') or {}
+              resource=str(item.get('resource') or '')
+              tool=inp.get('toolName')
+              if 'england-works-watch-production.up.railway.app' in resource or tool in EXPECTED:
+                  matches.append({'resource':resource,'toolName':tool,'lastUpdated':item.get('lastUpdated')})
+          names={x.get('toolName') for x in matches}
+          print('query_url='+url)
+          print('england_matches='+json.dumps(matches,sort_keys=True))
+          print('PAYAI_MCP_BAZAAR_LISTING=' + ('PASS' if EXPECTED <= names else 'PENDING_SETTLEMENT'))
+          PY
