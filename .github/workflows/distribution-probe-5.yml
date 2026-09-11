@@ -1,0 +1,74 @@
+name: Distribution API probe 5
+
+on:
+  push:
+    branches:
+      - distribution-probe-5-2026-09-11
+
+permissions:
+  contents: read
+
+jobs:
+  submit-and-inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Submit all four MCPs to AllMCPs free review queue
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, urllib.request, time
+          items=[
+            {"name":"England Works Watch","url":"https://england-works-watch-production.up.railway.app/mcp","description":"Evidence-backed Skilled Worker sponsor change-impact decisions for England through a production remote Model Context Protocol server.","category":"Legal","tags":["uk","immigration","sponsor","regulatory"]},
+            {"name":"CQC Provider Regulatory Decision Layer","url":"https://cqc-provider-mcp-production.up.railway.app/mcp","description":"Evidence-first CQC provider registration and statutory-notification regulatory decision support through a production remote MCP endpoint.","category":"Legal","tags":["uk","cqc","healthcare","regulatory"]},
+            {"name":"UK Taxi PHV Regulatory Decision Layer","url":"https://uk-taxi-phv-mcp-production.up.railway.app/mcp","description":"England taxi and private-hire licensing preflight and cross-authority comparison through a production remote MCP endpoint.","category":"Travel & Transportation","tags":["uk","taxi","phv","licensing"]},
+            {"name":"UK Premises Licence Preflight","url":"https://uk-premises-licence-mcp-production.up.railway.app/mcp","description":"Evidence-first UK premises-licence preflight with authority-specific regulatory decisions through a production remote MCP endpoint.","category":"Legal","tags":["uk","premises","licensing","regulatory"]},
+          ]
+          for x in items:
+            body={**x,"email":"launchcircle.server@gmail.com","authType":"other","pricingModel":"freemium","maintenanceStatus":"active"}
+            req=urllib.request.Request('https://allmcps.com/api/v1/submit',data=json.dumps(body).encode(),headers={'Content-Type':'application/json','Accept':'application/json','User-Agent':'Mozilla/5.0'},method='POST')
+            print('=== ALLMCPS:',x['name'],'===')
+            try:
+              with urllib.request.urlopen(req,timeout=45) as r:
+                print('STATUS',r.status); print(r.read().decode('utf-8','ignore'))
+            except Exception as e:
+              if hasattr(e,'code'): print('STATUS',e.code)
+              try: print(e.read().decode('utf-8','ignore'))
+              except: print(repr(e))
+            time.sleep(2)
+          PY
+
+      - name: Inspect BusinessMCP and 402.ad free web submission implementations
+        shell: bash
+        run: |
+          python - <<'PY'
+          import urllib.request, urllib.parse, re, html
+          pages=['https://businessmcp.com/mcp-servers','https://businessmcp.com/mcp-servers/submit','https://402.ad/submit','https://clawtools.com/tools/create/']
+          hdr={'User-Agent':'Mozilla/5.0'}
+          needles=['/api/','fetch(','form','email','github','captcha','turnstile','recaptcha','submit','name=','type="email"']
+          for page in pages:
+            print('\n===== PAGE',page,'=====')
+            try:
+              s=urllib.request.urlopen(urllib.request.Request(page,headers=hdr),timeout=30).read().decode('utf-8','ignore')
+              print('FINAL_LEN',len(s))
+              for m in re.finditer(r'<form[^>]*>',s,re.I): print('FORM',m.group(0)[:1600])
+              for tag in re.findall(r'<(?:input|textarea|select|button)\b[^>]*>',s,re.I):
+                if re.search(r'(name=|type=["\'](?:email|url)|submit)',tag,re.I): print('FIELD',re.sub(r'\s+',' ',tag)[:1200])
+              for n in needles:
+                i=s.lower().find(n.lower())
+                if i>=0: print('CTX',n,html.unescape(re.sub('<[^>]+>',' ',s[max(0,i-600):i+1800])).replace('  ',' ')[:2800])
+              srcs=re.findall(r'<script[^>]+src=["\']([^"\']+)["\']',s,re.I)
+              seen=0
+              for src in srcs:
+                u=urllib.parse.urljoin(page,src)
+                try: js=urllib.request.urlopen(urllib.request.Request(u,headers=hdr),timeout=20).read().decode('utf-8','ignore')
+                except: continue
+                hits=[]
+                for n in ['/api/submit','/v1/submit','fetch(','supabase','captcha','turnstile','recaptcha','email','github_url','repository']:
+                  pos=js.lower().find(n.lower())
+                  if pos>=0: hits.append((pos,n))
+                if hits:
+                  pos,n=min(hits); print('JS',u,'MATCH',n); print(js[max(0,pos-1400):pos+3600].replace('\n',' ')[:5200]); seen+=1
+                  if seen>=10: break
+            except Exception as e: print('ERROR',repr(e))
+          PY
