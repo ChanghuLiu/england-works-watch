@@ -1,0 +1,62 @@
+name: Distribution API probe 2
+
+on:
+  push:
+    branches:
+      - distribution-probe-2-2026-09-11
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Inspect additional free directory submission implementations
+        shell: bash
+        run: |
+          python - <<'PY'
+          import re, urllib.request, urllib.parse, ssl
+          ssl._create_default_https_context = ssl._create_unverified_context
+          pages = [
+            'https://findmcp.app/submit',
+            'https://mymcptools.com/submit',
+            'https://mcpvault.io/',
+            'https://www.mcpserverspot.com/submit',
+            'https://mcpserve.com/submit',
+            'https://mcpizy.com/',
+            'https://kiprio.com/mcp-registry/',
+          ]
+          needles = ['/api/','api/','fetch(','formspree','github','email','submit','captcha','turnstile','recaptcha']
+          hdr={'User-Agent':'Mozilla/5.0'}
+          for page in pages:
+            print('\n===== PAGE',page,'=====')
+            try:
+              html=urllib.request.urlopen(urllib.request.Request(page,headers=hdr),timeout=30).read().decode('utf-8','ignore')
+              print('HTML_LEN',len(html))
+              for m in re.finditer(r'<form[^>]*>',html,re.I): print('FORM',m.group(0)[:1200])
+              for n in needles:
+                i=html.lower().find(n.lower())
+                if i>=0: print('HTML_MATCH',n,html[max(0,i-500):i+1400].replace('\n',' ')[:2000])
+              srcs=re.findall(r'<script[^>]+src=["\']([^"\']+)["\']',html,re.I)
+              print('SCRIPTS',len(srcs))
+              seen=0
+              for src in srcs:
+                jsurl=urllib.parse.urljoin(page,src)
+                try:
+                  js=urllib.request.urlopen(urllib.request.Request(jsurl,headers=hdr),timeout=20).read().decode('utf-8','ignore')
+                except Exception: continue
+                low=js.lower(); hits=[]
+                for n in needles:
+                  pos=low.find(n.lower())
+                  if pos>=0: hits.append((pos,n))
+                if hits:
+                  pos,n=min(hits)
+                  print('JS',jsurl,'MATCH',n,'LEN',len(js))
+                  print(js[max(0,pos-1200):pos+2600].replace('\n',' ')[:4000])
+                  seen+=1
+                  if seen>=10: break
+            except Exception as e:
+              print('ERROR',repr(e))
+          PY
