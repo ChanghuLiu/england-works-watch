@@ -13,20 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Probe ServerHub payload key
+      - name: Probe ServerHub schema with comprehensive payload
         shell: bash
         run: |
           set +e
-          for payload in \
-            '{"url":"https://github.com/ChanghuLiu/england-works-watch"}' \
-            '{"repositoryUrl":"https://github.com/ChanghuLiu/england-works-watch"}' \
-            '{"repoUrl":"https://github.com/ChanghuLiu/england-works-watch"}' \
-            '{"github":"https://github.com/ChanghuLiu/england-works-watch"}' \
-            '{"github_url":"https://github.com/ChanghuLiu/england-works-watch"}' \
-            '{"repository":"https://github.com/ChanghuLiu/england-works-watch"}'
-          do
-            echo "PAYLOAD=$payload"
-            curl -sS -w '\nHTTP_STATUS=%{http_code}\n' -X POST 'https://www.serverhub.digital/api/submit' \
-              -H 'Content-Type: application/json' --data "$payload"
-            echo
-          done
+          payload='{"githubUrl":"https://github.com/ChanghuLiu/england-works-watch","url":"https://github.com/ChanghuLiu/england-works-watch","repositoryUrl":"https://github.com/ChanghuLiu/england-works-watch","repoUrl":"https://github.com/ChanghuLiu/england-works-watch","github":"https://github.com/ChanghuLiu/england-works-watch","github_url":"https://github.com/ChanghuLiu/england-works-watch","repository":"https://github.com/ChanghuLiu/england-works-watch","repo":"https://github.com/ChanghuLiu/england-works-watch","repo_url":"https://github.com/ChanghuLiu/england-works-watch","repository_url":"https://github.com/ChanghuLiu/england-works-watch","sourceUrl":"https://github.com/ChanghuLiu/england-works-watch","source_url":"https://github.com/ChanghuLiu/england-works-watch","source":"https://github.com/ChanghuLiu/england-works-watch","name":"England Works Watch","description":"Evidence-backed Skilled Worker sponsor change-impact decisions for England via production Streamable HTTP MCP.","email":"launchcircle.server@gmail.com","maintainerName":"ProjectPermit"}'
+          curl -sS -i -X POST 'https://www.serverhub.digital/api/submit' \
+            -H 'Content-Type: application/json' --data "$payload"
+          echo
