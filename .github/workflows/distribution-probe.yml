@@ -9,15 +9,56 @@ permissions:
   contents: read
 
 jobs:
-  probe-serverhub:
+  inspect-forms:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
-      - name: Probe ServerHub schema with comprehensive payload
+      - name: Inspect public submission page bundles
         shell: bash
         run: |
-          set +e
-          payload='{"githubUrl":"https://github.com/ChanghuLiu/england-works-watch","url":"https://github.com/ChanghuLiu/england-works-watch","repositoryUrl":"https://github.com/ChanghuLiu/england-works-watch","repoUrl":"https://github.com/ChanghuLiu/england-works-watch","github":"https://github.com/ChanghuLiu/england-works-watch","github_url":"https://github.com/ChanghuLiu/england-works-watch","repository":"https://github.com/ChanghuLiu/england-works-watch","repo":"https://github.com/ChanghuLiu/england-works-watch","repo_url":"https://github.com/ChanghuLiu/england-works-watch","repository_url":"https://github.com/ChanghuLiu/england-works-watch","sourceUrl":"https://github.com/ChanghuLiu/england-works-watch","source_url":"https://github.com/ChanghuLiu/england-works-watch","source":"https://github.com/ChanghuLiu/england-works-watch","name":"England Works Watch","description":"Evidence-backed Skilled Worker sponsor change-impact decisions for England via production Streamable HTTP MCP.","email":"launchcircle.server@gmail.com","maintainerName":"ProjectPermit"}'
-          curl -sS -i -X POST 'https://www.serverhub.digital/api/submit' \
-            -H 'Content-Type: application/json' --data "$payload"
-          echo
+          python - <<'PY'
+          import re, urllib.request, urllib.parse, ssl
+          ssl._create_default_https_context = ssl._create_unverified_context
+          pages = [
+            'https://www.serverhub.digital/submit',
+            'https://agenticskills.io/submit?type=mcp',
+            'https://www.influzer.ai/mcp/submit',
+            'https://www.allmcpservers.com/',
+          ]
+          needles = ['/api/submit','api/submit','submit','github','email','formspree','supabase','fetch(']
+          hdr={'User-Agent':'Mozilla/5.0'}
+          for page in pages:
+            print('\n===== PAGE',page,'=====')
+            try:
+              req=urllib.request.Request(page,headers=hdr)
+              html=urllib.request.urlopen(req,timeout=30).read().decode('utf-8','ignore')
+              print('HTML_LEN',len(html))
+              for m in re.finditer(r'<form[^>]*>', html, re.I):
+                print('FORM',m.group(0)[:800])
+              for n in needles:
+                i=html.lower().find(n.lower())
+                if i>=0:
+                  print('HTML_MATCH',n,html[max(0,i-300):i+700].replace('\n',' ')[:1200])
+              srcs=re.findall(r'<script[^>]+src=["\']([^"\']+)["\']',html,re.I)
+              print('SCRIPTS',len(srcs))
+              seen=0
+              for src in srcs:
+                jsurl=urllib.parse.urljoin(page,src)
+                try:
+                  js=urllib.request.urlopen(urllib.request.Request(jsurl,headers=hdr),timeout=20).read().decode('utf-8','ignore')
+                except Exception:
+                  continue
+                low=js.lower()
+                hits=[]
+                for n in needles:
+                  pos=low.find(n.lower())
+                  if pos>=0: hits.append((pos,n))
+                if hits:
+                  pos,n=min(hits)
+                  print('JS',jsurl,'MATCH',n,'LEN',len(js))
+                  print(js[max(0,pos-1000):pos+1800].replace('\n',' ')[:3000])
+                  seen+=1
+                  if seen>=8: break
+            except Exception as e:
+              print('ERROR',repr(e))
+          PY
