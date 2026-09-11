@@ -9,24 +9,34 @@ permissions:
   contents: read
 
 jobs:
-  probe:
+  submit:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
-      - name: Probe VaultPlane submission schema
+      - name: Submit all products to VaultPlane
         shell: bash
         run: |
           set +e
-          echo '=== VAULTPLANE ==='
-          curl -sS -i -X POST 'https://www.vaultplane.com/api/servers/submit' \
-            -H 'Content-Type: application/json' \
-            --data '{}'
-          echo
-      - name: Probe ServerHub submission schema
+          submit_vaultplane() {
+            label="$1"
+            json="$2"
+            echo "=== VAULTPLANE: $label ==="
+            curl -sS -i -X POST 'https://www.vaultplane.com/api/servers/submit' \
+              -H 'Content-Type: application/json' \
+              --data "$json"
+            echo
+          }
+          submit_vaultplane 'England Works Watch' '{"name":"England Works Watch","description":"Evidence-backed Skilled Worker sponsor change-impact decisions for England via production Streamable HTTP MCP.","githubUrl":"https://github.com/ChanghuLiu/england-works-watch","maintainerName":"ProjectPermit","documentationUrl":"https://github.com/ChanghuLiu/england-works-watch"}'
+          submit_vaultplane 'CQC Provider Regulatory Decision Layer' '{"name":"CQC Provider Regulatory Decision Layer","description":"Evidence-first CQC provider registration and statutory-notification regulatory decision layer for AI agents.","githubUrl":"https://github.com/ChanghuLiu/cqc-provider-mcp","maintainerName":"ProjectPermit"}'
+          submit_vaultplane 'UK Taxi PHV Regulatory Decision Layer' '{"name":"UK Taxi PHV Regulatory Decision Layer","description":"England taxi and private-hire licensing preflight and cross-authority comparison MCP for AI agents.","githubUrl":"https://github.com/ChanghuLiu/uk-taxi-phv-mcp","maintainerName":"ProjectPermit"}'
+          submit_vaultplane 'UK Premises Licence Preflight' '{"name":"UK Premises Licence Preflight","description":"Evidence-first UK premises-licence preflight with authority-specific regulatory decisions for AI agents.","githubUrl":"https://github.com/ChanghuLiu/uk-premises-licence-mcp","maintainerName":"ProjectPermit"}'
+
+      - name: Submit EWW to ServerHub
         shell: bash
         run: |
           set +e
-          echo '=== SERVERHUB ==='
+          echo '=== SERVERHUB: England Works Watch ==='
           curl -sS -i -X POST 'https://www.serverhub.digital/api/submit' \
             -H 'Content-Type: application/json' \
-            --data '{}'
+            --data '{"githubUrl":"https://github.com/ChanghuLiu/england-works-watch"}'
           echo
