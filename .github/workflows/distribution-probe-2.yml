@@ -9,54 +9,86 @@ permissions:
   contents: read
 
 jobs:
-  inspect:
+  submit-and-inspect:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Inspect additional free directory submission implementations
+      - name: Submit EWW to Kiprio
+        shell: bash
+        run: |
+          set +e
+          curl -sS -w '\nHTTP_STATUS=%{http_code}\n' -X POST 'https://kiprio.com/api/mcp-submit' \
+            -H 'Content-Type: application/json' \
+            --data '{"github_url":"https://github.com/ChanghuLiu/england-works-watch","submitter":"ProjectPermit"}'
+
+      - name: Submit EWW to MyMCPTools free listing
+        shell: bash
+        run: |
+          set +e
+          curl -sS -w '\nHTTP_STATUS=%{http_code}\n' -X POST 'https://mymcptools.com/api/submit' \
+            -H 'Content-Type: application/json' \
+            --data '{"toolName":"England Works Watch","description":"Evidence-backed Skilled Worker sponsor change-impact decisions for England via a production Model Context Protocol server.","github":"https://github.com/ChanghuLiu/england-works-watch","website":"https://england-works-watch-production.up.railway.app/mcp","category":"api","installType":"source","email":"launchcircle.server@gmail.com","website_url":""}'
+
+      - name: Inspect exact FindMCP form rules and fields
         shell: bash
         run: |
           python - <<'PY'
-          import re, urllib.request, urllib.parse, ssl
-          ssl._create_default_https_context = ssl._create_unverified_context
-          pages = [
-            'https://findmcp.app/submit',
-            'https://mymcptools.com/submit',
-            'https://mcpvault.io/',
-            'https://www.mcpserverspot.com/submit',
-            'https://mcpserve.com/submit',
-            'https://mcpizy.com/',
-            'https://kiprio.com/mcp-registry/',
-          ]
-          needles = ['/api/','api/','fetch(','formspree','github','email','submit','captcha','turnstile','recaptcha']
-          hdr={'User-Agent':'Mozilla/5.0'}
-          for page in pages:
-            print('\n===== PAGE',page,'=====')
-            try:
-              html=urllib.request.urlopen(urllib.request.Request(page,headers=hdr),timeout=30).read().decode('utf-8','ignore')
-              print('HTML_LEN',len(html))
-              for m in re.finditer(r'<form[^>]*>',html,re.I): print('FORM',m.group(0)[:1200])
-              for n in needles:
-                i=html.lower().find(n.lower())
-                if i>=0: print('HTML_MATCH',n,html[max(0,i-500):i+1400].replace('\n',' ')[:2000])
-              srcs=re.findall(r'<script[^>]+src=["\']([^"\']+)["\']',html,re.I)
-              print('SCRIPTS',len(srcs))
-              seen=0
-              for src in srcs:
-                jsurl=urllib.parse.urljoin(page,src)
-                try:
-                  js=urllib.request.urlopen(urllib.request.Request(jsurl,headers=hdr),timeout=20).read().decode('utf-8','ignore')
-                except Exception: continue
-                low=js.lower(); hits=[]
-                for n in needles:
-                  pos=low.find(n.lower())
-                  if pos>=0: hits.append((pos,n))
-                if hits:
-                  pos,n=min(hits)
-                  print('JS',jsurl,'MATCH',n,'LEN',len(js))
-                  print(js[max(0,pos-1200):pos+2600].replace('\n',' ')[:4000])
-                  seen+=1
-                  if seen>=10: break
-            except Exception as e:
-              print('ERROR',repr(e))
+          import urllib.request,re,html as h
+          s=urllib.request.urlopen(urllib.request.Request('https://findmcp.app/submit',headers={'User-Agent':'Mozilla/5.0'}),timeout=30).read().decode('utf-8','ignore')
+          for needle in ['public GitHub','installation instructions','Submission limit','name="repoUrl"','name="category"','name="transport"','name="install','name="email"','name="config','name="claude']:
+            i=s.lower().find(needle.lower())
+            if i>=0: print('\nMATCH',needle,'\n',h.unescape(re.sub('<[^>]+>',' ',s[max(0,i-800):i+2200])).replace('  ',' ')[:3500])
+          form=re.search(r'<form[^>]+id="server-submission-form".*?</form>',s,re.I|re.S)
+          if form:
+            f=form.group(0)
+            print('\nFIELDS')
+            for tag in re.findall(r'<(?:input|textarea|select)\b[^>]*>',f,re.I):
+              nm=re.search(r'name="([^"]+)"',tag,re.I)
+              if nm: print(nm.group(1), re.sub(r'\s+',' ',tag)[:700])
+            print('\nSELECT OPTIONS')
+            for sm in re.finditer(r'<select[^>]+name="([^"]+)"[^>]*>(.*?)</select>',f,re.I|re.S):
+              print(sm.group(1),re.findall(r'<option[^>]*value="([^"]*)"[^>]*>(.*?)</option>',sm.group(2),re.I|re.S))
+          PY
+
+      - name: Inspect MCPVault submit implementation
+        shell: bash
+        run: |
+          python - <<'PY'
+          import urllib.request,urllib.parse,re
+          page='https://mcpvault.io/submit'; hdr={'User-Agent':'Mozilla/5.0'}
+          s=urllib.request.urlopen(urllib.request.Request(page,headers=hdr),timeout=30).read().decode('utf-8','ignore')
+          print('HTML_LEN',len(s))
+          print('FORMS',re.findall(r'<form[^>]*>',s,re.I)[:10])
+          for needle in ['/api/','fetch(','supabase','repository','github','submit']:
+            i=s.lower().find(needle.lower())
+            if i>=0: print('HTML',needle,s[max(0,i-500):i+1800].replace('\n',' ')[:2400])
+          for src in re.findall(r'<script[^>]+src=["\']([^"\']+)["\']',s,re.I):
+            url=urllib.parse.urljoin(page,src)
+            try: js=urllib.request.urlopen(urllib.request.Request(url,headers=hdr),timeout=20).read().decode('utf-8','ignore')
+            except: continue
+            for needle in ['/api/','fetch(','from("servers','from("submissions','repoUrl','githubUrl','repositoryUrl']:
+              i=js.find(needle)
+              if i>=0:
+                print('JS',url,needle,js[max(0,i-1000):i+2600].replace('\n',' ')[:4000]); break
+          PY
+
+      - name: Inspect MCPizy submit implementation
+        shell: bash
+        run: |
+          python - <<'PY'
+          import urllib.request,urllib.parse,re
+          page='https://mcpizy.com/submit?tier=standard'; hdr={'User-Agent':'Mozilla/5.0'}
+          s=urllib.request.urlopen(urllib.request.Request(page,headers=hdr),timeout=30).read().decode('utf-8','ignore')
+          print('HTML_LEN',len(s)); print('FORMS',re.findall(r'<form[^>]*>',s,re.I)[:10])
+          for needle in ['GitHub','repository','email','/api/','captcha','turnstile','standard']:
+            i=s.lower().find(needle.lower())
+            if i>=0: print('HTML',needle,s[max(0,i-600):i+1800].replace('\n',' ')[:2600])
+          for src in re.findall(r'<script[^>]+src=["\']([^"\']+)["\']',s,re.I):
+            url=urllib.parse.urljoin(page,src)
+            try: js=urllib.request.urlopen(urllib.request.Request(url,headers=hdr),timeout=20).read().decode('utf-8','ignore')
+            except: continue
+            for needle in ['/api/submit','fetch(','githubUrl','repositoryUrl','email','turnstile']:
+              i=js.find(needle)
+              if i>=0:
+                print('JS',url,needle,js[max(0,i-1200):i+3000].replace('\n',' ')[:4500]); break
           PY
