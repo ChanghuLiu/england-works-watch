@@ -1,0 +1,124 @@
+name: Distribution API probe 4
+
+on:
+  push:
+    branches:
+      - distribution-probe-4-2026-09-11
+
+permissions:
+  contents: read
+
+jobs:
+  submit-and-inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Submit all four MCPs to Influzer as guest
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, urllib.request, time
+          items = [
+            {"server_name":"England Works Watch","suggested_slug":"england-works-watch","description":"Evidence-backed Skilled Worker sponsor change-impact decisions for England through a production remote MCP server for AI agents.","primary_url":"https://england-works-watch-production.up.railway.app/mcp","github_url":"https://github.com/ChanghuLiu/england-works-watch"},
+            {"server_name":"CQC Provider Regulatory Decision Layer","suggested_slug":"cqc-provider-regulatory-decision-layer","description":"Evidence-first CQC provider registration and statutory-notification regulatory decision support through a production remote MCP endpoint.","primary_url":"https://cqc-provider-mcp-production.up.railway.app/mcp","github_url":""},
+            {"server_name":"UK Taxi PHV Regulatory Decision Layer","suggested_slug":"uk-taxi-phv-regulatory-decision-layer","description":"England taxi and private-hire licensing preflight and cross-authority comparison for AI agents through a production remote MCP endpoint.","primary_url":"https://uk-taxi-phv-mcp-production.up.railway.app/mcp","github_url":""},
+            {"server_name":"UK Premises Licence Preflight","suggested_slug":"uk-premises-licence-preflight","description":"Evidence-first UK premises-licence preflight with authority-specific regulatory decisions for AI agents through a production remote MCP endpoint.","primary_url":"https://uk-premises-licence-mcp-production.up.railway.app/mcp","github_url":""},
+          ]
+          for item in items:
+            body={
+              "submitter_email":"launchcircle.server@gmail.com",
+              "submitter_name":"ProjectPermit",
+              "server_name":item["server_name"],
+              "suggested_slug":item["suggested_slug"],
+              "description":item["description"],
+              "category":"Other",
+              "transport":"http",
+              "github_url":item["github_url"],
+              "docs_url":"",
+              "primary_url":item["primary_url"],
+              "setup_instructions":"Connect your MCP client to the Streamable HTTP endpoint shown in Primary / install URL.",
+              "additional_notes":"Production remote MCP server.",
+              "tools":"",
+              "stars":"",
+              "official":False,
+              "website":""
+            }
+            req=urllib.request.Request('https://www.influzer.ai/api/mcp/submit',data=json.dumps(body).encode(),headers={'Content-Type':'application/json','Accept':'application/json','User-Agent':'Mozilla/5.0'},method='POST')
+            print('=== INFLUZER:',item['server_name'],'===')
+            try:
+              with urllib.request.urlopen(req,timeout=45) as r:
+                print('STATUS',r.status); print(r.read().decode('utf-8','ignore'))
+            except Exception as e:
+              if hasattr(e,'code'): print('STATUS',e.code)
+              try: print(e.read().decode('utf-8','ignore'))
+              except: print(repr(e))
+            time.sleep(2)
+          PY
+
+      - name: Submit CQC Taxi Premises to FindMCP within free 3-per-day limit
+        shell: bash
+        run: |
+          python - <<'PY'
+          import urllib.request, urllib.parse, json, time
+          items=[
+            ('CQC Provider Regulatory Decision Layer','https://cqc-provider-mcp-production.up.railway.app/mcp','Evidence-first CQC provider registration and statutory-notification regulatory decision support for AI agents through a production Streamable HTTP MCP endpoint.'),
+            ('UK Taxi PHV Regulatory Decision Layer','https://uk-taxi-phv-mcp-production.up.railway.app/mcp','England taxi and private-hire licensing preflight and cross-authority comparison for AI agents through a production Streamable HTTP MCP endpoint.'),
+            ('UK Premises Licence Preflight','https://uk-premises-licence-mcp-production.up.railway.app/mcp','Evidence-first UK premises-licence preflight with authority-specific regulatory decisions for AI agents through a production Streamable HTTP MCP endpoint.'),
+          ]
+          for name,url,desc in items:
+            snippet=json.dumps({"mcpServers":{name.lower().replace(' ','-'):{"command":"npx","args":["-y","mcp-remote",url]}}})
+            data=urllib.parse.urlencode({
+              'name':name,'repoUrl':url,'description':desc,'installSnippet':snippet,
+              'category':'web-apis','transports':'http','submitterEmail':'launchcircle.server@gmail.com'
+            }).encode()
+            req=urllib.request.Request('https://findmcp.app/api/submit',data=data,headers={'Content-Type':'application/x-www-form-urlencoded','User-Agent':'Mozilla/5.0'},method='POST')
+            print('=== FINDMCP:',name,'===')
+            try:
+              with urllib.request.urlopen(req,timeout=45) as r:
+                print('STATUS',r.status); print('FINAL',r.geturl()); print(r.read().decode('utf-8','ignore')[:4000])
+            except Exception as e:
+              if hasattr(e,'code'): print('STATUS',e.code)
+              try: print(e.read().decode('utf-8','ignore')[:4000])
+              except: print(repr(e))
+            time.sleep(3)
+          PY
+
+      - name: Inspect Kiprio registration ClawTools submit and MCP Marketplace signup
+        shell: bash
+        run: |
+          python - <<'PY'
+          import urllib.request, urllib.parse, re, html
+          pages=[
+            'https://kiprio.com/v1/mcp-registry/register/',
+            'https://clawtools.com/tools/create/',
+            'https://mcp-marketplace.io/signup',
+            'https://mcp-marketplace.io/submit',
+          ]
+          hdr={'User-Agent':'Mozilla/5.0'}
+          needles=['/api/','fetch(','form','email','password','github','captcha','turnstile','recaptcha','submit','register','otp','verification']
+          for page in pages:
+            print('\n===== PAGE',page,'=====')
+            try:
+              s=urllib.request.urlopen(urllib.request.Request(page,headers=hdr),timeout=30).read().decode('utf-8','ignore')
+              print('LEN',len(s))
+              for m in re.finditer(r'<form[^>]*>',s,re.I): print('FORM',m.group(0)[:1600])
+              for tag in re.findall(r'<(?:input|textarea|select|button)\b[^>]*>',s,re.I):
+                if re.search(r'(name=|type=["\'](?:email|password)|submit)',tag,re.I): print('FIELD',re.sub(r'\s+',' ',tag)[:1000])
+              for n in needles:
+                i=s.lower().find(n.lower())
+                if i>=0: print('CTX',n,html.unescape(re.sub('<[^>]+>',' ',s[max(0,i-500):i+1600])).replace('  ',' ')[:2400])
+              srcs=re.findall(r'<script[^>]+src=["\']([^"\']+)["\']',s,re.I)
+              seen=0
+              for src in srcs:
+                u=urllib.parse.urljoin(page,src)
+                try: js=urllib.request.urlopen(urllib.request.Request(u,headers=hdr),timeout=20).read().decode('utf-8','ignore')
+                except: continue
+                hits=[]
+                for n in ['/api/submit','/api/register','/api/auth','fetch(','supabase','captcha','turnstile','email']:
+                  pos=js.lower().find(n.lower())
+                  if pos>=0: hits.append((pos,n))
+                if hits:
+                  pos,n=min(hits); print('JS',u,'MATCH',n); print(js[max(0,pos-1200):pos+3200].replace('\n',' ')[:4800]); seen+=1
+                  if seen>=8: break
+            except Exception as e: print('ERROR',repr(e))
+          PY
