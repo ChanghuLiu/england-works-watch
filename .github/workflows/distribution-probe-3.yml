@@ -1,0 +1,84 @@
+name: Distribution API probe 3
+
+on:
+  push:
+    branches:
+      - distribution-probe-3-2026-09-11
+
+permissions:
+  contents: read
+
+jobs:
+  submit-and-inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Submit all four MCPs to MCPizy free standard review
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, urllib.request, time, random, string
+          items = [
+            ("England Works Watch", "https://github.com/ChanghuLiu/england-works-watch", "Evidence-backed Skilled Worker sponsor change-impact decisions for England, exposed as a production Model Context Protocol server for AI agents."),
+            ("CQC Provider Regulatory Decision Layer", "https://cqc-provider-mcp-production.up.railway.app/mcp", "Evidence-first CQC provider registration and statutory-notification regulatory decision support for AI agents using a production remote MCP endpoint."),
+            ("UK Taxi PHV Regulatory Decision Layer", "https://uk-taxi-phv-mcp-production.up.railway.app/mcp", "England taxi and private-hire licensing preflight and cross-authority comparison for AI agents through a production remote MCP endpoint."),
+            ("UK Premises Licence Preflight", "https://uk-premises-licence-mcp-production.up.railway.app/mcp", "Evidence-first UK premises-licence preflight with authority-specific regulatory decisions for AI agents through a production remote MCP endpoint."),
+          ]
+          for idx,(name,repo,desc) in enumerate(items):
+            sid='web_'+str(int(time.time()*1000))+'_'+''.join(random.choice(string.ascii_lowercase+string.digits) for _ in range(6))
+            body={"ph_session":"","name":name,"repo":repo,"email":"launchcircle.server@gmail.com","description":desc,"category":"Other","tier":"standard","ref_channel":"","submission_id":sid,"ph_did":""}
+            req=urllib.request.Request('https://mcpizy.com/api/submit',data=json.dumps(body).encode(),headers={'Content-Type':'application/json','User-Agent':'Mozilla/5.0'},method='POST')
+            print('=== MCPIZY:',name,'===')
+            try:
+              with urllib.request.urlopen(req,timeout=45) as r:
+                print('STATUS',r.status)
+                print(r.read().decode('utf-8','ignore'))
+            except Exception as e:
+              if hasattr(e,'code'): print('STATUS',e.code)
+              try: print(e.read().decode('utf-8','ignore'))
+              except: print(repr(e))
+            time.sleep(2)
+          PY
+
+      - name: Inspect Influzer exact form options and required fields
+        shell: bash
+        run: |
+          python - <<'PY'
+          import urllib.request,re,html
+          s=urllib.request.urlopen(urllib.request.Request('https://www.influzer.ai/mcp/submit',headers={'User-Agent':'Mozilla/5.0'}),timeout=30).read().decode('utf-8','ignore')
+          form=re.search(r'<form[^>]+id=["\']mcpSubmitForm["\'].*?</form>',s,re.I|re.S)
+          f=form.group(0) if form else s
+          print('FORM_FOUND',bool(form))
+          for tag in re.findall(r'<(?:input|textarea|select)\b[^>]*>',f,re.I):
+            nm=re.search(r'name=["\']([^"\']+)',tag,re.I)
+            if nm: print('FIELD',nm.group(1),re.sub(r'\s+',' ',tag)[:900])
+          for sm in re.finditer(r'<select[^>]+name=["\']([^"\']+)["\'][^>]*>(.*?)</select>',f,re.I|re.S):
+            opts=[]
+            for v,l in re.findall(r'<option[^>]*value=["\']([^"\']*)["\'][^>]*>(.*?)</option>',sm.group(2),re.I|re.S):
+              opts.append((v,html.unescape(re.sub('<[^>]+>','',l)).strip()))
+            print('SELECT',sm.group(1),opts)
+          for n in ['required','minimum','transport','category','github_url','primary_url']:
+            i=f.lower().find(n.lower())
+            if i>=0: print('CTX',n,html.unescape(re.sub('<[^>]+>',' ',f[max(0,i-500):i+1400])).replace('  ',' ')[:2200])
+          PY
+
+      - name: Check public listing candidates and sync endpoints
+        shell: bash
+        run: |
+          set +e
+          echo '=== SERVERHUB candidate pages ==='
+          for u in \
+            'https://www.serverhub.digital/server/england-works-watch' \
+            'https://www.serverhub.digital/servers/england-works-watch' \
+            'https://www.serverhub.digital/mcp/england-works-watch'
+          do echo "$u"; curl -sS -L -o /tmp/out -w 'HTTP=%{http_code} FINAL=%{url_effective}\n' "$u"; grep -oi 'England Works Watch' /tmp/out | head -1; done
+          echo '=== KIPRIO registry queries ==='
+          for u in \
+            'https://kiprio.com/v1/mcp-registry/?q=england-works-watch&limit=5' \
+            'https://kiprio.com/v1/mcp-registry/?q=England%20Works%20Watch&limit=5'
+          do echo "$u"; curl -sS -L -w '\nHTTP=%{http_code}\n' "$u" | head -c 6000; echo; done
+          echo '=== MCPVAULT search candidates ==='
+          for u in \
+            'https://mcpvault.io/search?q=England%20Works%20Watch' \
+            'https://mcpvault.io/?q=England%20Works%20Watch'
+          do echo "$u"; curl -sS -L -o /tmp/out -w 'HTTP=%{http_code} FINAL=%{url_effective}\n' "$u"; grep -oi 'England Works Watch' /tmp/out | head -1; done
