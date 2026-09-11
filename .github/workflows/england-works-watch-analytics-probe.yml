@@ -2,6 +2,8 @@ name: England Works Watch Analytics Probe
 
 on:
   push:
+    branches:
+      - distribution-probe-2026-09-11
     paths:
       - '.github/workflows/england-works-watch-analytics-probe.yml'
   workflow_dispatch:
@@ -14,17 +16,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Read public aggregate analytics
+      - name: Probe VaultPlane submission schema
         shell: bash
         run: |
-          set -euo pipefail
-          URL='https://england-works-watch-production.up.railway.app/analytics/summary'
-          curl --fail --silent --show-error --location --max-time 30 "$URL" -o /tmp/analytics.json
-          python - <<'PY'
-          import json
-          p=json.load(open('/tmp/analytics.json'))
-          print(json.dumps(p, sort_keys=True))
-          ps=p.get('payment_state_counts') or p.get('payment_states') or p.get('payment_state') or {}
-          print('payment_state_counts='+json.dumps(ps, sort_keys=True))
-          print('total_events='+str(p.get('total_events', p.get('events', p.get('total', 'unknown')))))
-          PY
+          set +e
+          echo '=== VAULTPLANE ==='
+          curl -sS -i -X POST 'https://www.vaultplane.com/api/servers/submit' \
+            -H 'Content-Type: application/json' \
+            --data '{}'
+          echo
+      - name: Probe ServerHub submission schema
+        shell: bash
+        run: |
+          set +e
+          echo '=== SERVERHUB ==='
+          curl -sS -i -X POST 'https://www.serverhub.digital/api/submit' \
+            -H 'Content-Type: application/json' \
+            --data '{}'
+          echo
