@@ -9,56 +9,53 @@ permissions:
   contents: read
 
 jobs:
-  inspect-forms:
+  submit-free-directories:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Inspect public submission page bundles
+      - name: Submit four MCPs to ServerHub
         shell: bash
         run: |
+          set +e
+          post() {
+            label="$1"; body="$2"
+            echo "=== SERVERHUB: $label ==="
+            curl -sS -w '\nHTTP_STATUS=%{http_code}\n' -X POST 'https://www.serverhub.digital/api/submit' -H 'Content-Type: application/json' --data "$body"
+            echo
+          }
+          post 'England Works Watch' '{"github_url":"https://github.com/ChanghuLiu/england-works-watch","name":"England Works Watch","description":"Evidence-backed Skilled Worker sponsor change-impact decisions for England via production Streamable HTTP MCP.","category":"other","author_name":"ProjectPermit","author_email":"launchcircle.server@gmail.com"}'
+          post 'CQC Provider Regulatory Decision Layer' '{"github_url":"https://github.com/ChanghuLiu/cqc-provider-mcp","name":"CQC Provider Regulatory Decision Layer","description":"Evidence-first CQC provider registration and statutory-notification regulatory decision layer for AI agents.","category":"other","author_name":"ProjectPermit","author_email":"launchcircle.server@gmail.com"}'
+          post 'UK Taxi PHV Regulatory Decision Layer' '{"github_url":"https://github.com/ChanghuLiu/uk-taxi-phv-mcp","name":"UK Taxi PHV Regulatory Decision Layer","description":"England taxi and private-hire licensing preflight and cross-authority comparison MCP for AI agents.","category":"other","author_name":"ProjectPermit","author_email":"launchcircle.server@gmail.com"}'
+          post 'UK Premises Licence Preflight' '{"github_url":"https://github.com/ChanghuLiu/uk-premises-licence-mcp","name":"UK Premises Licence Preflight","description":"Evidence-first UK premises-licence preflight with authority-specific regulatory decisions for AI agents.","category":"other","author_name":"ProjectPermit","author_email":"launchcircle.server@gmail.com"}'
+
+      - name: Submit four MCPs to AgenticSkills
+        shell: bash
+        run: |
+          set +e
+          post() {
+            label="$1"; body="$2"
+            echo "=== AGENTICSKILLS: $label ==="
+            curl -sS -w '\nHTTP_STATUS=%{http_code}\n' -X POST 'https://agenticskills.io/api/submissions' -H 'Content-Type: application/json' --data "$body"
+            echo
+          }
+          post 'England Works Watch' '{"type":"mcp","name":"England Works Watch","githubUrl":"https://england-works-watch-production.up.railway.app/mcp","category":"developer-tools","description":"Evidence-backed Skilled Worker sponsor change-impact decisions for England via production Streamable HTTP MCP.","tags":["uk","regulatory","compliance","sponsor"],"platforms":["Any MCP Client"],"authorName":"ProjectPermit","email":"launchcircle.server@gmail.com","website":"https://github.com/ChanghuLiu/england-works-watch"}'
+          post 'CQC Provider Regulatory Decision Layer' '{"type":"mcp","name":"CQC Provider Regulatory Decision Layer","githubUrl":"https://cqc-provider-mcp-production.up.railway.app/mcp","category":"developer-tools","description":"Evidence-first CQC provider registration and statutory-notification regulatory decision layer for AI agents.","tags":["uk","cqc","regulatory","healthcare"],"platforms":["Any MCP Client"],"authorName":"ProjectPermit","email":"launchcircle.server@gmail.com","website":""}'
+          post 'UK Taxi PHV Regulatory Decision Layer' '{"type":"mcp","name":"UK Taxi PHV Regulatory Decision Layer","githubUrl":"https://uk-taxi-phv-mcp-production.up.railway.app/mcp","category":"developer-tools","description":"England taxi and private-hire licensing preflight and cross-authority comparison MCP for AI agents.","tags":["uk","taxi","phv","regulatory"],"platforms":["Any MCP Client"],"authorName":"ProjectPermit","email":"launchcircle.server@gmail.com","website":""}'
+          post 'UK Premises Licence Preflight' '{"type":"mcp","name":"UK Premises Licence Preflight","githubUrl":"https://uk-premises-licence-mcp-production.up.railway.app/mcp","category":"developer-tools","description":"Evidence-first UK premises-licence preflight with authority-specific regulatory decisions for AI agents.","tags":["uk","premises","licensing","regulatory"],"platforms":["Any MCP Client"],"authorName":"ProjectPermit","email":"launchcircle.server@gmail.com","website":""}'
+
+      - name: Inspect Influzer submission endpoint
+        shell: bash
+        run: |
+          set +e
+          curl -sS 'https://www.influzer.ai/js/mcp-submit.js' -o /tmp/influzer.js
           python - <<'PY'
-          import re, urllib.request, urllib.parse, ssl
-          ssl._create_default_https_context = ssl._create_unverified_context
-          pages = [
-            'https://www.serverhub.digital/submit',
-            'https://agenticskills.io/submit?type=mcp',
-            'https://www.influzer.ai/mcp/submit',
-            'https://www.allmcpservers.com/',
-          ]
-          needles = ['/api/submit','api/submit','submit','github','email','formspree','supabase','fetch(']
-          hdr={'User-Agent':'Mozilla/5.0'}
-          for page in pages:
-            print('\n===== PAGE',page,'=====')
-            try:
-              req=urllib.request.Request(page,headers=hdr)
-              html=urllib.request.urlopen(req,timeout=30).read().decode('utf-8','ignore')
-              print('HTML_LEN',len(html))
-              for m in re.finditer(r'<form[^>]*>', html, re.I):
-                print('FORM',m.group(0)[:800])
-              for n in needles:
-                i=html.lower().find(n.lower())
-                if i>=0:
-                  print('HTML_MATCH',n,html[max(0,i-300):i+700].replace('\n',' ')[:1200])
-              srcs=re.findall(r'<script[^>]+src=["\']([^"\']+)["\']',html,re.I)
-              print('SCRIPTS',len(srcs))
-              seen=0
-              for src in srcs:
-                jsurl=urllib.parse.urljoin(page,src)
-                try:
-                  js=urllib.request.urlopen(urllib.request.Request(jsurl,headers=hdr),timeout=20).read().decode('utf-8','ignore')
-                except Exception:
-                  continue
-                low=js.lower()
-                hits=[]
-                for n in needles:
-                  pos=low.find(n.lower())
-                  if pos>=0: hits.append((pos,n))
-                if hits:
-                  pos,n=min(hits)
-                  print('JS',jsurl,'MATCH',n,'LEN',len(js))
-                  print(js[max(0,pos-1000):pos+1800].replace('\n',' ')[:3000])
-                  seen+=1
-                  if seen>=8: break
-            except Exception as e:
-              print('ERROR',repr(e))
+          s=open('/tmp/influzer.js',encoding='utf-8',errors='ignore').read()
+          print('LEN',len(s))
+          for needle in ['fetch(', '/mcp/', '/api/', 'submitter_email', 'credentials']:
+            start=0
+            while True:
+              i=s.find(needle,start)
+              if i<0: break
+              print('MATCH',needle, s[max(0,i-500):i+1200].replace('\n',' ')[:1800])
+              start=i+len(needle)
           PY
