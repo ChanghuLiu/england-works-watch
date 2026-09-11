@@ -1,0 +1,32 @@
+name: Distribution API probe
+
+on:
+  push:
+    branches:
+      - distribution-probe-2026-09-11
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe VaultPlane submission schema
+        shell: bash
+        run: |
+          set +e
+          echo '=== VAULTPLANE ==='
+          curl -sS -i -X POST 'https://www.vaultplane.com/api/servers/submit' \
+            -H 'Content-Type: application/json' \
+            --data '{}'
+          echo
+      - name: Probe ServerHub submission schema
+        shell: bash
+        run: |
+          set +e
+          echo '=== SERVERHUB ==='
+          curl -sS -i -X POST 'https://www.serverhub.digital/api/submit' \
+            -H 'Content-Type: application/json' \
+            --data '{}'
+          echo
