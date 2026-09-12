@@ -11,7 +11,12 @@ from starlette.responses import JSONResponse, PlainTextResponse, Response
 
 from .analytics import record, summary
 from .policy import RULES, assess_change_impact as decide
-from .selection_metadata import SERVER_SELECTION_DESCRIPTION
+from .selection_metadata import (
+    FREE_PAID_BOUNDARY,
+    PAID_RESULT_PREVIEW,
+    PAYMENT_GUIDANCE,
+    SERVER_SELECTION_DESCRIPTION,
+)
 from .source_runtime import ensure_runtime_seeded, production_source_status, start_background_source_monitor
 from .x402_gate import MCP2X402Gate, PaidToolSpec, invoke, meta_to_dict
 
@@ -101,6 +106,14 @@ def _payment_info() -> dict[str, Any]:
     return result
 
 
+def _value_preview() -> dict[str, Any]:
+    return {
+        "free_paid_boundary": FREE_PAID_BOUNDARY,
+        "example_paid_result": PAID_RESULT_PREVIEW,
+        "payment_guidance": PAYMENT_GUIDANCE,
+    }
+
+
 def _server_card() -> dict[str, Any]:
     return {
         "name": "England Works Watch",
@@ -121,6 +134,7 @@ def _server_card() -> dict[str, Any]:
         },
         "evidence": "Official GOV.UK sponsor guidance with persistent semantic fingerprints and fail-closed review state.",
         "payment": _payment_info(),
+        "value_preview": _value_preview(),
         "safety": "Evidence-first sponsor compliance preflight; not legal advice or a Home Office decision.",
     }
 
@@ -146,6 +160,7 @@ def england_works_watch_info(ctx: Context) -> dict[str, Any]:
                 "openapi": f"{PUBLIC_ORIGIN}/openapi.json",
             },
             "not_legal_advice": True,
+            "value_preview": _value_preview(),
         },
         billable=False,
         meta=_meta(ctx),
@@ -225,7 +240,7 @@ if PAYMENT_ENFORCED:
         PaidToolSpec(
             "assess_change_impact",
             PRICE_ASSESS,
-            "Official-source-backed Skilled Worker sponsor change-impact preflight.",
+            "Official-source-backed single Skilled Worker sponsor change-impact decision. Returns an evidence-linked rationale, required action/deadline fields, and explicit review or missing-input state. x402 Base mainnet USDC: sign buyer-side and retry this same tool with payment metadata.",
         ),
         _assess,
     )
@@ -233,7 +248,7 @@ if PAYMENT_ENFORCED:
         PaidToolSpec(
             "batch_assess_changes",
             PRICE_BATCH,
-            "Batch Skilled Worker sponsor change-impact preflight for up to 25 events.",
+            "Batch Skilled Worker sponsor change-impact decisions for up to 25 events, with evidence-linked per-event results and outcome counts. x402 Base mainnet USDC: sign buyer-side and retry this same tool with payment metadata.",
         ),
         _batch,
     )
@@ -282,6 +297,7 @@ async def product_page(_request):
             "mcp": PUBLIC_MCP_URL,
             "source_gate": source["coverage_complete"],
             "payment": _payment_info(),
+            "value_preview": _value_preview(),
             "docs": f"{PUBLIC_ORIGIN}/llms.txt",
         }
     )
@@ -366,6 +382,9 @@ async def llms(_request):
         "Free MCP tools: england_works_watch_info, licensing_source_status, list_supported_change_events.\n"
         f"Paid: assess_change_impact {PRICE_ASSESS}; batch_assess_changes {PRICE_BATCH}.\n"
         "Use when an employer/HR/HRIS Agent needs deterministic evidence-backed sponsor change impact.\n"
+        "Free vs paid: free tools provide scope, source status and supported-event vocabulary; paid tools return a deterministic decision with evidence-linked rationale, required action/deadline fields, and explicit review or missing-input state.\n"
+        "Example paid result (synthetic shape only): unauthorised_absence, Skilled Worker, 11 consecutive working days -> a response containing status, decision_code, rationale, required_actions, deadline, missing_inputs, review_reasons, affected_rules and disclaimer.\n"
+        f"Payment guidance: x402 PaymentRequired -> sign buyer-side Base mainnet USDC ({NETWORK}) -> retry the same paid tool with payment metadata. If payment or settlement is not verified, the paid decision is not executed.\n"
         "Decision arguments use a top-level payload object containing structured change facts.\n"
         "Official GOV.UK evidence is fingerprinted continuously; changed/stale evidence fails closed.\n"
         "Never treat REVIEW_REQUIRED or INSUFFICIENT_INPUT as clearance. Not legal advice.\n"

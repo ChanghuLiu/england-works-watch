@@ -41,6 +41,8 @@ Production transport is stateless Streamable HTTP at `/mcp`.
 
 Base mainnet `eip155:8453`, USDC, exact scheme, PayAI facilitator. `assess_change_impact` is `$0.02`; `batch_assess_changes` is `$0.05`. Payment is controlled by `EWW_PAYMENT_ENFORCED`; when enabled `EWW_X402_PAY_TO` is mandatory.
 
+The free tools provide scope, supported-event vocabulary and official-source status. Paid tools add a deterministic change decision, evidence-linked rationale, required action/deadline fields, and explicit `REVIEW_REQUIRED` or `INSUFFICIENT_INPUT` states. At the x402 boundary, call the paid tool to receive `PaymentRequired`, sign the accepted Base-USDC authorization buyer-side, then retry the same tool call with payment metadata. The decision is not executed until payment is verified. The public `england_works_watch_info` tool includes a synthetic example result shape. Never send private keys or seed phrases.
+
 ## Public discovery
 
 `/health`, `/mcp`, `/openapi.json`, `/llms.txt`, `/.well-known/x402`, `/.well-known/mcp/server-card.json`, `/analytics/summary`.

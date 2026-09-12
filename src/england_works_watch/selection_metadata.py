@@ -13,11 +13,71 @@ SERVER_SELECTION_DESCRIPTION = (
     "Not individual visa advice or a Home Office decision."
 )
 
+PAID_RESULT_PREVIEW: dict[str, Any] = {
+    "label": "Example paid result",
+    "scenario": {
+        "event_type": "unauthorised_absence",
+        "route": "skilled_worker",
+        "consecutive_working_days": 11,
+        "synthetic": True,
+    },
+    "decision_shape": {
+        "status": "AFFECTED | NOT_AFFECTED | REVIEW_REQUIRED | INSUFFICIENT_INPUT",
+        "decision_code": "for example, EW-ABS-REPORT",
+        "event_type": "the supplied supported event type",
+        "scope": "UK Skilled Worker sponsor duties and sponsor change-impact preflight only",
+        "rule_pack_version": "version-bound rule pack",
+        "effective_date": "rule-pack effective date",
+        "rationale": ["evidence-linked explanation"],
+        "required_actions": ["next sponsor action when applicable"],
+        "deadline": {"working_days": "when applicable", "trigger": "event-specific trigger"},
+        "missing_inputs": [],
+        "review_reasons": [],
+        "affected_rules": [
+            {"rule_id": "SPONSOR-ABSENCE-10", "source_id": "sponsor-part3", "locator": "C1.15", "version": "08/26"}
+        ],
+        "disclaimer": "Evidence-first sponsor compliance preflight. Not legal advice.",
+    },
+    "review_example": {
+        "status": "REVIEW_REQUIRED",
+        "review_reasons": ["source_not_current or an unresolved input conflict"],
+        "required_actions": ["review the blocking evidence or supply the missing facts"],
+    },
+    "value": "The paid decision adds a deterministic outcome, evidence-linked rationale, required action/deadline fields, and an explicit fail-closed review state. Free tools provide scope, supported-event vocabulary, and source lifecycle status; they do not return a change-impact decision.",
+}
+
+FREE_PAID_BOUNDARY: dict[str, Any] = {
+    "free": [
+        "england_works_watch_info: scope, supported events, price and payment metadata",
+        "licensing_source_status: official-source freshness and review state",
+        "list_supported_change_events: supported sponsor-change vocabulary",
+    ],
+    "paid": [
+        "assess_change_impact: one structured sponsor-change decision",
+        "batch_assess_changes: 1-25 structured sponsor-change decisions",
+    ],
+    "paid_adds": "Free tools do not return a change-impact decision. Paid tools add a deterministic AFFECTED, NOT_AFFECTED, REVIEW_REQUIRED, or INSUFFICIENT_INPUT result with evidence-linked rationale and next-action fields.",
+}
+
+PAYMENT_GUIDANCE: dict[str, Any] = {
+    "label": "x402 payment guidance",
+    "network": "Base mainnet (eip155:8453)",
+    "token": "USDC",
+    "steps": [
+        "Call the paid tool without payment metadata to receive the x402 PaymentRequired challenge.",
+        "Review the amount and sign the accepted Base-USDC authorization buyer-side.",
+        "Retry the same paid tool call with the payment metadata.",
+        "The service verifies payment before returning the deterministic decision.",
+    ],
+    "not_completed": "If payment is not completed or settlement is not verified, the paid decision is not executed; follow the returned challenge or payment error guidance.",
+    "security": "Never send private keys or seed phrases to this service. Wallet compatibility is determined by the buyer runtime and its x402 support.",
+}
+
 TOOL_SELECTION_DESCRIPTIONS: dict[str, str] = {
     "england_works_watch_info": (
         "Free product information. Use for service scope, what England Works Watch does, pricing, cost, x402 network, "
         "payment, MCP endpoint, discovery metadata, or legal-advice disclaimer. Not for source freshness, supported-event "
-        "lists, or change decisions."
+        "lists, or change decisions. See the Example paid result and x402 payment guidance for the paid boundary."
     ),
     "licensing_source_status": (
         "Free GOV.UK evidence source status. Use for current guidance, source freshness, stale sources, changed "
@@ -37,13 +97,15 @@ TOOL_SELECTION_DESCRIPTIONS: dict[str, str] = {
         "including questions such as 'Does moving one sponsored worker to permanent home working trigger reporting?', "
         "whether Home Office/UKVI sponsor reporting is triggered, whether it is AFFECTED/NOT_AFFECTED, what the sponsor "
         "must do, or required actions. Handles one absence, salary, role or occupation-code, remote/home/work-location, "
-        "delayed-start, stop-sponsoring/worker-departure, organisation, TUPE, merger, or takeover event. x402 USDC. "
-        "Not multiple events."
+        "delayed-start, stop-sponsoring/worker-departure, organisation, TUPE, merger, or takeover event. Returns an "
+        "evidence-linked rationale, required action/deadline fields, and explicit review or missing-input state. "
+        "Payment: x402 Base mainnet USDC; sign buyer-side and retry this same tool with payment metadata. Not multiple events."
     ),
     "batch_assess_changes": (
         "Paid batch/multiple-event change decision for 1-25 events. Use for a list, batch, set, several, many, multiple, "
         "5, 8, 20 or other collection of sponsor changes; evaluate them together and return per-event results plus "
-        "outcome counts. x402 USDC. Not for one event."
+        "outcome counts. Payment: x402 Base mainnet USDC; sign buyer-side and retry this same tool with payment metadata. "
+        "Not for one event."
     ),
 }
 
