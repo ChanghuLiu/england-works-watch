@@ -10,6 +10,7 @@ from typing import Any, Awaitable, Callable
 from uuid import uuid4
 
 from .analytics import record_discovery
+from .attribution import source_bucket_from_query
 
 UTC = timezone.utc
 EVENT_VERSION = 2
@@ -225,9 +226,19 @@ class DiscoveryEcosystemASGI:
             except Exception:
                 ua = ""
             classified = classify_source(ua, surface)
+            query_bytes = scope.get("query_string", b"")
+            query = query_bytes.decode("ascii", errors="ignore") if isinstance(query_bytes, bytes) else ""
+            # A source parameter is accepted only as a bounded discovery bucket.
+            # The raw query is never passed to storage.
+            has_source_parameter = "src=" in query.lower()
+            recorded_discovery = False
+            if has_source_parameter and method == "GET" and path != "/mcp":
+                record_discovery(path, query=query)
+                recorded_discovery = True
             if classified and not _owner(headers) and classified[1] != "owner_monitor":
                 if path != "/mcp" or method in {"GET", "HEAD"} or classified[0] != "unknown_machine":
-                    record_discovery(path)
+                    if not recorded_discovery:
+                        record_discovery(path, query=query)
                     record_ecosystem(surface, classified[0], classified[1])
 
         if scope.get("type") != "http" or path != "/metrics":

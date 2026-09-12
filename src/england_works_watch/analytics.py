@@ -8,6 +8,8 @@ import os
 import re
 import sqlite3
 
+from .attribution import external_classification, normalize_source_bucket, source_bucket_from_query, source_context_from_meta
+
 UTC = timezone.utc
 BUSINESS_TOOLS = {"assess_change_impact", "batch_assess_changes"}
 FREE_TOOLS = {"england_works_watch_info", "licensing_source_status", "list_supported_change_events"}
@@ -42,6 +44,16 @@ def _db():
         "latency_ms REAL"
         ")"
     )
+    for column, definition in (
+        ("event_type", "TEXT NOT NULL DEFAULT 'unknown'"),
+        ("source_bucket", "TEXT NOT NULL DEFAULT 'unknown'"),
+        ("external_classification", "TEXT NOT NULL DEFAULT 'unknown'"),
+        ("owner_test", "INTEGER NOT NULL DEFAULT 0"),
+        ("deployment_revision", "TEXT NOT NULL DEFAULT 'unknown'"),
+    ):
+        existing = {row[1] for row in c.execute("PRAGMA table_info(events)")}
+        if column not in existing:
+            c.execute(f"ALTER TABLE events ADD COLUMN {column} {definition}")
     c.commit()
     return c
 
@@ -93,12 +105,27 @@ def record(
     payment_state: str | None = None,
     meta: dict[str, Any] | None = None,
     latency_ms: float | None = None,
+    event_type: str | None = None,
+    source_context: Any = None,
+    owner_test_marker: Any = None,
 ):
+    meta = dict(meta or {})
+    if source_context is not None:
+        meta["source_context"] = source_context
+    if owner_test_marker is not None:
+        meta["owner_test_marker"] = owner_test_marker
     actor, client = classify_actor(meta)
+    classification, owner_test = external_classification(meta, actor=actor)
+    if event_type is None:
+        event_type = "free_business_call" if not billable else {
+            "challenge": "paid_challenge",
+            "paid_executed": "paid_executed",
+        }.get(payment_state or "", "paid_executed")
+    revision = (os.getenv("RAILWAY_GIT_COMMIT_SHA") or os.getenv("EWW_DEPLOY_REV") or "unknown").strip() or "unknown"
     with _db() as c:
         c.execute(
-            "INSERT INTO events(occurred_at,tool,outcome,billable,payment_state,actor_class,declared_client,latency_ms) "
-            "VALUES(?,?,?,?,?,?,?,?)",
+            "INSERT INTO events(occurred_at,tool,outcome,billable,payment_state,actor_class,declared_client,latency_ms,event_type,source_bucket,external_classification,owner_test,deployment_revision) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
                 tool,
@@ -108,11 +135,16 @@ def record(
                 actor,
                 client,
                 latency_ms,
+                event_type,
+                source_context_from_meta(meta),
+                classification,
+                int(owner_test),
+                revision,
             ),
         )
 
 
-def record_discovery(route: str) -> None:
+def record_discovery(route: str, *, query: str | None = None) -> None:
     """Persist one public machine-discovery surface hit without request identity.
 
     Deliberately stores only the normalized route name. No IP, user-agent,
@@ -121,7 +153,7 @@ def record_discovery(route: str) -> None:
     """
     normalized = _safe(route, 120) or "unknown"
     try:
-        record(DISCOVERY_TOOL, normalized, billable=False)
+        record(DISCOVERY_TOOL, normalized, billable=False, event_type="discovery_observed", source_context=source_bucket_from_query(query))
     except sqlite3.Error:
         # Observability must never break a discovery response.
         pass
@@ -139,7 +171,7 @@ def _load_rows(hours: int | None = None):
     try:
         with _db() as c:
             rows = c.execute(
-                "SELECT occurred_at,tool,outcome,billable,payment_state,actor_class,declared_client,latency_ms "
+                "SELECT occurred_at,tool,outcome,billable,payment_state,actor_class,declared_client,latency_ms,event_type,source_bucket,external_classification,owner_test,deployment_revision "
                 "FROM events ORDER BY id ASC"
             ).fetchall()
     except sqlite3.Error:
@@ -167,6 +199,11 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
             "actor": _effective_actor(row[5], row[6]),
             "client": _safe(row[6]),
             "latency_ms": row[7],
+            "event_type": row[8] or "unknown",
+            "source_bucket": normalize_source_bucket(row[9]),
+            "external_classification": row[10] or "unknown",
+            "owner_test": bool(row[11]),
+            "deployment_revision": row[12] or "unknown",
         }
         for row in rows
     ]
@@ -198,6 +235,13 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
         state = row["payment_state"]
         bucket[state] = bucket.get(state, 0) + 1
 
+    source_attribution: dict[str, dict[str, int]] = {}
+    for row in normalized:
+        source = row["source_bucket"]
+        bucket = source_attribution.setdefault(source, {})
+        event_type = row["event_type"]
+        bucket[event_type] = bucket.get(event_type, 0) + 1
+
     return {
         "hours": hours,
         "total_events": len(normalized),
@@ -206,6 +250,7 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
         "discovery_by_route": dict(discovery_by_route),
         "paid_funnel": dict(paid_funnel),
         "paid_funnel_by_actor": paid_funnel_by_actor,
+        "source_attribution": source_attribution,
         "commercial_funnel": {
             "discovery": {
                 "raw": len(discovery_rows),
