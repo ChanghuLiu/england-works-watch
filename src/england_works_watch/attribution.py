@@ -23,32 +23,38 @@ PAYMENT_STATUSES = frozenset({"not_applicable", "challenged", "paid", "payment_e
 
 class SourceContext(str):
     request_id: str | None
+    declared_client: str | None
+    declared_client_version: str | None
 
-    def __new__(cls, value: str, request_id: str | None = None):
+    def __new__(
+        cls,
+        value: str,
+        request_id: str | None = None,
+        declared_client: str | None = None,
+        declared_client_version: str | None = None,
+    ):
         obj = str.__new__(cls, value)
         obj.request_id = request_id
+        obj.declared_client = declared_client
+        obj.declared_client_version = declared_client_version
         return obj
 
 
 def _safe_token(value: Any, max_length: int = 96) -> str | None:
-    if not isinstance(value, str):
-        return None
+    if not isinstance(value, str): return None
     candidate = value.strip()
-    if not candidate:
-        return None
+    if not candidate: return None
     return re.sub(r"[^A-Za-z0-9._:/+@-]", "_", candidate)[:max_length] or None
 
 
 def normalize_source_bucket(value: Any) -> str:
-    if not isinstance(value, str):
-        return "unknown"
+    if not isinstance(value, str): return "unknown"
     value = value.strip().lower()
     return value if value in SOURCE_BUCKETS else "unknown"
 
 
 def source_bucket_from_query(query: Any) -> str:
-    if not isinstance(query, str):
-        return "unknown"
+    if not isinstance(query, str): return "unknown"
     values = parse_qs(query, keep_blank_values=True).get("src", [])
     return normalize_source_bucket(values[0] if values else None)
 
@@ -57,9 +63,14 @@ def request_id_from_meta(meta: Mapping[str, Any] | None, *, fallback: Any = None
     meta = meta or {}
     for key in ("commercial/request_id", "request_id", "requestId", "x-request-id"):
         value = _safe_token(meta.get(key))
-        if value:
-            return value
+        if value: return value
     return _safe_token(fallback) or uuid4().hex
+
+
+def _declared_client_from_meta(meta: Mapping[str, Any]) -> tuple[str | None, str | None]:
+    client = meta.get("io.modelcontextprotocol/clientInfo")
+    if not isinstance(client, Mapping): return None, None
+    return _safe_token(client.get("name"), 80), _safe_token(client.get("version"), 32)
 
 
 def source_context_from_meta(meta: Mapping[str, Any] | None) -> SourceContext:
@@ -67,9 +78,9 @@ def source_context_from_meta(meta: Mapping[str, Any] | None) -> SourceContext:
     explicit_request_id = None
     for key in ("commercial/request_id", "request_id", "requestId", "x-request-id"):
         explicit_request_id = _safe_token(meta.get(key))
-        if explicit_request_id:
-            break
-    return SourceContext(normalize_source_bucket(meta.get("source_context")), explicit_request_id)
+        if explicit_request_id: break
+    client, client_version = _declared_client_from_meta(meta)
+    return SourceContext(normalize_source_bucket(meta.get("source_context")), explicit_request_id, client, client_version)
 
 
 def payment_status_for_event(event_type: Any, *, outcome: Any = None) -> str:
@@ -81,17 +92,13 @@ def payment_status_for_event(event_type: Any, *, outcome: Any = None) -> str:
     if normalized_type == "paid_challenge": return "challenged"
     if normalized_type == "paid_executed": return "paid"
     if normalized_type in {"payment_error", "paid_error"}: return "payment_error"
-    if normalized_type in {
-        "discovery_observed", "mcp_initialize", "tools_list", "free_business_call",
-        "tool_call", "business_tool_call",
-    }: return "not_applicable"
+    if normalized_type in {"discovery_observed", "mcp_initialize", "tools_list", "free_business_call", "tool_call", "business_tool_call"}: return "not_applicable"
     return "unknown"
 
 
 def normalize_payment_status(value: Any, *, event_type: Any = None, outcome: Any = None) -> str:
     candidate = str(value or "").strip().lower()
-    if candidate in PAYMENT_STATUSES:
-        return candidate
+    if candidate in PAYMENT_STATUSES: return candidate
     return payment_status_for_event(event_type, outcome=outcome)
 
 
@@ -105,41 +112,30 @@ def owner_test_from_meta(meta: Mapping[str, Any] | None, *, deployment_mode: Any
 
 def external_classification(meta: Mapping[str, Any] | None, *, actor: str | None = None) -> tuple[str, bool]:
     owner_test = owner_test_from_meta(meta)
-    if owner_test:
-        return "owner_test", True
+    if owner_test: return "owner_test", True
     effective_actor = actor or str((meta or {}).get("englandworkswatch/actor") or "").strip().lower()
-    if effective_actor == "declared_external":
-        return "confirmed_external", False
+    if effective_actor == "declared_external": return "confirmed_external", False
     return "unknown", False
 
 
 def make_event(
-    *,
-    product_id: str,
-    event_type: str,
-    deployment_revision: str,
-    source_context: Any = None,
-    external: str = "unknown",
-    owner_test: bool = False,
-    timestamp: Any = None,
-    request_id: Any = None,
-    payment_status: Any = None,
-    outcome: Any = None,
-    tool_name: Any = None,
-    declared_client: Any = None,
-    declared_client_name: Any = None,
-    declared_client_version: Any = None,
+    *, product_id: str, event_type: str, deployment_revision: str,
+    source_context: Any = None, external: str = "unknown", owner_test: bool = False,
+    timestamp: Any = None, request_id: Any = None, payment_status: Any = None,
+    outcome: Any = None, tool_name: Any = None, declared_client: Any = None,
+    declared_client_name: Any = None, declared_client_version: Any = None,
 ) -> dict[str, Any]:
     """Build the additive cross-product attribution envelope."""
-    if owner_test:
-        external = "owner_test"
-    if external not in {"confirmed_external", "owner_test", "unknown"}:
-        external = "unknown"
+    if owner_test: external = "owner_test"
+    if external not in {"confirmed_external", "owner_test", "unknown"}: external = "unknown"
     timestamp = timestamp or datetime.now(UTC).isoformat().replace("+00:00", "Z")
     carried_request_id = request_id or getattr(source_context, "request_id", None)
-    client = _safe_token(declared_client if declared_client is not None else declared_client_name, 80)
-    normalized_outcome = _safe_token(str(outcome).upper(), 64) if outcome is not None else None
-    return {
+    client_candidate = declared_client if declared_client is not None else declared_client_name
+    if client_candidate is None: client_candidate = getattr(source_context, "declared_client", None)
+    client_version_candidate = declared_client_version
+    if client_version_candidate is None: client_version_candidate = getattr(source_context, "declared_client_version", None)
+    client = _safe_token(client_candidate, 80)
+    event = {
         "schema_version": EVENT_SCHEMA_VERSION,
         "product_id": _safe_token(product_id, 40) or "unknown",
         "event_type": _safe_token(event_type, 64) or "unknown",
@@ -151,8 +147,9 @@ def make_event(
         "request_id": request_id_from_meta(None, fallback=carried_request_id),
         "declared_client": client,
         "declared_client_name": client,
-        "declared_client_version": _safe_token(declared_client_version, 32),
-        "tool_name": _safe_token(tool_name, 128),
-        "outcome": normalized_outcome,
+        "declared_client_version": _safe_token(client_version_candidate, 32),
         "payment_status": normalize_payment_status(payment_status, event_type=event_type, outcome=outcome),
     }
+    if tool_name is not None: event["tool_name"] = _safe_token(tool_name, 128)
+    if outcome is not None: event["outcome"] = _safe_token(str(outcome).upper(), 64)
+    return event
