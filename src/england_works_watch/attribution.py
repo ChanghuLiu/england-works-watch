@@ -20,6 +20,15 @@ OWNER_TEST_MODES = frozenset({"test", "staging", "acceptance", "owner_probe"})
 PAYMENT_STATUSES = frozenset({"not_applicable", "challenged", "paid", "payment_error", "unknown"})
 
 
+class SourceContext(str):
+    request_id: str | None
+
+    def __new__(cls, value: str, request_id: str | None = None):
+        obj = str.__new__(cls, value)
+        obj.request_id = request_id
+        return obj
+
+
 def _safe_token(value: Any, max_length: int = 96) -> str | None:
     if not isinstance(value, str):
         return None
@@ -43,13 +52,7 @@ def source_bucket_from_query(query: Any) -> str:
     return normalize_source_bucket(values[0] if values else None)
 
 
-def source_context_from_meta(meta: Mapping[str, Any] | None) -> str:
-    meta = meta or {}
-    return normalize_source_bucket(meta.get("source_context"))
-
-
 def request_id_from_meta(meta: Mapping[str, Any] | None, *, fallback: Any = None) -> str:
-    """Return a privacy-safe correlation id without retaining arbitrary metadata."""
     meta = meta or {}
     for key in ("commercial/request_id", "request_id", "requestId", "x-request-id"):
         value = _safe_token(meta.get(key))
@@ -58,23 +61,26 @@ def request_id_from_meta(meta: Mapping[str, Any] | None, *, fallback: Any = None
     return _safe_token(fallback) or uuid4().hex
 
 
+def source_context_from_meta(meta: Mapping[str, Any] | None) -> SourceContext:
+    meta = meta or {}
+    explicit_request_id = None
+    for key in ("commercial/request_id", "request_id", "requestId", "x-request-id"):
+        explicit_request_id = _safe_token(meta.get(key))
+        if explicit_request_id:
+            break
+    return SourceContext(normalize_source_bucket(meta.get("source_context")), explicit_request_id)
+
+
 def payment_status_for_event(event_type: Any, *, outcome: Any = None) -> str:
     normalized_outcome = str(outcome or "").strip().upper()
-    if normalized_outcome == "CHALLENGE":
-        return "challenged"
-    if normalized_outcome == "PAID_EXECUTED":
-        return "paid"
-    if normalized_outcome == "PAYMENT_ERROR":
-        return "payment_error"
+    if normalized_outcome == "CHALLENGE": return "challenged"
+    if normalized_outcome == "PAID_EXECUTED": return "paid"
+    if normalized_outcome == "PAYMENT_ERROR": return "payment_error"
     normalized_type = str(event_type or "").strip().lower()
-    if normalized_type == "paid_challenge":
-        return "challenged"
-    if normalized_type == "paid_executed":
-        return "paid"
-    if normalized_type in {"payment_error", "paid_error"}:
-        return "payment_error"
-    if normalized_type in {"discovery_observed", "free_business_call", "tool_call", "business_tool_call"}:
-        return "not_applicable"
+    if normalized_type == "paid_challenge": return "challenged"
+    if normalized_type == "paid_executed": return "paid"
+    if normalized_type in {"payment_error", "paid_error"}: return "payment_error"
+    if normalized_type in {"discovery_observed", "free_business_call", "tool_call", "business_tool_call"}: return "not_applicable"
     return "unknown"
 
 
@@ -114,6 +120,7 @@ def make_event(*, product_id: str, event_type: str, deployment_revision: str,
         external = "unknown"
     if timestamp is None:
         timestamp = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    carried_request_id = request_id or getattr(source_context, "request_id", None)
     return {
         "product_id": product_id,
         "event_type": event_type,
@@ -122,6 +129,6 @@ def make_event(*, product_id: str, event_type: str, deployment_revision: str,
         "owner_test": bool(owner_test),
         "deployment_revision": str(deployment_revision or "unknown").strip() or "unknown",
         "timestamp": str(timestamp),
-        "request_id": request_id_from_meta(None, fallback=request_id),
+        "request_id": request_id_from_meta(None, fallback=carried_request_id),
         "payment_status": normalize_payment_status(payment_status, event_type=event_type, outcome=outcome),
     }
