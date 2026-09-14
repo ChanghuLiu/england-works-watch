@@ -8,7 +8,14 @@ import os
 import re
 import sqlite3
 
-from .attribution import external_classification, normalize_source_bucket, source_bucket_from_query, source_context_from_meta
+from .attribution import (
+    external_classification,
+    normalize_payment_status,
+    normalize_source_bucket,
+    request_id_from_meta,
+    source_bucket_from_query,
+    source_context_from_meta,
+)
 
 UTC = timezone.utc
 BUSINESS_TOOLS = {"assess_change_impact", "batch_assess_changes"}
@@ -44,14 +51,16 @@ def _db():
         "latency_ms REAL"
         ")"
     )
+    existing = {row[1] for row in c.execute("PRAGMA table_info(events)")}
     for column, definition in (
         ("event_type", "TEXT NOT NULL DEFAULT 'unknown'"),
         ("source_bucket", "TEXT NOT NULL DEFAULT 'unknown'"),
         ("external_classification", "TEXT NOT NULL DEFAULT 'unknown'"),
         ("owner_test", "INTEGER NOT NULL DEFAULT 0"),
         ("deployment_revision", "TEXT NOT NULL DEFAULT 'unknown'"),
+        ("request_id", "TEXT"),
+        ("payment_status", "TEXT NOT NULL DEFAULT 'unknown'"),
     ):
-        existing = {row[1] for row in c.execute("PRAGMA table_info(events)")}
         if column not in existing:
             c.execute(f"ALTER TABLE events ADD COLUMN {column} {definition}")
     c.commit()
@@ -65,11 +74,7 @@ def _safe(v: Any, max_len: int = 80):
 
 
 def _owned_client_names() -> set[str]:
-    extra = {
-        item.strip()
-        for item in os.getenv("EWW_OWNED_CLIENT_NAMES", "").split(",")
-        if item.strip()
-    }
+    extra = {item.strip() for item in os.getenv("EWW_OWNED_CLIENT_NAMES", "").split(",") if item.strip()}
     return DEFAULT_OWNED_CLIENT_NAMES | extra
 
 
@@ -120,12 +125,25 @@ def record(
         event_type = "free_business_call" if not billable else {
             "challenge": "paid_challenge",
             "paid_executed": "paid_executed",
+            "payment_error": "payment_error",
         }.get(payment_state or "", "paid_executed")
     revision = (os.getenv("RAILWAY_GIT_COMMIT_SHA") or os.getenv("EWW_DEPLOY_REV") or "unknown").strip() or "unknown"
+    correlation_id = request_id_from_meta(meta)
+    payment_status = normalize_payment_status(
+        None,
+        event_type=event_type,
+        outcome={
+            "challenge": "CHALLENGE",
+            "paid_executed": "PAID_EXECUTED",
+            "payment_error": "PAYMENT_ERROR",
+        }.get(payment_state or "", None),
+    )
     with _db() as c:
         c.execute(
-            "INSERT INTO events(occurred_at,tool,outcome,billable,payment_state,actor_class,declared_client,latency_ms,event_type,source_bucket,external_classification,owner_test,deployment_revision) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            """INSERT INTO events(
+            occurred_at,tool,outcome,billable,payment_state,actor_class,declared_client,latency_ms,
+            event_type,source_bucket,external_classification,owner_test,deployment_revision,request_id,payment_status
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
                 tool,
@@ -140,22 +158,24 @@ def record(
                 classification,
                 int(owner_test),
                 revision,
+                correlation_id,
+                payment_status,
             ),
         )
 
 
 def record_discovery(route: str, *, query: str | None = None) -> None:
-    """Persist one public machine-discovery surface hit without request identity.
-
-    Deliberately stores only the normalized route name. No IP, user-agent,
-    query string, headers, or cookies are retained, so these events measure raw
-    discovery activity but never claim a confirmed external customer.
-    """
+    """Persist one privacy-minimal public machine-discovery observation."""
     normalized = _safe(route, 120) or "unknown"
     try:
-        record(DISCOVERY_TOOL, normalized, billable=False, event_type="discovery_observed", source_context=source_bucket_from_query(query))
+        record(
+            DISCOVERY_TOOL,
+            normalized,
+            billable=False,
+            event_type="discovery_observed",
+            source_context=source_bucket_from_query(query),
+        )
     except sqlite3.Error:
-        # Observability must never break a discovery response.
         pass
 
 
@@ -171,8 +191,9 @@ def _load_rows(hours: int | None = None):
     try:
         with _db() as c:
             rows = c.execute(
-                "SELECT occurred_at,tool,outcome,billable,payment_state,actor_class,declared_client,latency_ms,event_type,source_bucket,external_classification,owner_test,deployment_revision "
-                "FROM events ORDER BY id ASC"
+                """SELECT occurred_at,tool,outcome,billable,payment_state,actor_class,declared_client,latency_ms,
+                event_type,source_bucket,external_classification,owner_test,deployment_revision,request_id,payment_status
+                FROM events ORDER BY id ASC"""
             ).fetchall()
     except sqlite3.Error:
         return []
@@ -204,6 +225,8 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
             "external_classification": row[10] or "unknown",
             "owner_test": bool(row[11]),
             "deployment_revision": row[12] or "unknown",
+            "request_id": _safe(row[13], 96),
+            "payment_status": row[14] or "unknown",
         }
         for row in rows
     ]
@@ -218,15 +241,14 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
     external_challenge = [row for row in challenge_rows if row["actor"] == "declared_external"]
     external_executed = [row for row in executed_rows if row["actor"] == "declared_external"]
 
-    paid_by_external_client = Counter(
-        row["client"] for row in external_executed if row["client"]
-    )
+    paid_by_external_client = Counter(row["client"] for row in external_executed if row["client"])
     repeat_clients = {name: count for name, count in paid_by_external_client.items() if count >= 2}
     repeat_integrations = len(repeat_clients)
     repeat_executions = sum(count - 1 for count in repeat_clients.values())
 
     by_actor = Counter(row["actor"] for row in normalized)
     by_tool = Counter(row["tool"] for row in normalized)
+    by_payment_status = Counter(row["payment_status"] for row in normalized)
     discovery_by_route = Counter(row["outcome"] for row in discovery_rows)
     paid_funnel = Counter(row["payment_state"] for row in paid_rows)
     paid_funnel_by_actor: dict[str, dict[str, int]] = {}
@@ -239,14 +261,15 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
     for row in normalized:
         source = row["source_bucket"]
         bucket = source_attribution.setdefault(source, {})
-        event_type = row["event_type"]
-        bucket[event_type] = bucket.get(event_type, 0) + 1
+        event_name = row["event_type"]
+        bucket[event_name] = bucket.get(event_name, 0) + 1
 
     return {
         "hours": hours,
         "total_events": len(normalized),
         "by_tool": dict(by_tool),
         "by_actor_class": dict(by_actor),
+        "by_payment_status": dict(by_payment_status),
         "discovery_by_route": dict(discovery_by_route),
         "paid_funnel": dict(paid_funnel),
         "paid_funnel_by_actor": paid_funnel_by_actor,
@@ -256,13 +279,13 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
                 "raw": len(discovery_rows),
                 "confirmed_external": None,
                 "measured": True,
-                "note": "Privacy-minimal hits to machine capability/discovery routes. No IP/UA/query data is stored, so raw discovery is not a customer count.",
+                "note": "Privacy-minimal machine discovery observations; raw discovery is not a customer count.",
             },
             "free_business_call": {
                 "raw": len(free_rows),
                 "confirmed_external": len(external_free),
                 "measured": True,
-                "note": "Free MCP info/source/event calls; confirmed external requires a non-owned declared software identity.",
+                "note": "Confirmed external requires a non-owned declared software identity.",
             },
             "paid_challenge": {
                 "raw": len(challenge_rows),
@@ -281,14 +304,15 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
                 "confirmed_external": repeat_integrations,
                 "measured": True,
                 "repeat_executions_beyond_first": repeat_executions,
-                "note": "Count of non-owned declared software integrations with at least two successful paid executions in the window.",
+                "note": "Non-owned declared software integrations with at least two successful paid executions.",
             },
         },
         "payment_errors": len(payment_error_rows),
         "privacy": (
-            "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or query strings are stored. "
-            "Only sanitized self-declared software identifiers are retained for paid/free attribution and repeat-use aggregation."
+            "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or raw query strings are stored. "
+            "Only bounded source/request correlation and sanitized self-declared software identifiers are retained."
         ),
+        "correlation_note": "Request IDs correlate stages only when explicitly propagated by the client/path; generated IDs are event-local and are not user identity.",
     }
 
 

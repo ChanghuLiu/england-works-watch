@@ -1,17 +1,41 @@
-"""Shared V21 aggregate attribution contract for England Works Watch."""
+"""Shared V23 aggregate attribution contract for England Works Watch."""
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import re
 from typing import Any, Mapping
 from urllib.parse import parse_qs
+from uuid import uuid4
 
 SOURCE_BUCKETS = frozenset({
     "official_registry", "glama", "docker", "tensorblock", "mcpso",
     "mcpservers_org", "mcpmux", "punkpeye_remote", "mcpindex", "direct", "unknown",
+    "mcpbeat", "agent402", "402explorer", "wellknown", "mcpmetrics", "smithery",
+    "mcp_directory", "safemcp", "unyly", "truespar", "agentshare",
+    "sentineloracle", "proofbench", "mcpcheckup", "golemreach", "mcpscan", "agentstatus",
 })
 OWNER_TEST_MARKERS = frozenset({"portfolio_owner_probe_v21", "portfolio_ci_probe_v21"})
 OWNER_TEST_ACTORS = frozenset({"owned", "owned_ci", "owner", "test", "smoke"})
 OWNER_TEST_MODES = frozenset({"test", "staging", "acceptance", "owner_probe"})
+PAYMENT_STATUSES = frozenset({"not_applicable", "challenged", "paid", "payment_error", "unknown"})
+
+
+class SourceContext(str):
+    request_id: str | None
+
+    def __new__(cls, value: str, request_id: str | None = None):
+        obj = str.__new__(cls, value)
+        obj.request_id = request_id
+        return obj
+
+
+def _safe_token(value: Any, max_length: int = 96) -> str | None:
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    if not candidate:
+        return None
+    return re.sub(r"[^A-Za-z0-9._:/+@-]", "_", candidate)[:max_length] or None
 
 
 def normalize_source_bucket(value: Any) -> str:
@@ -28,9 +52,43 @@ def source_bucket_from_query(query: Any) -> str:
     return normalize_source_bucket(values[0] if values else None)
 
 
-def source_context_from_meta(meta: Mapping[str, Any] | None) -> str:
+def request_id_from_meta(meta: Mapping[str, Any] | None, *, fallback: Any = None) -> str:
     meta = meta or {}
-    return normalize_source_bucket(meta.get("source_context"))
+    for key in ("commercial/request_id", "request_id", "requestId", "x-request-id"):
+        value = _safe_token(meta.get(key))
+        if value:
+            return value
+    return _safe_token(fallback) or uuid4().hex
+
+
+def source_context_from_meta(meta: Mapping[str, Any] | None) -> SourceContext:
+    meta = meta or {}
+    explicit_request_id = None
+    for key in ("commercial/request_id", "request_id", "requestId", "x-request-id"):
+        explicit_request_id = _safe_token(meta.get(key))
+        if explicit_request_id:
+            break
+    return SourceContext(normalize_source_bucket(meta.get("source_context")), explicit_request_id)
+
+
+def payment_status_for_event(event_type: Any, *, outcome: Any = None) -> str:
+    normalized_outcome = str(outcome or "").strip().upper()
+    if normalized_outcome == "CHALLENGE": return "challenged"
+    if normalized_outcome == "PAID_EXECUTED": return "paid"
+    if normalized_outcome == "PAYMENT_ERROR": return "payment_error"
+    normalized_type = str(event_type or "").strip().lower()
+    if normalized_type == "paid_challenge": return "challenged"
+    if normalized_type == "paid_executed": return "paid"
+    if normalized_type in {"payment_error", "paid_error"}: return "payment_error"
+    if normalized_type in {"discovery_observed", "free_business_call", "tool_call", "business_tool_call"}: return "not_applicable"
+    return "unknown"
+
+
+def normalize_payment_status(value: Any, *, event_type: Any = None, outcome: Any = None) -> str:
+    candidate = str(value or "").strip().lower()
+    if candidate in PAYMENT_STATUSES:
+        return candidate
+    return payment_status_for_event(event_type, outcome=outcome)
 
 
 def owner_test_from_meta(meta: Mapping[str, Any] | None, *, deployment_mode: Any = "production") -> bool:
@@ -53,13 +111,16 @@ def external_classification(meta: Mapping[str, Any] | None, *, actor: str | None
 
 def make_event(*, product_id: str, event_type: str, deployment_revision: str,
                source_context: Any = None, external: str = "unknown",
-               owner_test: bool = False, timestamp: Any = None) -> dict[str, Any]:
+               owner_test: bool = False, timestamp: Any = None,
+               request_id: Any = None, payment_status: Any = None,
+               outcome: Any = None) -> dict[str, Any]:
     if owner_test:
         external = "owner_test"
     if external not in {"confirmed_external", "owner_test", "unknown"}:
         external = "unknown"
     if timestamp is None:
         timestamp = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    carried_request_id = request_id or getattr(source_context, "request_id", None)
     return {
         "product_id": product_id,
         "event_type": event_type,
@@ -68,4 +129,6 @@ def make_event(*, product_id: str, event_type: str, deployment_revision: str,
         "owner_test": bool(owner_test),
         "deployment_revision": str(deployment_revision or "unknown").strip() or "unknown",
         "timestamp": str(timestamp),
+        "request_id": request_id_from_meta(None, fallback=carried_request_id),
+        "payment_status": normalize_payment_status(payment_status, event_type=event_type, outcome=outcome),
     }

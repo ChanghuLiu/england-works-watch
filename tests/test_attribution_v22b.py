@@ -37,3 +37,20 @@ def test_owner_external_and_paid_events_have_common_attribution_fields(tmp_path,
     assert funnel["free_business_call"]["confirmed_external"] == 1
     assert funnel["paid_challenge"]["confirmed_external"] == 0
     assert funnel["paid_executed"]["confirmed_external"] == 1
+
+
+def test_eww_v23_common_commercial_envelope():
+    from england_works_watch.attribution import make_event, normalize_source_bucket, request_id_from_meta
+
+    assert normalize_source_bucket("mcpbeat") == "mcpbeat"
+    assert request_id_from_meta({"commercial/request_id": "req 123"}) == "req_123"
+    paid = make_event(
+        product_id="england_works_watch",
+        event_type="paid_executed",
+        deployment_revision="rev",
+        source_context="agent402",
+        request_id="corr-1",
+    )
+    assert paid["source_bucket"] == "agent402"
+    assert paid["request_id"] == "corr-1"
+    assert paid["payment_status"] == "paid"
