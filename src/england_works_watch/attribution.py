@@ -1,4 +1,4 @@
-"""Shared V23 aggregate attribution contract for England Works Watch."""
+"""Shared V24 aggregate attribution contract for England Works Watch."""
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -7,6 +7,7 @@ from typing import Any, Mapping
 from urllib.parse import parse_qs
 from uuid import uuid4
 
+EVENT_SCHEMA_VERSION = "commercial-attribution-v1"
 SOURCE_BUCKETS = frozenset({
     "official_registry", "glama", "docker", "tensorblock", "mcpso",
     "mcpservers_org", "mcpmux", "punkpeye_remote", "mcpindex", "direct", "unknown",
@@ -80,7 +81,10 @@ def payment_status_for_event(event_type: Any, *, outcome: Any = None) -> str:
     if normalized_type == "paid_challenge": return "challenged"
     if normalized_type == "paid_executed": return "paid"
     if normalized_type in {"payment_error", "paid_error"}: return "payment_error"
-    if normalized_type in {"discovery_observed", "free_business_call", "tool_call", "business_tool_call"}: return "not_applicable"
+    if normalized_type in {
+        "discovery_observed", "mcp_initialize", "tools_list", "free_business_call",
+        "tool_call", "business_tool_call",
+    }: return "not_applicable"
     return "unknown"
 
 
@@ -94,7 +98,7 @@ def normalize_payment_status(value: Any, *, event_type: Any = None, outcome: Any
 def owner_test_from_meta(meta: Mapping[str, Any] | None, *, deployment_mode: Any = "production") -> bool:
     meta = meta or {}
     marker = meta.get("owner_test_marker") or meta.get("englandworkswatch/owner_test_marker")
-    actor = str(meta.get("englandworkswatch/actor") or "").strip().lower()
+    actor = str(meta.get("englandworkswatch/actor") or meta.get("mcp-commercial-actor") or "").strip().lower()
     mode = deployment_mode.strip().lower() if isinstance(deployment_mode, str) else "production"
     return marker in OWNER_TEST_MARKERS or actor in OWNER_TEST_ACTORS or mode in OWNER_TEST_MODES
 
@@ -109,26 +113,46 @@ def external_classification(meta: Mapping[str, Any] | None, *, actor: str | None
     return "unknown", False
 
 
-def make_event(*, product_id: str, event_type: str, deployment_revision: str,
-               source_context: Any = None, external: str = "unknown",
-               owner_test: bool = False, timestamp: Any = None,
-               request_id: Any = None, payment_status: Any = None,
-               outcome: Any = None) -> dict[str, Any]:
+def make_event(
+    *,
+    product_id: str,
+    event_type: str,
+    deployment_revision: str,
+    source_context: Any = None,
+    external: str = "unknown",
+    owner_test: bool = False,
+    timestamp: Any = None,
+    request_id: Any = None,
+    payment_status: Any = None,
+    outcome: Any = None,
+    tool_name: Any = None,
+    declared_client: Any = None,
+    declared_client_name: Any = None,
+    declared_client_version: Any = None,
+) -> dict[str, Any]:
+    """Build the additive cross-product attribution envelope."""
     if owner_test:
         external = "owner_test"
     if external not in {"confirmed_external", "owner_test", "unknown"}:
         external = "unknown"
-    if timestamp is None:
-        timestamp = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    timestamp = timestamp or datetime.now(UTC).isoformat().replace("+00:00", "Z")
     carried_request_id = request_id or getattr(source_context, "request_id", None)
+    client = _safe_token(declared_client if declared_client is not None else declared_client_name, 80)
+    normalized_outcome = _safe_token(str(outcome).upper(), 64) if outcome is not None else None
     return {
-        "product_id": product_id,
-        "event_type": event_type,
+        "schema_version": EVENT_SCHEMA_VERSION,
+        "product_id": _safe_token(product_id, 40) or "unknown",
+        "event_type": _safe_token(event_type, 64) or "unknown",
         "source_bucket": normalize_source_bucket(source_context),
         "external_classification": external,
         "owner_test": bool(owner_test),
         "deployment_revision": str(deployment_revision or "unknown").strip() or "unknown",
         "timestamp": str(timestamp),
         "request_id": request_id_from_meta(None, fallback=carried_request_id),
+        "declared_client": client,
+        "declared_client_name": client,
+        "declared_client_version": _safe_token(declared_client_version, 32),
+        "tool_name": _safe_token(tool_name, 128),
+        "outcome": normalized_outcome,
         "payment_status": normalize_payment_status(payment_status, event_type=event_type, outcome=outcome),
     }
