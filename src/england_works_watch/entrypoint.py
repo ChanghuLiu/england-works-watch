@@ -27,7 +27,9 @@ from .selection_metadata import apply_selection_metadata
 # bypasses the x402 boundary and exposes only read-only tools.
 apply_selection_metadata(server.mcp)
 
-DIRECTORY_MCP_URL = f"{server.PUBLIC_ORIGIN}/mcp-directory"
+# Starlette Mount preserves the inner root path, so the canonical streamable
+# HTTP endpoint includes the trailing slash.
+DIRECTORY_MCP_URL = f"{server.PUBLIC_ORIGIN}/mcp-directory/"
 
 
 @server.mcp.custom_route("/.well-known/ai-catalog.json", methods=["GET"])
@@ -98,7 +100,7 @@ def _run_http() -> None:
     mcp_app = server.mcp.streamable_http_app(host=host, json_response=True, stateless_http=True)
 
     # Directory edition is a distinct MCPServer with no payment/x402 tools.
-    # streamable_http_path="/" makes the public endpoint exactly /mcp-directory.
+    # Its inner root route is exposed by Starlette at /mcp-directory/.
     directory_app = directory_mcp.streamable_http_app(
         host=host,
         json_response=True,
