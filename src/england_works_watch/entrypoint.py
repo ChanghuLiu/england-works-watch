@@ -1,13 +1,13 @@
 """Production entrypoint with machine-discovery catalog routes and telemetry.
 
 The deterministic decision server remains in ``server.py``. This module adds
-catalog surfaces, benchmark-driven MCP selection metadata, and privacy-minimal
-HTTP discovery observability. It does not change regulatory rules, prices,
-payment semantics, or tool execution.
+catalog surfaces, benchmark-driven MCP selection metadata, a separate read-only
+directory MCP surface, and privacy-minimal HTTP discovery observability. It does
+not change regulatory rules, prices, payment semantics, or existing tool execution.
 """
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 import os
 import sys
 
@@ -17,18 +17,22 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount
 
 from . import server
+from .directory_server import DIRECTORY_DESCRIPTION, DIRECTORY_NAME, directory_mcp
 from .discovery_ecosystem import DiscoveryEcosystemASGI
 from .selection_metadata import apply_selection_metadata
 
-# The server module has already registered every tool by import time. Override
-# only advertised discovery metadata/schemas; deterministic execution stays in
-# server.py and policy.py.
+# The server module has already registered every existing tool by import time.
+# Override only advertised discovery metadata/schemas; deterministic execution
+# stays in server.py and policy.py. The separate directory_mcp intentionally
+# bypasses the x402 boundary and exposes only read-only tools.
 apply_selection_metadata(server.mcp)
+
+DIRECTORY_MCP_URL = f"{server.PUBLIC_ORIGIN}/mcp-directory"
 
 
 @server.mcp.custom_route("/.well-known/ai-catalog.json", methods=["GET"])
 async def ai_catalog(_request):
-    """Machine-readable catalog advertising both MCP and OpenAPI interfaces."""
+    """Machine-readable catalog advertising MCP and OpenAPI interfaces."""
     return JSONResponse(
         {
             "name": "England Works Watch",
@@ -36,6 +40,15 @@ async def ai_catalog(_request):
             "description": server.SERVER_SELECTION_DESCRIPTION,
             "interfaces": [
                 {"type": "mcp", "transport": "streamable-http", "url": server.PUBLIC_MCP_URL},
+                {
+                    "type": "mcp",
+                    "transport": "streamable-http",
+                    "url": DIRECTORY_MCP_URL,
+                    "name": DIRECTORY_NAME,
+                    "description": DIRECTORY_DESCRIPTION,
+                    "read_only": True,
+                    "payment": "none",
+                },
                 {"type": "openapi", "url": f"{server.PUBLIC_ORIGIN}/openapi.json"},
             ],
             "discovery": {
@@ -63,6 +76,7 @@ async def api_catalog(_request):
                     {"href": f"{server.PUBLIC_ORIGIN}/openapi.json", "type": "application/openapi+json"},
                     {"href": f"{server.PUBLIC_ORIGIN}/.well-known/mcp.json", "type": "application/json"},
                     {"href": server.PUBLIC_MCP_URL, "type": "application/json"},
+                    {"href": DIRECTORY_MCP_URL, "type": "application/json"},
                 ],
                 "describedby": [
                     {"href": f"{server.PUBLIC_ORIGIN}/llms.txt", "type": "text/plain"},
@@ -80,14 +94,33 @@ def _run_http() -> None:
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
 
+    # Existing commercial MCP remains unchanged at /mcp.
     mcp_app = server.mcp.streamable_http_app(host=host, json_response=True, stateless_http=True)
+
+    # Directory edition is a distinct MCPServer with no payment/x402 tools.
+    # streamable_http_path="/" makes the public endpoint exactly /mcp-directory.
+    directory_app = directory_mcp.streamable_http_app(
+        host=host,
+        json_response=True,
+        stateless_http=True,
+        streamable_http_path="/",
+    )
 
     @asynccontextmanager
     async def lifespan(_app):
-        async with server.mcp.session_manager.run():
+        async with AsyncExitStack() as stack:
+            await stack.enter_async_context(server.mcp.session_manager.run())
+            await stack.enter_async_context(directory_mcp.session_manager.run())
             yield
 
-    app = Starlette(routes=[Mount("/", app=mcp_app)], lifespan=lifespan)
+    # Put the specific mount before the catch-all root mount.
+    app = Starlette(
+        routes=[
+            Mount("/mcp-directory", app=directory_app),
+            Mount("/", app=mcp_app),
+        ],
+        lifespan=lifespan,
+    )
     app = DiscoveryEcosystemASGI(app)
     uvicorn.run(app, host=host, port=port)
 
