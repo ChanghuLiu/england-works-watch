@@ -1,0 +1,97 @@
+name: England Works Watch Directory Production Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'data/**'
+      - 'pyproject.toml'
+      - '.github/workflows/england-works-watch-directory-production-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  directory-production-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DIRECTORY_MCP_URL: "https://england-works-watch-production.up.railway.app/mcp-directory/"
+    steps:
+      - name: Verify production MCP initialize
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 30 \
+            -D /tmp/init.headers \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            --data '{"jsonrpc":"2.0","id":101,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"england-works-watch-directory-gate","version":"1.0"}}}' \
+            "$DIRECTORY_MCP_URL" -o /tmp/init.body
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          body = json.loads(Path('/tmp/init.body').read_text())
+          result = body.get('result', {})
+          assert body.get('jsonrpc') == '2.0', body
+          assert result.get('serverInfo', {}).get('name') == 'UK Sponsor Change Checker', body
+          assert result.get('protocolVersion'), body
+          print('DIRECTORY_INITIALIZE=PASS')
+          PY
+
+      - name: Verify production tool list
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 30 \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            -H 'MCP-Protocol-Version: 2025-11-25' \
+            --data '{"jsonrpc":"2.0","id":102,"method":"tools/list","params":{}}' \
+            "$DIRECTORY_MCP_URL" -o /tmp/tools.body
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          body = json.loads(Path('/tmp/tools.body').read_text())
+          tools = body.get('result', {}).get('tools', [])
+          expected = {
+              'sponsor_change_checker_info',
+              'list_supported_change_events',
+              'licensing_source_status',
+              'assess_change_impact',
+          }
+          names = {tool.get('name') for tool in tools}
+          assert names == expected, names
+          for tool in tools:
+              annotations = tool.get('annotations') or {}
+              assert annotations.get('readOnlyHint') is True, tool
+              assert annotations.get('destructiveHint') is False, tool
+              assert annotations.get('idempotentHint') is True, tool
+              assert annotations.get('openWorldHint') is False, tool
+          print('DIRECTORY_TOOLS_LIST=PASS')
+          PY
+
+      - name: Verify production decision tool call
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 30 \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            -H 'MCP-Protocol-Version: 2025-11-25' \
+            --data '{"jsonrpc":"2.0","id":103,"method":"tools/call","params":{"name":"assess_change_impact","arguments":{"payload":{"event_type":"unauthorised_absence","route":"skilled_worker","consecutive_working_days":11}},"_meta":{"englandworkswatch/actor":"owned_ci","io.modelcontextprotocol/protocolVersion":"2025-11-25"}}}' \
+            "$DIRECTORY_MCP_URL" -o /tmp/call.body
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          body = json.loads(Path('/tmp/call.body').read_text())
+          assert 'result' in body, body
+          serialized = json.dumps(body)
+          assert any(label in serialized for label in ('AFFECTED', 'NOT_AFFECTED', 'REVIEW_REQUIRED', 'INSUFFICIENT_INPUT')), body
+          lowered = serialized.lower()
+          assert 'evidence' in lowered or 'source' in lowered, body
+          print('DIRECTORY_TOOL_CALL=PASS')
+          print('PUBLIC_DIRECTORY_MCP_PROTOCOL=PASS')
+          PY
