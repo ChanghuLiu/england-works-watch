@@ -17,6 +17,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount
 
 from . import server
+from . import submission_pages  # noqa: F401  # registers public policy/support routes
 from .directory_server import DIRECTORY_DESCRIPTION, DIRECTORY_NAME, directory_mcp
 from .discovery_ecosystem import DiscoveryEcosystemASGI
 from .selection_metadata import apply_selection_metadata
