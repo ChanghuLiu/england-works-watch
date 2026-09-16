@@ -18,8 +18,10 @@ def test_directory_tools_are_read_only_and_payment_free():
 
     for tool in by_name.values():
         assert tool.annotations is not None
-        assert tool.annotations.readOnlyHint is True
-        assert tool.annotations.destructiveHint is False
+        assert tool.annotations.read_only_hint is True
+        assert tool.annotations.destructive_hint is False
+        assert tool.annotations.idempotent_hint is True
+        assert tool.annotations.open_world_hint is False
 
     combined = " ".join(
         [DIRECTORY_DESCRIPTION]
