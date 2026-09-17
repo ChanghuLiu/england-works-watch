@@ -92,16 +92,18 @@ async def api_catalog(_request):
 
 
 def _run_http() -> None:
+    app = build_http_app()
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(app, host=host, port=port)
+
+
+def build_http_app():
+    """Build the composed HTTP app for production and deterministic route tests."""
     server.ensure_runtime_seeded()
     server.start_background_source_monitor()
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "8000"))
-
-    # Existing commercial MCP remains unchanged at /mcp.
     mcp_app = server.mcp.streamable_http_app(host=host, json_response=True, stateless_http=True)
-
-    # Directory edition is a distinct MCPServer with no payment/x402 tools.
-    # Its inner root route is exposed by Starlette at /mcp-directory/.
     directory_app = directory_mcp.streamable_http_app(
         host=host,
         json_response=True,
@@ -116,7 +118,6 @@ def _run_http() -> None:
             await stack.enter_async_context(directory_mcp.session_manager.run())
             yield
 
-    # Put the specific mount before the catch-all root mount.
     app = Starlette(
         routes=[
             Mount("/mcp-directory", app=directory_app),
@@ -124,8 +125,7 @@ def _run_http() -> None:
         ],
         lifespan=lifespan,
     )
-    app = DiscoveryEcosystemASGI(app)
-    uvicorn.run(app, host=host, port=port)
+    return DiscoveryEcosystemASGI(app)
 
 
 def main() -> None:

@@ -14,6 +14,7 @@ SOURCE_BUCKETS = frozenset({
     "mcpbeat", "agent402", "402explorer", "wellknown", "mcpmetrics", "smithery",
     "mcp_directory", "safemcp", "unyly", "truespar", "agentshare",
     "sentineloracle", "proofbench", "mcpcheckup", "golemreach", "mcpscan", "agentstatus",
+    "openai", "claude", "grok",
 })
 OWNER_TEST_MARKERS = frozenset({"portfolio_owner_probe_v21", "portfolio_ci_probe_v21"})
 OWNER_TEST_ACTORS = frozenset({"owned", "owned_ci", "owner", "test", "smoke"})

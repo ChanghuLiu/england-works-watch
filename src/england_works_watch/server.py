@@ -835,7 +835,10 @@ async def robots(_request):
 
 @mcp.custom_route("/sitemap.xml", methods=["GET"])
 async def sitemap(_request):
-    urls = ["/", "/llms.txt", "/openapi.json", "/.well-known/mcp.json", "/.well-known/agent-card.json", "/.well-known/x402"]
+    urls = [
+        "/", "/pricing", "/privacy", "/terms", "/support", "/monitoring-report",
+        "/llms.txt", "/openapi.json", "/.well-known/mcp.json", "/.well-known/agent-card.json", "/.well-known/x402",
+    ]
     body = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(
         f"<url><loc>{PUBLIC_ORIGIN}{path}</loc></url>" for path in urls
     ) + "</urlset>"
@@ -945,6 +948,14 @@ async def openapi(_request):
                 "/status": {"get": {"summary": "Runtime source/payment/analytics status"}},
                 "/version": {"get": {"summary": "Release and rule-pack identity"}},
                 "/metrics": {"get": {"summary": "Aggregate-only usage and source counters"}},
+                "/pricing": {"get": {"summary": "x402 prices and human monitoring/report offer"}},
+                "/privacy": {"get": {"summary": "Privacy and bounded-data policy"}},
+                "/terms": {"get": {"summary": "Current product terms and limits"}},
+                "/support": {"get": {"summary": "Integration and support guidance"}},
+                "/monitoring-report": {"get": {"summary": "Human sponsor-compliance monitoring/report entry"}},
+                "/monitoring-report/checkout": {"post": {"summary": "Start shared-commercial Test-mode monitoring/report checkout"}},
+                "/monitoring-report/checkout-success": {"get": {"summary": "Verify entitlement and return monitoring report"}},
+                "/monitoring-report/checkout-cancelled": {"get": {"summary": "Checkout cancellation return"}},
                 "/mcp": {"post": {"summary": "MCP Streamable HTTP endpoint"}},
                 "/.well-known/x402": {"get": {"summary": "x402 payment discovery"}},
             },
