@@ -6,11 +6,17 @@ import json
 def test_allowlisted_unknown_and_no_source_are_bounded(tmp_path, monkeypatch):
     monkeypatch.setenv("EWW_RUNTIME_DIR", str(tmp_path))
     from england_works_watch.analytics import record, record_discovery, summary
-    from england_works_watch.attribution import normalize_source_bucket, source_bucket_from_query
+    from england_works_watch.attribution import external_classification, normalize_source_bucket, source_bucket_from_query
 
     assert normalize_source_bucket("docker") == "docker"
     assert normalize_source_bucket("this_should_not_be_persisted") == "unknown"
     assert source_bucket_from_query("") == "unknown"
+    assert normalize_source_bucket("openai") == "openai"
+    assert normalize_source_bucket("claude") == "claude"
+    assert normalize_source_bucket("grok") == "grok"
+    assert normalize_source_bucket("OpenAI/1.0 raw-user-agent") == "unknown"
+    assert external_classification({}) == ("unknown", False)
+    assert external_classification({"owner_test_marker": "portfolio_ci_probe_v21"}) == ("owner_test", True)
     record_discovery("/", query="src=docker&raw_personal_value=discard")
     record("england_works_watch_info", "ok", billable=False, meta={"source_context": "not-allowed"})
     payload = json.dumps(summary())

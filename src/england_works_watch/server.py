@@ -3,14 +3,19 @@ from __future__ import annotations
 import argparse
 import os
 import time
-from typing import Any
+from typing import Any, Mapping
+from urllib.parse import parse_qs
 
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
-from starlette.responses import JSONResponse, PlainTextResponse, Response
+from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 
 from .analytics import record, summary
-from .policy import RULES, assess_change_impact as decide
+from .attribution import OWNER_TEST_MARKERS
+from .commercial import CommercialPlatformClient, CommercialPlatformError, CommercialSettings, PendingMonitoringCheckoutStore, commercial_source_channel
+from .monitoring import changed_since, make_checkpoint
+from .policy import RULES, SOURCE_BY_ID, assess_change_impact as decide
+from .public_surfaces import monitoring_page, policy_copy, render_policy_page, render_pricing_page
 from .selection_metadata import (
     FREE_PAID_BOUNDARY,
     PAID_RESULT_PREVIEW,
@@ -30,6 +35,12 @@ PAYMENT_ENFORCED = os.getenv("EWW_PAYMENT_ENFORCED", "0").strip().lower() in {"1
 PAY_TO = os.getenv("EWW_X402_PAY_TO", "").strip()
 NETWORK = os.getenv("EWW_X402_NETWORK", "eip155:8453").strip()
 FACILITATOR = os.getenv("EWW_X402_FACILITATOR_URL", "https://facilitator.payai.network").strip()
+COMMERCIAL_SETTINGS = CommercialSettings.from_env()
+COMMERCIAL_CLIENT = CommercialPlatformClient(COMMERCIAL_SETTINGS)
+PENDING_MONITORING_CHECKOUTS = PendingMonitoringCheckoutStore(
+    COMMERCIAL_SETTINGS.pending_ttl_seconds,
+    path=os.getenv("EWW_PENDING_STORE_PATH", "").strip() or None,
+)
 SUPPORTED_EVENTS = [
     "worker_start_delay",
     "unauthorised_absence",
@@ -371,6 +382,432 @@ async def metrics(_request):
 @mcp.custom_route("/analytics/summary", methods=["GET"])
 async def analytics_summary(_request):
     return JSONResponse(summary())
+
+
+@mcp.custom_route("/pricing", methods=["GET"])
+async def pricing(_request):
+    return PlainTextResponse(
+        render_pricing_page(
+            origin=PUBLIC_ORIGIN,
+            prices={
+                "assess_change_impact": f"{PRICE_ASSESS} USDC per x402 call",
+                "batch_assess_changes": f"{PRICE_BATCH} USDC per x402 call",
+                "human monitoring/report": "shared-commercial Test-mode offer; configured outside this product repo",
+            },
+        ),
+        media_type="text/html",
+    )
+
+
+@mcp.custom_route("/privacy", methods=["GET"])
+async def privacy(_request):
+    return PlainTextResponse(render_policy_page("privacy", origin=PUBLIC_ORIGIN), media_type="text/html")
+
+
+@mcp.custom_route("/terms", methods=["GET"])
+async def terms(_request):
+    return PlainTextResponse(render_policy_page("terms", origin=PUBLIC_ORIGIN), media_type="text/html")
+
+
+@mcp.custom_route("/support", methods=["GET"])
+async def support(_request):
+    return PlainTextResponse(render_policy_page("support", origin=PUBLIC_ORIGIN), media_type="text/html")
+
+
+@mcp.custom_route("/monitoring-report", methods=["GET"])
+async def monitoring_report_entry(_request):
+    return PlainTextResponse(monitoring_page(origin=PUBLIC_ORIGIN), media_type="text/html")
+
+
+async def _read_monitoring_request(request) -> dict[str, Any]:
+    content_type = request.headers.get("content-type", "").lower()
+    if "application/json" in content_type:
+        try:
+            payload = await request.json()
+        except Exception as exc:
+            raise ValueError("Expected a JSON object body.") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("Expected a JSON object body.")
+        return payload
+    raw = (await request.body()).decode("utf-8", "replace")
+    values = parse_qs(raw, keep_blank_values=True)
+    return {key: items[-1] for key, items in values.items()}
+
+
+def _monitoring_ids(payload: dict[str, Any]) -> list[str]:
+    source_ids = payload.get("source_ids")
+    if isinstance(source_ids, str):
+        source_ids = [item.strip() for item in source_ids.split(",") if item.strip()]
+    if not isinstance(source_ids, list) or not source_ids or len(source_ids) > 4 or any(not isinstance(item, str) or item not in SOURCE_BY_ID for item in source_ids):
+        raise ValueError("source_ids must contain 1-4 known source IDs")
+    return list(dict.fromkeys(source_ids))
+
+
+def _monitoring_classification(request, payload: Mapping[str, Any]) -> tuple[str, bool]:
+    """Read only an explicit operator marker; never infer ownership from facts."""
+    headers = getattr(request, "headers", {})
+    query = getattr(request, "query_params", {})
+    raw = (
+        headers.get("x-eww-human-run-class")
+        or headers.get("x-eww-owner-test-marker")
+        or payload.get("run_class")
+        or payload.get("owner_test_marker")
+        or query.get("run")
+        or query.get("owner_test_marker")
+        or ""
+    )
+    value = str(raw).strip().lower()
+    if value in OWNER_TEST_MARKERS or value in {"owner", "owner_test", "test", "smoke", "ci"}:
+        return "owner_test", True
+    if value in {"synthetic", "fixture"}:
+        return "synthetic", False
+    return "unknown", False
+
+
+async def _safe_commercial_event(
+    event_type: str,
+    *,
+    source_channel: str,
+    classification: str,
+    owner_test: bool,
+) -> None:
+    """Commercial telemetry is optional and never gates a monitoring result."""
+    try:
+        await COMMERCIAL_CLIENT.record_event(
+            event_type=event_type,
+            source_channel=source_channel,
+            commercial_intent="monitoring",
+            external_classification=classification,
+            owner_test=owner_test,
+        )
+    except Exception:
+        return
+
+
+@mcp.custom_route("/monitoring-report/checkout", methods=["POST"])
+async def monitoring_report_checkout(request):
+    try:
+        payload = await _read_monitoring_request(request)
+        source_ids = _monitoring_ids(payload)
+        checkpoint = payload.get("checkpoint")
+        if checkpoint is None:
+            checkpoint = make_checkpoint(source_ids)
+        if not isinstance(checkpoint, dict):
+            raise ValueError("checkpoint must be an object when supplied")
+        source_channel = commercial_source_channel(str(payload.get("source_channel") or request.query_params.get("src") or "direct"))
+        classification, owner_test = _monitoring_classification(request, payload)
+        row = PENDING_MONITORING_CHECKOUTS.create(
+            checkpoint=checkpoint,
+            source_channel=source_channel,
+            classification=classification,
+            owner_test=owner_test,
+        )
+        checkout = await COMMERCIAL_CLIENT.create_checkout(
+            principal_ref=row.principal_ref,
+            source_channel=row.source_channel,
+            success_url=COMMERCIAL_SETTINGS.checkout_success_url(row.return_token),
+            cancel_url=COMMERCIAL_SETTINGS.cancel_url,
+        )
+        PENDING_MONITORING_CHECKOUTS.attach_checkout(row.return_token, checkout["checkout_id"])
+        await _safe_commercial_event(
+            "checkout_started",
+            source_channel=row.source_channel,
+            classification=row.classification,
+            owner_test=row.owner_test,
+        )
+        result = {
+            "status": "CHECKOUT_REQUIRED",
+            "checkout_url": checkout["checkout_url"],
+            "checkout_id": checkout["checkout_id"],
+            "return_token": row.return_token,
+            "monitoring_scope": {
+                "source_ids": source_ids,
+                "stored": "opaque checkpoint only",
+            },
+        }
+
+        # Browser form submission: continue directly to hosted Stripe Checkout.
+        # JSON clients retain the existing machine-readable contract.
+        content_type = request.headers.get("content-type", "").lower()
+        if "application/json" not in content_type:
+            return RedirectResponse(checkout["checkout_url"], status_code=303)
+
+        return JSONResponse(result)
+
+    except ValueError as exc:
+        return JSONResponse({"status": "INVALID_REQUEST", "detail": str(exc)}, status_code=400)
+    except CommercialPlatformError as exc:
+        return JSONResponse({"status": "COMMERCIAL_UNAVAILABLE", "detail": str(exc)}, status_code=503)
+
+
+
+def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any]) -> str:
+    from html import escape
+
+    status = escape(str(report.get("status") or "UNKNOWN"))
+    checked_at = escape(str(report.get("checked_at") or ""))
+    decision_usable = report.get("decision_usable") is True
+    source_gate = report.get("source_gate") is True
+    next_action = escape(str(report.get("next_action") or ""))
+    disclaimer = escape(str(report.get("disclaimer") or ""))
+
+    rows = []
+    sources = report.get("sources")
+    if isinstance(sources, list):
+        for source in sources:
+            if not isinstance(source, dict):
+                continue
+            source_id = escape(str(source.get("source_id") or ""))
+            source_status = escape(str(source.get("status") or "UNKNOWN"))
+            version = escape(str(source.get("current_source_version") or ""))
+            observed = escape(str(source.get("current_observed_at") or ""))
+            reason = escape(str(source.get("reason") or ""))
+            rows.append(
+                "<tr>"
+                f"<td><strong>{source_id}</strong></td>"
+                f"<td>{source_status}</td>"
+                f"<td>{version}</td>"
+                f"<td>{observed}</td>"
+                f"<td>{reason}</td>"
+                "</tr>"
+            )
+
+    rows_html = "".join(rows) or (
+        '<tr><td colspan="5">No source rows were returned.</td></tr>'
+    )
+
+    usable_text = "Yes" if decision_usable else "No"
+    gate_text = "Pass" if source_gate else "Review required"
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Paid sponsor monitoring report — England Works Watch</title>
+<style>
+:root {{
+  --ink:#17202a;
+  --muted:#5d6b78;
+  --blue:#155eef;
+  --green:#137a4b;
+  --line:#dfe6ec;
+  --panel:#f7f9fb;
+  --blue-soft:#eef4ff;
+}}
+*{{box-sizing:border-box}}
+body{{
+  margin:0;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  color:var(--ink);
+  line-height:1.55;
+}}
+main{{
+  max-width:1080px;
+  margin:0 auto;
+  padding:54px 24px 72px;
+}}
+.eyebrow{{
+  color:var(--blue);
+  font-weight:750;
+  font-size:.9rem;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}}
+h1{{
+  margin:9px 0 18px;
+  font-size:2.35rem;
+  line-height:1.12;
+}}
+.lead{{color:var(--muted);max-width:800px}}
+.summary{{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin:28px 0;
+}}
+.metric{{
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:16px 18px;
+  background:#fff;
+}}
+.metric span{{
+  display:block;
+  color:var(--muted);
+  font-size:.82rem;
+  margin-bottom:4px;
+}}
+.metric strong{{font-size:1.05rem}}
+.good{{color:var(--green)}}
+.card{{
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:24px;
+  margin-top:22px;
+  box-shadow:0 8px 28px rgba(23,32,42,.045);
+}}
+table{{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:14px;
+  font-size:.92rem;
+}}
+th,td{{
+  text-align:left;
+  vertical-align:top;
+  padding:11px 10px;
+  border-bottom:1px solid var(--line);
+}}
+th{{background:var(--panel)}}
+.notice{{
+  margin-top:24px;
+  background:var(--blue-soft);
+  border-radius:10px;
+  padding:17px 19px;
+}}
+.links{{
+  margin-top:30px;
+  padding-top:20px;
+  border-top:1px solid var(--line);
+}}
+a{{color:var(--blue)}}
+@media(max-width:760px){{
+  .summary{{grid-template-columns:1fr 1fr}}
+  .table-wrap{{overflow-x:auto}}
+}}
+
+.metric strong{{
+  display:block;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}}
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">England Works Watch</div>
+  <h1>Paid sponsor monitoring report</h1>
+
+  <p class="lead">
+    Verified monitoring result for the selected official GOV.UK sponsor
+    guidance sources.
+  </p>
+
+  <section class="summary">
+    <div class="metric">
+      <span>Report status</span>
+      <strong class="good">{status}</strong>
+    </div>
+    <div class="metric">
+      <span>Entitlement</span>
+      <strong>{escape(entitlement_code)}</strong>
+    </div>
+    <div class="metric">
+      <span>Decision usable</span>
+      <strong>{usable_text}</strong>
+    </div>
+    <div class="metric">
+      <span>Source gate</span>
+      <strong>{gate_text}</strong>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Source monitoring results</h2>
+    <p>Checked at: {checked_at}</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Status</th>
+            <th>Version</th>
+            <th>Observed</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>{rows_html}</tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="notice">
+    <strong>Next action</strong><br>
+    {next_action or "Continue only with current verified evidence."}
+  </section>
+
+  <p>{disclaimer}</p>
+
+  <p class="links">
+    <a href="/monitoring-report">Run another monitoring report</a> ·
+    <a href="/pricing">Pricing</a> ·
+    <a href="/privacy">Privacy</a> ·
+    <a href="/terms">Terms</a> ·
+    <a href="/support">Support</a>
+  </p>
+</main>
+</body>
+</html>"""
+
+
+@mcp.custom_route("/monitoring-report/checkout-success", methods=["GET"])
+async def monitoring_report_success(request):
+    token = request.query_params.get("return_token", "")
+    row = PENDING_MONITORING_CHECKOUTS.get(token)
+    if row is None:
+        return JSONResponse({"status": "INVALID_RETURN_TOKEN"}, status_code=400)
+    try:
+        entitlement = await COMMERCIAL_CLIENT.verify_entitlement(principal_ref=row.principal_ref)
+    except CommercialPlatformError as exc:
+        return JSONResponse({"status": "ENTITLEMENT_UNAVAILABLE", "detail": str(exc)}, status_code=503)
+    if entitlement.get("active") is not True or not isinstance(entitlement.get("token"), str) or not entitlement["token"]:
+        return JSONResponse({"status": "ENTITLEMENT_REQUIRED", "detail": "A verified active shared-commercial entitlement is required."}, status_code=403)
+    report = changed_since(row.checkpoint)
+    await _safe_commercial_event(
+        "payment_succeeded",
+        source_channel=row.source_channel,
+        classification=row.classification,
+        owner_test=row.owner_test,
+    )
+    await _safe_commercial_event(
+        "entitlement_activated",
+        source_channel=row.source_channel,
+        classification=row.classification,
+        owner_test=row.owner_test,
+    )
+    await _safe_commercial_event(
+        "premium_fulfilled",
+        source_channel=row.source_channel,
+        classification=row.classification,
+        owner_test=row.owner_test,
+    )
+
+    result = {
+        "status": "READY",
+        "entitlement_code": entitlement.get("entitlement_code"),
+        "report": report,
+    }
+
+    # Browsers receive a human-readable paid report.
+    # Machine/API clients keep the existing JSON contract.
+    accept = request.headers.get("accept", "").lower()
+    if "text/html" in accept:
+        return Response(
+            _monitoring_paid_page(
+                entitlement_code=str(entitlement.get("entitlement_code") or ""),
+                report=report,
+            ),
+            media_type="text/html",
+        )
+
+    return JSONResponse(result)
+
+
+@mcp.custom_route("/monitoring-report/checkout-cancelled", methods=["GET"])
+async def monitoring_report_cancelled(request):
+    token = request.query_params.get("return_token", "")
+    return JSONResponse({"status": "CHECKOUT_CANCELLED", "return_token_present": bool(token), "next_action": "Return to /monitoring-report to start again."})
 
 
 @mcp.custom_route("/llms.txt", methods=["GET"])
