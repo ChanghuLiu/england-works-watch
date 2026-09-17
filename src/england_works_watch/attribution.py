@@ -16,6 +16,15 @@ SOURCE_BUCKETS = frozenset({
     "sentineloracle", "proofbench", "mcpcheckup", "golemreach", "mcpscan", "agentstatus",
     "openai", "claude", "grok",
 })
+EXPLICIT_SOURCE_ALIASES = {
+    "chatgpt": "openai",
+    "chatgpt_app": "openai",
+    "openai_chatgpt": "openai",
+    "claude_connector": "claude",
+    "claude_connectors": "claude",
+    "grok_connector": "grok",
+    "xai_grok": "grok",
+}
 OWNER_TEST_MARKERS = frozenset({"portfolio_owner_probe_v21", "portfolio_ci_probe_v21"})
 OWNER_TEST_ACTORS = frozenset({"owned", "owned_ci", "owner", "test", "smoke"})
 OWNER_TEST_MODES = frozenset({"test", "staging", "acceptance", "owner_probe"})
@@ -51,13 +60,18 @@ def _safe_token(value: Any, max_length: int = 96) -> str | None:
 def normalize_source_bucket(value: Any) -> str:
     if not isinstance(value, str): return "unknown"
     value = value.strip().lower()
+    value = EXPLICIT_SOURCE_ALIASES.get(value, value)
     return value if value in SOURCE_BUCKETS else "unknown"
 
 
 def source_bucket_from_query(query: Any) -> str:
     if not isinstance(query, str): return "unknown"
-    values = parse_qs(query, keep_blank_values=True).get("src", [])
-    return normalize_source_bucket(values[0] if values else None)
+    parsed = parse_qs(query, keep_blank_values=True)
+    for key in ("src", "source", "ref", "utm_source", "campaign_source"):
+        values = parsed.get(key, [])
+        if values:
+            return normalize_source_bucket(values[0])
+    return "unknown"
 
 
 def request_id_from_meta(meta: Mapping[str, Any] | None, *, fallback: Any = None) -> str:
@@ -81,7 +95,12 @@ def source_context_from_meta(meta: Mapping[str, Any] | None) -> SourceContext:
         explicit_request_id = _safe_token(meta.get(key))
         if explicit_request_id: break
     client, client_version = _declared_client_from_meta(meta)
-    return SourceContext(normalize_source_bucket(meta.get("source_context")), explicit_request_id, client, client_version)
+    source = "unknown"
+    for key in ("source_context", "source", "ref", "utm_source", "campaign_source"):
+        if key in meta:
+            source = normalize_source_bucket(meta.get(key))
+            break
+    return SourceContext(source, explicit_request_id, client, client_version)
 
 
 def payment_status_for_event(event_type: Any, *, outcome: Any = None) -> str:

@@ -14,6 +14,9 @@ def test_allowlisted_unknown_and_no_source_are_bounded(tmp_path, monkeypatch):
     assert normalize_source_bucket("openai") == "openai"
     assert normalize_source_bucket("claude") == "claude"
     assert normalize_source_bucket("grok") == "grok"
+    assert normalize_source_bucket("chatgpt") == "openai"
+    assert normalize_source_bucket("claude_connector") == "claude"
+    assert normalize_source_bucket("xai_grok") == "grok"
     assert normalize_source_bucket("OpenAI/1.0 raw-user-agent") == "unknown"
     assert external_classification({}) == ("unknown", False)
     assert external_classification({"owner_test_marker": "portfolio_ci_probe_v21"}) == ("owner_test", True)
