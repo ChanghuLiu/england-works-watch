@@ -426,7 +426,10 @@ async def monitoring_report_entry(request):
         classification=classification,
         owner_test=owner_test,
     )
-    return PlainTextResponse(monitoring_page(origin=PUBLIC_ORIGIN), media_type="text/html")
+    return PlainTextResponse(
+        monitoring_page(origin=PUBLIC_ORIGIN, source_channel=source_channel),
+        media_type="text/html",
+    )
 
 
 async def _read_monitoring_request(request) -> dict[str, Any]:
