@@ -106,3 +106,13 @@ def test_c7b_acquisition_aliases_and_monitoring_form_are_bounded():
     assert "Secure Stripe checkout" in page
     assert "Stripe Test checkout" not in page
     assert "Continue to checkout" in page
+
+
+def test_production_pricing_route_has_no_stale_test_mode_label():
+    from england_works_watch import server
+
+    response = asyncio.run(server.pricing(None))
+    body = response.body.decode("utf-8")
+    assert "Test-mode" not in body
+    assert "shared commercial Stripe checkout" in body
+    assert "£49" in body
