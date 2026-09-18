@@ -392,7 +392,7 @@ async def pricing(_request):
             prices={
                 "assess_change_impact": f"{PRICE_ASSESS} USDC per x402 call",
                 "batch_assess_changes": f"{PRICE_BATCH} USDC per x402 call",
-                "human monitoring/report": "shared-commercial Test-mode offer; configured outside this product repo",
+                "human monitoring/report": "shared commercial Stripe checkout; £49 human monitoring/report offer",
             },
         ),
         media_type="text/html",
