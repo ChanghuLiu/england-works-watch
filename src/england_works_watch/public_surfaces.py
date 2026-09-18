@@ -52,7 +52,7 @@ def render_pricing_page(*, origin: str, prices: dict[str, str]) -> str:
 
 def monitoring_page(*, origin: str, source_channel: str = "direct") -> str:
     source_channel = escape(source_channel)
-    return f"""<!doctype html>
+    return """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -261,4 +261,4 @@ a{color:var(--blue)}
   </p>
 </main>
 </body>
-</html>"""
+</html>""".replace("{source_channel}", source_channel)
