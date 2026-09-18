@@ -18,7 +18,8 @@ def test_public_policy_surfaces_and_pricing_are_bounded():
         assert "/pricing" in page and "/support" in page
     page = render_pricing_page(origin="https://eww.example", prices={"assess_change_impact": "$0.02 USDC per x402 call"})
     assert "$0.02" in page
-    assert "Test-mode" in page
+    assert "Test-mode" not in page
+    assert "shared commercial Stripe checkout" in page
 
 
 def test_commercial_adapter_sends_only_bounded_contract_and_fails_closed():
