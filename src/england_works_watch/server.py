@@ -968,7 +968,7 @@ async def openapi(_request):
                 "/terms": {"get": {"summary": "Current product terms and limits"}},
                 "/support": {"get": {"summary": "Integration and support guidance"}},
                 "/monitoring-report": {"get": {"summary": "Human sponsor-compliance monitoring/report entry"}},
-                "/monitoring-report/checkout": {"post": {"summary": "Start shared-commercial Test-mode monitoring/report checkout"}},
+                "/monitoring-report/checkout": {"post": {"summary": "Start shared-commercial monitoring/report checkout"}},
                 "/monitoring-report/checkout-success": {"get": {"summary": "Verify entitlement and return monitoring report"}},
                 "/monitoring-report/checkout-cancelled": {"get": {"summary": "Checkout cancellation return"}},
                 "/mcp": {"post": {"summary": "MCP Streamable HTTP endpoint"}},
