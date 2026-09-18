@@ -23,7 +23,19 @@ class CommercialPlatformError(RuntimeError):
 
 def commercial_source_channel(value: str) -> str:
     normalized = normalize_source_bucket(value)
-    return normalized if normalized in {"direct", "openai", "claude", "grok", "official_registry", "unknown"} else "direct"
+    directory_sources = {
+        "official_registry", "glama", "docker", "tensorblock", "mcpso",
+        "mcpservers_org", "mcpmux", "punkpeye_remote", "mcpindex",
+        "mcpbeat", "agent402", "402explorer", "wellknown", "mcpmetrics",
+        "smithery", "mcp_directory", "safemcp", "unyly", "truespar",
+        "agentshare", "sentineloracle", "proofbench", "mcpcheckup",
+        "golemreach", "mcpscan", "agentstatus",
+    }
+    if normalized in directory_sources:
+        return "directory"
+    if normalized in {"linkedin", "openai", "claude", "grok", "organic", "directory", "direct", "unknown"}:
+        return normalized
+    return "direct"
 
 
 def _required_url(name: str, value: str) -> str:
@@ -357,15 +369,28 @@ class CommercialPlatformClient:
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(base_url=self.settings.platform_url.rstrip("/"), timeout=self.settings.timeout_seconds, transport=self.transport)
 
-    async def create_checkout(self, *, principal_ref: str, source_channel: str, success_url: str | None = None, cancel_url: str | None = None) -> dict[str, str]:
+    async def create_checkout(
+        self,
+        *,
+        principal_ref: str,
+        source_channel: str,
+        success_url: str | None = None,
+        cancel_url: str | None = None,
+        external_classification: str = "unknown",
+        owner_test: bool = False,
+    ) -> dict[str, str]:
+        payload = {
+            "product_id": self.settings.product_id,
+            "principal_ref": principal_ref,
+            "source_channel": commercial_source_channel(source_channel),
+            "success_url": success_url or self.settings.success_url,
+            "cancel_url": cancel_url or self.settings.cancel_url,
+        }
+        if external_classification != "unknown" or owner_test:
+            payload["external_classification"] = external_classification
+            payload["owner_test"] = owner_test
         async with self._client() as client:
-            response = await client.post("/v1/checkout/session", json={
-                "product_id": self.settings.product_id,
-                "principal_ref": principal_ref,
-                "source_channel": normalize_source_bucket(source_channel),
-                "success_url": success_url or self.settings.success_url,
-                "cancel_url": cancel_url or self.settings.cancel_url,
-            })
+            response = await client.post("/v1/checkout/session", json=payload)
         if response.status_code != 200:
             raise CommercialPlatformError(f"checkout service returned {response.status_code}")
         try:
