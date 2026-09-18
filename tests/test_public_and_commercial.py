@@ -79,6 +79,16 @@ def test_shared_platform_outage_cannot_break_free_info_or_decision(monkeypatch):
             raise AssertionError("telemetry should not be required by core tools")
 
     monkeypatch.setattr(server, "COMMERCIAL_CLIENT", OfflineCommercial())
+    monkeypatch.setattr(
+        server,
+        "production_source_status",
+        lambda: {
+            "coverage_complete": True,
+            "blocking_sources": [],
+            "review_required_sources": [],
+            "stale_sources": [],
+        },
+    )
     assert server.england_works_watch_info(None)["payment"]["prices"] == {"assess_change_impact": "$0.02", "batch_assess_changes": "$0.05"}
     result = server._assess({"event_type": "unauthorised_absence", "route": "skilled_worker", "consecutive_working_days": 11})
     assert result["status"] == "AFFECTED"
