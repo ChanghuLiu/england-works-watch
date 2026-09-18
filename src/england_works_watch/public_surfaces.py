@@ -50,7 +50,8 @@ def render_pricing_page(*, origin: str, prices: dict[str, str]) -> str:
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pricing — England Works Watch</title><style>body{font-family:system-ui,sans-serif;max-width:860px;margin:0 auto;padding:32px 20px;line-height:1.55;color:#17202a}.price{background:#f5f8fa;border-left:4px solid #155eef;padding:12px 20px}a{color:#155eef}</style></head><body><main><p>England Works Watch — sponsor compliance/change intelligence</p><h1>Pricing</h1><p>Agent/API decisions use x402 Base mainnet USDC. The optional human/business monitoring report uses a shared-commercial Test-mode checkout when configured.</p><div class="price"><ul>' + rows + '</ul></div><p>The human offer provides bounded repeated access during its configured entitlement period; it is not an auto-renewing subscription. No Stripe Live activation is performed here.</p><p>Monitoring is official-source change detection, not legal advice or employee monitoring.</p><p><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/support">Support</a> · <a href="/monitoring-report">Monitoring report</a></p></main></body></html>'
 
 
-def monitoring_page(*, origin: str) -> str:
+def monitoring_page(*, origin: str, source_channel: str = "direct") -> str:
+    source_channel = escape(source_channel)
     return """<!doctype html>
 <html lang="en">
 <head>
@@ -213,7 +214,7 @@ a{color:var(--blue)}
     <span class="badge">Official-source monitoring</span>
     <span class="badge">Evidence-first</span>
     <span class="badge">No worker PII required</span>
-    <span class="badge">Stripe Test checkout</span>
+    <span class="badge">Secure Stripe checkout</span>
   </div>
 
   <section class="offer">
@@ -232,6 +233,7 @@ a{color:var(--blue)}
     </p>
 
     <form method="post" action="/monitoring-report/checkout">
+      <input type="hidden" name="source_channel" value="{source_channel}">
       <label for="source_ids">Source IDs</label>
       <input
         id="source_ids"
@@ -240,7 +242,7 @@ a{color:var(--blue)}
         autocomplete="off"
       >
 
-      <button type="submit">Continue to Test checkout</button>
+      <button type="submit">Continue to checkout</button>
     </form>
   </section>
 
@@ -259,4 +261,4 @@ a{color:var(--blue)}
   </p>
 </main>
 </body>
-</html>"""
+</html>""".replace("{source_channel}", source_channel)

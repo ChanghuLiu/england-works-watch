@@ -415,8 +415,21 @@ async def support(_request):
 
 
 @mcp.custom_route("/monitoring-report", methods=["GET"])
-async def monitoring_report_entry(_request):
-    return PlainTextResponse(monitoring_page(origin=PUBLIC_ORIGIN), media_type="text/html")
+async def monitoring_report_entry(request):
+    source_channel = commercial_source_channel(
+        str(request.query_params.get("src") or "direct")
+    )
+    classification, owner_test = _monitoring_classification(request, {})
+    await _safe_commercial_event(
+        "discovery_observed",
+        source_channel=source_channel,
+        classification=classification,
+        owner_test=owner_test,
+    )
+    return PlainTextResponse(
+        monitoring_page(origin=PUBLIC_ORIGIN, source_channel=source_channel),
+        media_type="text/html",
+    )
 
 
 async def _read_monitoring_request(request) -> dict[str, Any]:
@@ -505,6 +518,8 @@ async def monitoring_report_checkout(request):
         checkout = await COMMERCIAL_CLIENT.create_checkout(
             principal_ref=row.principal_ref,
             source_channel=row.source_channel,
+            external_classification=row.classification,
+            owner_test=row.owner_test,
             success_url=COMMERCIAL_SETTINGS.checkout_success_url(row.return_token),
             cancel_url=COMMERCIAL_SETTINGS.cancel_url,
         )

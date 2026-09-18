@@ -5,8 +5,9 @@ import json
 
 import httpx
 
+from england_works_watch.attribution import normalize_source_bucket
 from england_works_watch.commercial import CommercialPlatformClient, CommercialPlatformError, CommercialSettings
-from england_works_watch.public_surfaces import render_policy_page, render_pricing_page
+from england_works_watch.public_surfaces import monitoring_page, render_policy_page, render_pricing_page
 
 
 def test_public_policy_surfaces_and_pricing_are_bounded():
@@ -31,7 +32,12 @@ def test_commercial_adapter_sends_only_bounded_contract_and_fails_closed():
 
     settings = CommercialSettings(platform_url="https://commercial.test", human_origin="https://eww.test", success_url="https://eww.test/success", cancel_url="https://eww.test/cancel")
     client = CommercialPlatformClient(settings, transport=httpx.MockTransport(handler))
-    checkout = asyncio.run(client.create_checkout(principal_ref="eww_human_opaque", source_channel="openai", success_url="https://eww.test/success?return_token=opaque"))
+    checkout = asyncio.run(client.create_checkout(
+        principal_ref="eww_human_opaque",
+        source_channel="linkedin_post",
+        external_classification="confirmed_external",
+        success_url="https://eww.test/success?return_token=opaque",
+    ))
     entitlement = asyncio.run(client.verify_entitlement(principal_ref="eww_human_opaque"))
     for event_type in ("checkout_started", "payment_succeeded", "entitlement_activated", "premium_fulfilled"):
         asyncio.run(client.record_event(
@@ -44,7 +50,9 @@ def test_commercial_adapter_sends_only_bounded_contract_and_fails_closed():
     assert entitlement["active"] is True
     encoded = json.dumps(calls)
     assert "worker_name" not in encoded and "raw_prompt" not in encoded
-    assert calls[0]["source_channel"] == "openai"
+    assert calls[0]["source_channel"] == "linkedin"
+    assert calls[0]["external_classification"] == "confirmed_external"
+    assert calls[0]["owner_test"] is False
     event_payloads = [payload for payload in calls if payload.get("event_type")]
     assert [payload["event_type"] for payload in event_payloads] == [
         "checkout_started", "payment_succeeded", "entitlement_activated", "premium_fulfilled",
@@ -71,6 +79,29 @@ def test_shared_platform_outage_cannot_break_free_info_or_decision(monkeypatch):
             raise AssertionError("telemetry should not be required by core tools")
 
     monkeypatch.setattr(server, "COMMERCIAL_CLIENT", OfflineCommercial())
+    monkeypatch.setattr(
+        server,
+        "production_source_status",
+        lambda: {
+            "coverage_complete": True,
+            "blocking_sources": [],
+            "review_required_sources": [],
+            "stale_sources": [],
+        },
+    )
     assert server.england_works_watch_info(None)["payment"]["prices"] == {"assess_change_impact": "$0.02", "batch_assess_changes": "$0.05"}
     result = server._assess({"event_type": "unauthorised_absence", "route": "skilled_worker", "consecutive_working_days": 11})
     assert result["status"] == "AFFECTED"
+
+
+def test_c7b_acquisition_aliases_and_monitoring_form_are_bounded():
+    assert normalize_source_bucket("linkedin_post") == "linkedin"
+    assert normalize_source_bucket("organic_search") == "organic"
+    assert normalize_source_bucket("glama") == "glama"
+    assert normalize_source_bucket("arbitrary-campaign") == "unknown"
+
+    page = monitoring_page(origin="https://eww.test", source_channel="linkedin")
+    assert 'name="source_channel" value="linkedin"' in page
+    assert "Secure Stripe checkout" in page
+    assert "Stripe Test checkout" not in page
+    assert "Continue to checkout" in page

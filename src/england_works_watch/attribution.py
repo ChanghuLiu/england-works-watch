@@ -9,6 +9,7 @@ from uuid import uuid4
 
 EVENT_SCHEMA_VERSION = "commercial-attribution-v1"
 SOURCE_BUCKETS = frozenset({
+    "linkedin", "organic", "directory",
     "official_registry", "glama", "docker", "tensorblock", "mcpso",
     "mcpservers_org", "mcpmux", "punkpeye_remote", "mcpindex", "direct", "unknown",
     "mcpbeat", "agent402", "402explorer", "wellknown", "mcpmetrics", "smithery",
@@ -24,6 +25,14 @@ EXPLICIT_SOURCE_ALIASES = {
     "claude_connectors": "claude",
     "grok_connector": "grok",
     "xai_grok": "grok",
+    "linkedin.com": "linkedin",
+    "linkedin_post": "linkedin",
+    "linkedin_dm": "linkedin",
+    "google": "organic",
+    "bing": "organic",
+    "search": "organic",
+    "seo": "organic",
+    "organic_search": "organic",
 }
 OWNER_TEST_MARKERS = frozenset({"portfolio_owner_probe_v21", "portfolio_ci_probe_v21"})
 OWNER_TEST_ACTORS = frozenset({"owned", "owned_ci", "owner", "test", "smoke"})
