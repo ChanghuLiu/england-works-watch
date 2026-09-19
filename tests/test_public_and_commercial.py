@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from types import SimpleNamespace
 
 import httpx
 
@@ -116,3 +117,23 @@ def test_production_pricing_route_has_no_stale_test_mode_label():
     assert "Test-mode" not in body
     assert "shared commercial Stripe checkout" in body
     assert "£49" in body
+
+
+def test_c7c_monitoring_traffic_quality_classification_is_bounded():
+    from england_works_watch import server
+
+    browser = SimpleNamespace(headers={"user-agent": "Mozilla/5.0"}, query_params={})
+    node = SimpleNamespace(headers={"user-agent": "node"}, query_params={})
+    indexer = SimpleNamespace(
+        headers={"user-agent": "x402lens-indexer/1.0 (+https://x402lens.com/methodology)"},
+        query_params={},
+    )
+    owner_node = SimpleNamespace(
+        headers={"user-agent": "node"},
+        query_params={"run": "owner_test"},
+    )
+
+    assert server._monitoring_classification(browser, {}) == ("unknown", False)
+    assert server._monitoring_classification(node, {}) == ("automated_external", False)
+    assert server._monitoring_classification(indexer, {}) == ("automated_external", False)
+    assert server._monitoring_classification(owner_node, {}) == ("owner_test", True)
