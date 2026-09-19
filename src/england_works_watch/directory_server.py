@@ -7,12 +7,14 @@ from mcp.types import ToolAnnotations
 
 from . import server
 
-READ = ToolAnnotations(
-    readOnlyHint=True,
-    destructiveHint=False,
-    idempotentHint=True,
-    openWorldHint=False,
-)
+def _read(title: str) -> ToolAnnotations:
+    return ToolAnnotations(
+        title=title,
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False,
+    )
 
 DIRECTORY_NAME = "UK Sponsor Change Checker"
 DIRECTORY_DESCRIPTION = (
@@ -35,7 +37,7 @@ directory_mcp = MCPServer(
 )
 
 
-@directory_mcp.tool(annotations=READ, structured_output=True)
+@directory_mcp.tool(annotations=_read("UK sponsor change checker information"), structured_output=True)
 def sponsor_change_checker_info(ctx: Context) -> dict[str, Any]:
     """Explain the UK Skilled Worker sponsor-change checker scope and supported decision states."""
     return server._measured(
@@ -61,7 +63,7 @@ def sponsor_change_checker_info(ctx: Context) -> dict[str, Any]:
     )
 
 
-@directory_mcp.tool(annotations=READ, structured_output=True)
+@directory_mcp.tool(annotations=_read("List supported sponsor change events"), structured_output=True)
 def list_supported_change_events(ctx: Context) -> dict[str, Any]:
     """List sponsor-change event types this checker can assess for Skilled Worker sponsor duties."""
     return server._measured(
@@ -76,7 +78,7 @@ def list_supported_change_events(ctx: Context) -> dict[str, Any]:
     )
 
 
-@directory_mcp.tool(annotations=READ, structured_output=True)
+@directory_mcp.tool(annotations=_read("UK sponsor guidance source status"), structured_output=True)
 def licensing_source_status(ctx: Context) -> dict[str, Any]:
     """Check freshness and review status of the official GOV.UK evidence used by the sponsor-change checker."""
     return server._measured(
@@ -92,7 +94,7 @@ def directory_assess(payload: dict[str, Any]) -> dict[str, Any]:
     return server._assess(dict(payload))
 
 
-@directory_mcp.tool(annotations=READ, structured_output=True)
+@directory_mcp.tool(annotations=_read("Assess sponsor change impact"), structured_output=True)
 def assess_change_impact(payload: dict[str, Any], ctx: Context) -> dict[str, Any]:
     """Check whether a specific employee/company change affects UK Skilled Worker sponsor duties. Use for salary, role, work-location, absence, delayed-start, stop-sponsoring, organisation, TUPE, merger or takeover changes. Returns an evidence-linked decision and required next action."""
     return server._measured(
