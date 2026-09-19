@@ -11,7 +11,7 @@ from mcp.types import ToolAnnotations
 from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 
 from .analytics import record, summary
-from .attribution import OWNER_TEST_MARKERS
+from .attribution import OWNER_TEST_MARKERS, is_automated_user_agent
 from .commercial import CommercialPlatformClient, CommercialPlatformError, CommercialSettings, PendingMonitoringCheckoutStore, commercial_source_channel
 from .monitoring import changed_since, make_checkpoint
 from .policy import RULES, SOURCE_BY_ID, assess_change_impact as decide
@@ -474,6 +474,9 @@ def _monitoring_classification(request, payload: Mapping[str, Any]) -> tuple[str
         return "owner_test", True
     if value in {"synthetic", "fixture"}:
         return "synthetic", False
+    user_agent = str(headers.get("user-agent") or "")
+    if is_automated_user_agent(user_agent):
+        return "automated_external", False
     return "unknown", False
 
 
