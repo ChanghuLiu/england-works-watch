@@ -39,6 +39,21 @@ OWNER_TEST_ACTORS = frozenset({"owned", "owned_ci", "owner", "test", "smoke"})
 OWNER_TEST_MODES = frozenset({"test", "staging", "acceptance", "owner_probe"})
 PAYMENT_STATUSES = frozenset({"not_applicable", "challenged", "paid", "payment_error", "unknown"})
 
+AUTOMATED_USER_AGENT_MARKERS = (
+    "bot", "crawler", "spider", "indexer", "headless",
+    "curl/", "wget/", "python-requests", "httpx/", "aiohttp/", "tinyfish",
+)
+
+
+def is_automated_user_agent(value: Any) -> bool:
+    candidate = str(value or "").strip().lower()
+    if not candidate:
+        return False
+    if candidate in {"node", "node.js"}:
+        return True
+    return any(marker in candidate for marker in AUTOMATED_USER_AGENT_MARKERS)
+
+
 
 class SourceContext(str):
     request_id: str | None
@@ -156,7 +171,7 @@ def make_event(
 ) -> dict[str, Any]:
     """Build the additive cross-product attribution envelope."""
     if owner_test: external = "owner_test"
-    if external not in {"confirmed_external", "owner_test", "unknown"}: external = "unknown"
+    if external not in {"confirmed_external", "automated_external", "owner_test", "synthetic", "unknown"}: external = "unknown"
     timestamp = timestamp or datetime.now(UTC).isoformat().replace("+00:00", "Z")
     carried_request_id = request_id or getattr(source_context, "request_id", None)
     client_candidate = declared_client if declared_client is not None else declared_client_name
