@@ -110,6 +110,11 @@ def build_http_app():
         stateless_http=True,
         streamable_http_path="/",
     )
+    ai_app = directory_mcp.streamable_http_app(
+        host=host,
+        json_response=True,
+        stateless_http=True,
+    )
 
     @asynccontextmanager
     async def lifespan(_app):
@@ -120,6 +125,7 @@ def build_http_app():
 
     app = Starlette(
         routes=[
+            Mount("/ai", app=ai_app),
             Mount("/mcp-directory", app=directory_app),
             Mount("/", app=mcp_app),
         ],
