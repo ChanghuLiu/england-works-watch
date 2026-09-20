@@ -32,6 +32,9 @@ directory_mcp = MCPServer(
         + " Use assess_change_impact when the user provides facts about a specific sponsor-related change. "
         + "Use list_supported_change_events when the user's change type is unclear. "
         + "Use licensing_source_status only when source freshness or evidence status is relevant. "
+        + "Use only facts explicitly supplied by the user. Never infer or default missing compliance facts, including "
+        + "same_salary_option_still_met, salary amounts, occupation codes, going rates, role changes, or work-location changes. "
+        + "Pass omitted facts through as missing so the deterministic engine can return INSUFFICIENT_INPUT. "
         + "This directory edition is read-only and does not request, initiate, or process payments or cryptocurrency transfers."
     ),
 )
@@ -96,7 +99,7 @@ def directory_assess(payload: dict[str, Any]) -> dict[str, Any]:
 
 @directory_mcp.tool(annotations=_read("Assess sponsor change impact"), structured_output=True)
 def assess_change_impact(payload: dict[str, Any], ctx: Context) -> dict[str, Any]:
-    """Check whether a specific employee/company change affects UK Skilled Worker sponsor duties. Use for salary, role, work-location, absence, delayed-start, stop-sponsoring, organisation, TUPE, merger or takeover changes. Returns an evidence-linked decision and required next action."""
+    """Check whether a specific employee/company change affects UK Skilled Worker sponsor duties. Use for salary, role, work-location, absence, delayed-start, stop-sponsoring, organisation, TUPE, merger or takeover changes. Use only facts explicitly supplied by the user; never infer or default missing compliance facts such as same_salary_option_still_met. Pass omissions through so the deterministic engine can return INSUFFICIENT_INPUT. Returns an evidence-linked decision and required next action."""
     return server._measured(
         "directory_assess_change_impact",
         lambda: directory_assess(payload),
