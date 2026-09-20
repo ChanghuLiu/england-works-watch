@@ -135,7 +135,7 @@ openai_mcp = MCPServer(
 )
 
 
-@openai_mcp.tool(annotations=_read("UK sponsor change checker information"), structured_output=True)
+@openai_mcp.tool(name="sponsor_change_checker_info", annotations=_read("UK sponsor change checker information"), structured_output=True)
 def openai_sponsor_change_checker_info() -> dict[str, Any]:
     """Explain the UK Skilled Worker sponsor-change checker scope and supported decision states."""
     return _info_payload()
