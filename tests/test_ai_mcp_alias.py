@@ -57,3 +57,9 @@ def test_ai_mcp_alias_is_read_only_directory_surface():
     assert "x402" not in combined
     assert "stripe" not in combined
     assert "checkout" not in combined
+
+    assess_tool = next(tool for tool in tools if tool["name"] == "assess_change_impact")
+    assess_description = (assess_tool.get("description") or "").lower()
+    assert "never infer or default missing compliance facts" in assess_description
+    assert "same_salary_option_still_met" in assess_description
+    assert "insufficient_input" in assess_description
