@@ -258,7 +258,11 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
         bucket[state] = bucket.get(state, 0) + 1
 
     source_attribution: dict[str, dict[str, int]] = {}
-    for row in normalized:
+    # Keep source totals aligned with the commercial funnel stage population.
+    # The prior all-event view included non-business MCP rows, which made the
+    # dashboard's source reconciliation appear inconsistent for Sponsor.
+    commercial_rows = [*discovery_rows, *free_rows, *paid_rows]
+    for row in commercial_rows:
         source = row["source_bucket"]
         bucket = source_attribution.setdefault(source, {})
         event_name = row["event_type"]
@@ -274,6 +278,7 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
         "paid_funnel": dict(paid_funnel),
         "paid_funnel_by_actor": paid_funnel_by_actor,
         "source_attribution": source_attribution,
+        "source_attribution_scope": "commercial_funnel_rows_only",
         "commercial_funnel": {
             "discovery": {
                 "raw": len(discovery_rows),

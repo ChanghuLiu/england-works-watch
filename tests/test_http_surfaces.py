@@ -73,7 +73,7 @@ def test_monitoring_report_checkout_requires_verified_entitlement(monkeypatch, t
         assert completed.json()["status"] == "READY"
         assert completed.json()["report"]["status"] == "UNCHANGED"
         assert [event["event_type"] for event in fake.events] == [
-            "checkout_started", "payment_succeeded", "entitlement_activated", "premium_fulfilled",
+            "paid_intent", "checkout_started", "payment_succeeded", "entitlement_activated", "premium_fulfilled",
         ]
         assert all(event["commercial_intent"] == "monitoring" for event in fake.events)
         assert all(event["source_channel"] == "direct" for event in fake.events)
@@ -88,7 +88,7 @@ def test_monitoring_report_checkout_requires_verified_entitlement(monkeypatch, t
         owner_token = owner_started.json()["return_token"]
         owner_completed = client.get(f"/monitoring-report/checkout-success?return_token={owner_token}")
         assert owner_completed.status_code == 200
-        assert all(event["external_classification"] == "owner_test" and event["owner_test"] is True for event in fake.events[4:])
+        assert all(event["external_classification"] == "owner_test" and event["owner_test"] is True for event in fake.events[5:])
 
         fake.active = False
         denied_started = client.post(

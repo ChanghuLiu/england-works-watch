@@ -512,6 +512,12 @@ async def monitoring_report_checkout(request):
             raise ValueError("checkpoint must be an object when supplied")
         source_channel = commercial_source_channel(str(payload.get("source_channel") or request.query_params.get("src") or "direct"))
         classification, owner_test = _monitoring_classification(request, payload)
+        await _safe_commercial_event(
+            "paid_intent",
+            source_channel=source_channel,
+            classification=classification,
+            owner_test=owner_test,
+        )
         row = PENDING_MONITORING_CHECKOUTS.create(
             checkpoint=checkpoint,
             source_channel=source_channel,
