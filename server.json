@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.ChanghuLiu/england-works-watch",
-  "description": "RegEvidenceHub Sponsor helps employers and advisers check how defined employee or organisation changes affect UK Skilled Worker sponsor duties. It covers salary, role, work-location, absence, delayed-start, stopping-sponsorship, TUPE, merger, takeover, and related change events. It returns explicit AFFECTED, NOT_AFFECTED, REVIEW_REQUIRED, or INSUFFICIENT_INPUT states with official GOV.UK evidence and does not provide legal advice or Home Office approval.",
+  "description": "RegEvidenceHub Sponsor: UK Skilled Worker sponsor-change preflight with GOV.UK evidence.",
   "version": "0.1.2",
   "packages": [],
   "remotes": [
