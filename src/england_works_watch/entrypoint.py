@@ -18,7 +18,7 @@ from starlette.routing import Mount
 
 from . import server
 from . import submission_pages  # noqa: F401  # registers public policy/support routes
-from .directory_server import DIRECTORY_DESCRIPTION, DIRECTORY_NAME, directory_mcp
+from .directory_server import DIRECTORY_DESCRIPTION, DIRECTORY_NAME, directory_mcp, openai_mcp
 from .discovery_ecosystem import DiscoveryEcosystemASGI
 from .selection_metadata import apply_selection_metadata
 
@@ -115,16 +115,23 @@ def build_http_app():
         json_response=True,
         stateless_http=True,
     )
+    openai_app = openai_mcp.streamable_http_app(
+        host=host,
+        json_response=True,
+        stateless_http=True,
+    )
 
     @asynccontextmanager
     async def lifespan(_app):
         async with AsyncExitStack() as stack:
             await stack.enter_async_context(server.mcp.session_manager.run())
             await stack.enter_async_context(directory_mcp.session_manager.run())
+            await stack.enter_async_context(openai_mcp.session_manager.run())
             yield
 
     app = Starlette(
         routes=[
+            Mount("/openai", app=openai_app),
             Mount("/ai", app=ai_app),
             Mount("/mcp-directory", app=directory_app),
             Mount("/", app=mcp_app),

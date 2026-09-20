@@ -1,5 +1,7 @@
 # OpenAI Plugin Submission V1 — UK Sponsor Change Checker
 
+> Superseded for the current branded OpenAI submission by [OPENAI_PLUGIN_SUBMISSION_V2.md](./OPENAI_PLUGIN_SUBMISSION_V2.md).
+
 Prepared for the OpenAI Platform **With MCP** public plugin flow.
 
 ## Submission type

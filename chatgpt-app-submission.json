@@ -1,0 +1,128 @@
+{
+  "$schema": "https://developers.openai.com/apps-sdk/schemas/chatgpt-app-submission.v1.json",
+  "schema_version": 1,
+  "app_info": {
+    "display_name": "RegEvidenceHub Sponsor",
+    "subtitle": "Sponsor change checks",
+    "description": "RegEvidenceHub Sponsor helps employers and advisers check how defined employee or organisation changes affect UK Skilled Worker sponsor duties. It covers salary, role, work-location, absence, delayed-start, stopping-sponsorship, TUPE, merger, takeover, and related change events. It returns explicit AFFECTED, NOT_AFFECTED, REVIEW_REQUIRED, or INSUFFICIENT_INPUT states with official GOV.UK evidence and does not provide legal advice or Home Office approval.",
+    "category": "BUSINESS"
+  },
+  "tools": {
+    "sponsor_change_checker_info": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Returns bounded service scope, supported events, and decision-state metadata without writing logs or external records on the OpenAI surface.",
+        "open_world_justification": "Does not publish content, contact the Home Office, or modify any third-party system.",
+        "destructive_justification": "Cannot delete, overwrite, revoke, submit, or perform irreversible sponsor actions."
+      }
+    },
+    "list_supported_change_events": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Reads the bounded local sponsor-change event catalogue and rule-pack metadata without changing state.",
+        "open_world_justification": "Does not write to GOV.UK, the Home Office, or any other external system.",
+        "destructive_justification": "Cannot alter sponsor records, licences, users, or external data."
+      }
+    },
+    "licensing_source_status": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Reads maintained official-source freshness and review state without mutating the source-monitoring state.",
+        "open_world_justification": "Does not perform external writes or change public internet state.",
+        "destructive_justification": "Cannot delete evidence, alter source records, or perform irreversible actions."
+      }
+    },
+    "assess_change_impact": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Computes a deterministic sponsor-change preflight from supplied facts and maintained evidence state without logging or changing external records on the OpenAI surface.",
+        "open_world_justification": "Does not report to the Home Office, submit forms, send messages, or modify third-party systems.",
+        "destructive_justification": "Cannot submit sponsor actions, revoke sponsorship, delete records, or perform transactions."
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "description": "Assess the unauthorised-absence reporting threshold.",
+      "user_prompt": "A Skilled Worker has been absent without permission for 11 consecutive working days. Do we need to report it?",
+      "file_attachment_urls": null,
+      "tools_triggered": "assess_change_impact",
+      "expected_output": "Returns an evidence-linked AFFECTED result for the supported Skilled Worker scenario with the required sponsor action and no claim of Home Office approval.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Assess a salary reduction when the same salary option remains met.",
+      "user_prompt": "We are reducing a Skilled Worker employee's salary, but the same salary option is still met. What is the sponsor impact?",
+      "file_attachment_urls": null,
+      "tools_triggered": "assess_change_impact",
+      "expected_output": "Returns the deterministic salary-change result using only the supplied facts and includes evidence-linked next-action information.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Assess a permanent remote-work change.",
+      "user_prompt": "Our sponsored Skilled Worker is moving to permanent remote work rather than hybrid-only working. Check the reporting impact.",
+      "file_attachment_urls": null,
+      "tools_triggered": "assess_change_impact",
+      "expected_output": "Returns the bounded work-location change result and required action without inferring unprovided facts.",
+      "expected_output_url": null
+    },
+    {
+      "description": "List the supported sponsor-change event types.",
+      "user_prompt": "Which Skilled Worker sponsor-change event types can this checker assess?",
+      "file_attachment_urls": null,
+      "tools_triggered": "list_supported_change_events",
+      "expected_output": "Returns the bounded supported-event catalogue and rule-pack metadata.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Inspect official sponsor-guidance evidence status.",
+      "user_prompt": "Is the GOV.UK sponsor guidance used by this checker current or under review?",
+      "file_attachment_urls": null,
+      "tools_triggered": "licensing_source_status",
+      "expected_output": "Returns bounded source freshness and review status and does not turn source health into a legal conclusion.",
+      "expected_output_url": null
+    }
+  ],
+  "negative_test_cases": [
+    {
+      "description": "Do not invoke for employee visa-application advice.",
+      "user_prompt": "Help me complete my personal Skilled Worker visa application and choose which documents to upload.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because individual visa applications are outside employer sponsor-change preflight.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not invoke for right-to-work verification.",
+      "user_prompt": "Verify this employee's right-to-work share code and tell me whether I can hire them.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because right-to-work identity verification is outside its supported sponsor-change workflows.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not invoke for payroll calculations.",
+      "user_prompt": "Calculate PAYE, National Insurance, and net pay for this employee's salary.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because payroll and tax calculations are outside its sponsor-compliance scope.",
+      "expected_output_url": null
+    }
+  ]
+}
