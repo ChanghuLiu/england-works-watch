@@ -1,17 +1,19 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.ChanghuLiu/england-works-watch",
-  "description": "UKVI sponsor: absence, salary, role/code, home-working, delayed start, stop sponsorship, TUPE, M&A.",
-  "version": "0.1.1",
+  "description": "RegEvidenceHub Sponsor helps employers and advisers check how defined employee or organisation changes affect UK Skilled Worker sponsor duties. It covers salary, role, work-location, absence, delayed-start, stopping-sponsorship, TUPE, merger, takeover, and related change events. It returns explicit AFFECTED, NOT_AFFECTED, REVIEW_REQUIRED, or INSUFFICIENT_INPUT states with official GOV.UK evidence and does not provide legal advice or Home Office approval.",
+  "version": "0.1.2",
   "packages": [],
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://england-works-watch-production.up.railway.app/mcp"
+      "url": "https://works.regevidencehub.com/ai/mcp"
     }
   ],
   "repository": {
     "url": "https://github.com/ChanghuLiu/england-works-watch",
     "source": "github"
-  }
+  },
+  "title": "RegEvidenceHub Sponsor",
+  "websiteUrl": "https://works.regevidencehub.com"
 }
