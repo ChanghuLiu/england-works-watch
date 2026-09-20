@@ -33,7 +33,7 @@ def commercial_source_channel(value: str) -> str:
     }
     if normalized in directory_sources:
         return "directory"
-    if normalized in {"linkedin", "openai", "claude", "grok", "organic", "directory", "direct", "unknown"}:
+    if normalized in {"linkedin", "openai", "claude", "grok", "regevidencehub", "organic", "directory", "direct", "unknown"}:
         return normalized
     return "direct"
 
