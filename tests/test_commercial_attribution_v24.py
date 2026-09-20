@@ -1,4 +1,4 @@
-from england_works_watch.attribution import make_event, source_context_from_meta
+from england_works_watch.attribution import make_event, normalize_source_bucket, source_context_from_meta
 
 
 def test_unified_attribution_envelope_correlates_source_client_and_payment():
@@ -36,3 +36,8 @@ def test_paid_execution_maps_to_paid_status():
     )
     assert event["payment_status"] == "paid"
     assert event["external_classification"] == "confirmed_external"
+
+
+
+def test_regevidencehub_source_is_preserved():
+    assert normalize_source_bucket("regevidencehub") == "regevidencehub"
