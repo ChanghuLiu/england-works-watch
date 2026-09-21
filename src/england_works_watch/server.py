@@ -27,7 +27,7 @@ from .x402_gate import MCP2X402Gate, PaidToolSpec, invoke, meta_to_dict
 
 READ = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
 SERVICE_VERSION = "0.1.1"
-PUBLIC_ORIGIN = os.getenv("EWW_PUBLIC_ORIGIN", "https://england-works-watch-production.up.railway.app").rstrip("/")
+PUBLIC_ORIGIN = os.getenv("EWW_PUBLIC_ORIGIN", "https://works.regevidencehub.com").rstrip("/")
 PUBLIC_MCP_URL = f"{PUBLIC_ORIGIN}/mcp"
 PRICE_ASSESS = os.getenv("EWW_X402_PRICE_ASSESS", "$0.02")
 PRICE_BATCH = os.getenv("EWW_X402_PRICE_BATCH", "$0.05")
