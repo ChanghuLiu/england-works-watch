@@ -351,6 +351,8 @@ async def health(_request):
         "scope": RULES["scope"],
         "rule_pack_version": RULES["rule_pack_version"],
         "source_baselines": f"{source['sources_with_fingerprint_baseline']}/{source['total_sources']}",
+        "payment_enforced": PAYMENT_ENFORCED,
+        "production_ready": source.get("coverage_complete") is True,
     })
     return JSONResponse(payload, status_code=200, headers={"Cache-Control": "no-store"})
 
