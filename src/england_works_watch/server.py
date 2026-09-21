@@ -26,7 +26,7 @@ from .source_runtime import ensure_runtime_seeded, production_source_status, sta
 from .x402_gate import MCP2X402Gate, PaidToolSpec, invoke, meta_to_dict
 
 READ = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
-SERVICE_VERSION = "0.1.1"
+SERVICE_VERSION = "0.1.2"
 PUBLIC_ORIGIN = os.getenv("EWW_PUBLIC_ORIGIN", "https://works.regevidencehub.com").rstrip("/")
 PUBLIC_MCP_URL = f"{PUBLIC_ORIGIN}/mcp"
 PRICE_ASSESS = os.getenv("EWW_X402_PRICE_ASSESS", "$0.02")
