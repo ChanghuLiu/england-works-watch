@@ -14,6 +14,7 @@ from .analytics import record, summary
 from .attribution import OWNER_TEST_MARKERS, is_automated_user_agent
 from .commercial import CommercialPlatformClient, CommercialPlatformError, CommercialSettings, PendingMonitoringCheckoutStore, commercial_source_channel
 from .monitoring import changed_since, make_checkpoint
+from .ops_contract import build_alerts, health_payload, status_payload, version_payload
 from .policy import RULES, SOURCE_BY_ID, assess_change_impact as decide
 from .public_surfaces import monitoring_page, policy_copy, render_policy_page, render_pricing_page
 from .selection_metadata import (
@@ -314,51 +315,85 @@ async def product_page(_request):
     )
 
 
+def _ops_snapshot():
+    source = production_source_status()
+    analytics = summary()
+    window = ((analytics.get("windows") or {}).get("24h") or {}) if isinstance(analytics, dict) else {}
+    payment_errors = int(window.get("payment_errors") or 0) if isinstance(window, dict) else 0
+    source_issue_count = (
+        len(source.get("blocking_sources") or [])
+        + len(source.get("review_required_sources") or [])
+        + len(source.get("stale_sources") or [])
+    )
+    if not source.get("coverage_complete"):
+        source_state = "degraded"
+    elif source_issue_count:
+        source_state = "review_required"
+    else:
+        source_state = "ready"
+    payment_state = "degraded" if payment_errors else ("ready" if PAYMENT_ENFORCED else "disabled")
+    service_degraded = False
+    return source, analytics, source_state, payment_state, source_issue_count, payment_errors, service_degraded
+
+
 @mcp.custom_route("/health", methods=["GET"])
 async def health(_request):
-    source = production_source_status()
-    ready = source["coverage_complete"]
-    return JSONResponse(
-        {
-            "status": "ok" if ready else "review_required",
-            "service": "England Works Watch",
-            "version": SERVICE_VERSION,
-            "production_ready": ready,
-            "payment_enforced": PAYMENT_ENFORCED,
-            "scope": RULES["scope"],
-            "rule_pack_version": RULES["rule_pack_version"],
-            "source_gate": ready,
-            "source_baselines": f"{source['sources_with_fingerprint_baseline']}/{source['total_sources']}",
-            "blocking_sources": source["blocking_sources"],
-        },
-        status_code=200 if ready else 503,
+    source, _analytics, source_state, payment_state, _source_issue_count, _payment_errors, service_degraded = _ops_snapshot()
+    payload = health_payload(
+        service="England Works Watch",
+        version=SERVICE_VERSION,
+        commit=os.getenv("RAILWAY_GIT_COMMIT_SHA") or os.getenv("EWW_DEPLOY_REV") or "unknown",
+        source_state=source_state,
+        payment_state=payment_state,
+        service_degraded=service_degraded,
     )
+    payload.update({
+        "scope": RULES["scope"],
+        "rule_pack_version": RULES["rule_pack_version"],
+        "source_baselines": f"{source['sources_with_fingerprint_baseline']}/{source['total_sources']}",
+    })
+    return JSONResponse(payload, status_code=200, headers={"Cache-Control": "no-store"})
 
 
 @mcp.custom_route("/status", methods=["GET"])
 async def status(_request):
-    return JSONResponse(
-        {
-            "service": "England Works Watch",
-            "version": SERVICE_VERSION,
-            "payment": _payment_info(),
-            "sources": production_source_status(),
-            "analytics": summary(),
-        }
+    source, analytics, source_state, payment_state, source_issue_count, payment_errors, service_degraded = _ops_snapshot()
+    alerts = build_alerts(
+        source_state=source_state,
+        source_issue_count=source_issue_count,
+        payment_errors=payment_errors,
+        service_degraded=service_degraded,
     )
+    payload = status_payload(
+        service="England Works Watch",
+        version=SERVICE_VERSION,
+        commit=os.getenv("RAILWAY_GIT_COMMIT_SHA") or os.getenv("EWW_DEPLOY_REV") or "unknown",
+        source_state=source_state,
+        payment_state=payment_state,
+        alerts=alerts,
+        service_degraded=service_degraded,
+    )
+    payload.update({
+        "payment": _payment_info(),
+        "sources": source,
+        "analytics_24h": ((analytics.get("windows") or {}).get("24h") or {}) if isinstance(analytics, dict) else {},
+    })
+    return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
 
 @mcp.custom_route("/version", methods=["GET"])
 async def version(_request):
-    return JSONResponse(
-        {
-            "service": "England Works Watch",
-            "version": SERVICE_VERSION,
-            "rule_pack_version": RULES["rule_pack_version"],
-            "effective_date": RULES["effective_date"],
-            "commit": os.getenv("RAILWAY_GIT_COMMIT_SHA") or os.getenv("EWW_DEPLOY_REV"),
-        }
+    payload = version_payload(
+        service="England Works Watch",
+        version=SERVICE_VERSION,
+        commit=os.getenv("RAILWAY_GIT_COMMIT_SHA") or os.getenv("EWW_DEPLOY_REV") or "unknown",
+        public_origin=PUBLIC_ORIGIN,
     )
+    payload.update({
+        "rule_pack_version": RULES["rule_pack_version"],
+        "effective_date": RULES["effective_date"],
+    })
+    return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
 
 @mcp.custom_route("/metrics", methods=["GET"])
