@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "england-works-watch"
-version = "0.1.1"
+version = "0.1.2"
 description = "UK sponsor compliance/change intelligence for Skilled Worker sponsors"
 requires-python = ">=3.12"
 dependencies = ["mcp==2.1.1", "uvicorn==0.52.4", "starlette==1.6.0", "pydantic>=2.13,<3"]
