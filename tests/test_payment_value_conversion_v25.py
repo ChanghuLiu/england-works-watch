@@ -23,9 +23,12 @@ def test_free_paid_boundary_and_payment_guidance_are_explicit():
         TOOL_SELECTION_DESCRIPTIONS,
     )
 
-    assert "england_works_watch_info" in FREE_PAID_BOUNDARY["free"][0]
+    assert "public AI/directory edition" in FREE_PAID_BOUNDARY["free"][0]
+    assert "interactive" in FREE_PAID_BOUNDARY["free"][0]
     assert "assess_change_impact" in FREE_PAID_BOUNDARY["paid"][0]
-    assert "do not return a change-impact decision" in FREE_PAID_BOUNDARY["paid_adds"]
+    assert "batch_assess_changes" in FREE_PAID_BOUNDARY["paid"][1]
+    assert "30-day monitoring report" in FREE_PAID_BOUNDARY["paid"][2]
+    assert "automation and repeated business use" in FREE_PAID_BOUNDARY["paid_adds"]
     assert PAYMENT_GUIDANCE["network"] == "Base mainnet (eip155:8453)"
     assert PAYMENT_GUIDANCE["token"] == "USDC"
     assert "PaymentRequired" in PAYMENT_GUIDANCE["steps"][0]
@@ -48,6 +51,9 @@ def test_price_network_token_and_payment_protocol_contract_are_unchanged():
         "assess_change_impact": "$0.02",
         "batch_assess_changes": "$0.05",
     }
+    assert payment["recommended_paid_paths"]["batch_api"]["tool"] == "batch_assess_changes"
+    assert payment["recommended_paid_paths"]["monitoring_report"]["price"] == "£49"
+    assert "public AI edition" in payment["recommended_paid_paths"]["single_event_api"]["positioning"]
 
 
 def test_paid_decision_schema_and_attribution_contract_remain_separate():
