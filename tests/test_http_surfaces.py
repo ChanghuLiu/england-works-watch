@@ -20,7 +20,7 @@ def test_local_public_policy_discovery_and_health_routes_return_200(monkeypatch,
     from england_works_watch.entrypoint import build_http_app
 
     with TestClient(build_http_app()) as client:
-        for path in ("/health", "/pricing", "/privacy", "/terms", "/support", "/monitoring-report", "/llms.txt", "/sitemap.xml", "/openapi.json", "/.well-known/mcp/server-card.json", "/.well-known/x402"):
+        for path in ("/health", "/pricing", "/privacy", "/terms", "/support", "/monitoring-report", "/llms.txt", "/sitemap.xml", "/openapi.json", "/.well-known/mcp/server-card.json", "/.well-known/x402", "/.well-known/agent-card.json"):
             response = client.get(path)
             assert response.status_code == 200, (path, response.text)
         assert client.get("/health").json()["status"] == "ok"
@@ -36,6 +36,12 @@ def test_local_public_policy_discovery_and_health_routes_return_200(monkeypatch,
         assert x402["tools"]["batch_assess_changes"]["max_events"] == 25
         assert x402["recommended_paid_paths"]["monitoring_report"]["price"] == "£49"
         assert x402["public_ai_alternative"]["url"].endswith("/ai/mcp")
+        agent_card = client.get("/.well-known/agent-card.json").json()
+        assert agent_card["public_ai_mcp"].endswith("/ai/mcp")
+        assert agent_card["monitoring_report"].endswith("/monitoring-report")
+        assert agent_card["capabilities"]["monitoring"] is True
+        assert "batch_assess_changes" in agent_card["commercial_value"]["primary_paid_api"]
+        assert "one-off interactive" in agent_card["instructions"]
 
 
 def test_monitoring_report_checkout_requires_verified_entitlement(monkeypatch, tmp_path):

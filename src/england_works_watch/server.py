@@ -273,7 +273,7 @@ if PAYMENT_ENFORCED:
         PaidToolSpec(
             "assess_change_impact",
             PRICE_ASSESS,
-            "Official-source-backed single Skilled Worker sponsor change-impact decision. Returns an evidence-linked rationale, required action/deadline fields, and explicit review or missing-input state. x402 Base mainnet USDC: sign buyer-side and retry this same tool with payment metadata.",
+            "Metered programmatic single-event Skilled Worker sponsor change-impact decision. Use when an agent/runtime needs one-event API execution; for a one-off interactive check, the public AI edition is usually sufficient. Returns evidence-linked rationale, required action/deadline fields, and explicit review or missing-input state. For multiple events use batch_assess_changes. x402 Base mainnet USDC: sign buyer-side and retry this same tool with payment metadata.",
         ),
         _assess,
     )
@@ -281,19 +281,19 @@ if PAYMENT_ENFORCED:
         PaidToolSpec(
             "batch_assess_changes",
             PRICE_BATCH,
-            "Batch Skilled Worker sponsor change-impact decisions for up to 25 events, with evidence-linked per-event results and outcome counts. x402 Base mainnet USDC: sign buyer-side and retry this same tool with payment metadata.",
+            "Primary paid API for repeated sponsor-compliance work. Assess 1-25 structured Skilled Worker sponsor changes in one call, returning evidence-linked per-event results and outcome counts. Use for lists, batches, multiple employees or organisation changes, HR/HRIS workflows, and agent automation. x402 Base mainnet USDC: sign buyer-side and retry this same tool with payment metadata.",
         ),
         _batch,
     )
 
     @mcp.tool(annotations=READ)
     def assess_change_impact(payload: dict[str, Any], ctx: Context):
-        """Paid deterministic Skilled Worker sponsor change-impact preflight. Requires x402 USDC payment."""
+        """Metered paid API for one sponsor-change event. Use for programmatic one-event execution; use batch_assess_changes for multiple events. A one-off interactive preflight is available on the public AI edition. Requires x402 USDC payment."""
         return invoke(paid_assess, tool_name="assess_change_impact", arguments=dict(payload), ctx=ctx)
 
     @mcp.tool(annotations=READ)
     def batch_assess_changes(payload: dict[str, Any], ctx: Context):
-        """Paid batch change-impact preflight for 1..25 sponsor events. Requires x402 USDC payment."""
+        """Primary paid API for repeated work: assess 1..25 sponsor events in one call with per-event results and outcome counts. Use for batches, lists, multiple employees or organisation changes, and agent automation. Requires x402 USDC payment."""
         return invoke(paid_batch, tool_name="batch_assess_changes", arguments=dict(payload), ctx=ctx)
 else:
 
@@ -1009,16 +1009,24 @@ async def agent_card(_request):
     return JSONResponse(
         {
             "name": "England Works Watch",
-            "description": "Deterministic official-source-backed sponsor change-impact tool for employer agents.",
+            "description": "UK Skilled Worker sponsor-change preflight with a public interactive single-event path plus paid batch automation and 30-day official-source monitoring.",
             "url": PUBLIC_ORIGIN,
             "mcp": PUBLIC_MCP_URL,
+            "public_ai_mcp": f"{PUBLIC_ORIGIN}/ai/mcp",
+            "monitoring_report": f"{PUBLIC_ORIGIN}/monitoring-report",
             "capabilities": {
                 "change_impact": SUPPORTED_EVENTS,
                 "source_freshness": True,
                 "batch": True,
+                "monitoring": True,
                 "x402": True,
             },
-            "instructions": "Read free source status before a paid decision. Escalate REVIEW_REQUIRED or INSUFFICIENT_INPUT.",
+            "commercial_value": {
+                "primary_paid_api": "batch_assess_changes for 1-25 sponsor changes",
+                "continued_monitoring": "30-day Sponsor Monitoring Report for repeated official-source drift checks",
+                "single_event_api": "assess_change_impact for metered programmatic one-event execution",
+            },
+            "instructions": "Use the public AI edition for a one-off interactive sponsor-change preflight. Use the commercial batch API for multiple events or repeated automation, and the monitoring report for continued official-source drift checks. On commercial execution, read source status first and escalate REVIEW_REQUIRED or INSUFFICIENT_INPUT.",
         }
     )
 
