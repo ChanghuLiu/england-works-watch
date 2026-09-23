@@ -47,7 +47,28 @@ def render_policy_page(kind: str, *, origin: str) -> str:
 
 def render_pricing_page(*, origin: str, prices: dict[str, str]) -> str:
     rows = "".join(f"<li><strong>{escape(name)}:</strong> {escape(price)}</li>" for name, price in prices.items())
-    return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pricing — England Works Watch</title><style>body{font-family:system-ui,sans-serif;max-width:860px;margin:0 auto;padding:32px 20px;line-height:1.55;color:#17202a}.price{background:#f5f8fa;border-left:4px solid #155eef;padding:12px 20px}a{color:#155eef}</style></head><body><main><p>England Works Watch — sponsor compliance/change intelligence</p><h1>Pricing</h1><p>Agent/API decisions use x402 Base mainnet USDC. The optional human/business monitoring report uses the shared commercial Stripe checkout.</p><div class="price"><ul>' + rows + '</ul></div><p>The human offer provides bounded repeated access during its configured entitlement period; it is not an auto-renewing subscription. Stripe payment is handled by the shared commercial platform; this product does not receive payment credentials.</p><p>Monitoring is official-source change detection, not legal advice or employee monitoring.</p><p><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/support">Support</a> · <a href="/monitoring-report">Monitoring report</a></p></main></body></html>'
+    return (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<title>Pricing — England Works Watch</title><style>'
+        'body{font-family:system-ui,sans-serif;max-width:900px;margin:0 auto;padding:32px 20px;line-height:1.55;color:#17202a}'
+        '.price,.compare{background:#f5f8fa;border-left:4px solid #155eef;padding:14px 20px;margin:18px 0}'
+        '.compare{border-left-color:#137a4b}a{color:#155eef}h2{margin-top:30px}'
+        '</style></head><body><main>'
+        '<p>England Works Watch — sponsor compliance/change intelligence</p><h1>Pricing</h1>'
+        '<p><strong>A one-off interactive sponsor-change preflight is available on the public AI edition.</strong> '
+        'Paid products are designed for repeated business use, automation, batch processing, or continued evidence monitoring.</p>'
+        '<div class="compare"><strong>Choose the paid path when the work is bigger than one interactive check.</strong>'
+        '<ul><li><strong>Batch API:</strong> assess up to 25 structured sponsor changes in one x402 call and receive per-event results plus outcome counts.</li>'
+        '<li><strong>30-day monitoring report:</strong> keep a private reusable link and re-check selected official GOV.UK sponsor-guidance sources for version or semantic-fingerprint drift during the entitlement period.</li>'
+        '<li><strong>Single-event commercial API:</strong> retained for programmatic integrations that require metered execution of one event.</li></ul></div>'
+        '<h2>Commercial prices</h2><div class="price"><ul>' + rows + '</ul></div>'
+        '<p>Agent/API calls use x402 Base mainnet USDC. The 30-day human/business monitoring report uses the shared commercial Stripe checkout. '
+        'The monitoring offer is not an auto-renewing subscription. Stripe payment is handled by the shared commercial platform; this product does not receive payment credentials.</p>'
+        '<p>Monitoring detects official-source change state; it does not send alerts, monitor employees, or provide legal advice.</p>'
+        '<p><a href="/monitoring-report"><strong>Open the £49 monitoring offer</strong></a> · '
+        '<a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/support">Support</a></p>'
+        '</main></body></html>'
+    )
 
 
 def monitoring_page(*, origin: str, source_channel: str = "direct") -> str:
@@ -225,9 +246,10 @@ a{color:var(--blue)}
   <h1>Sponsor compliance monitoring report</h1>
 
   <p class="lead">
-    Monitor official GOV.UK sponsor-guidance sources for version and
-    semantic-fingerprint changes. Use this when your compliance workflow
-    needs evidence that key sponsor guidance has changed or remained stable.
+    A one-off sponsor-change preflight answers one case now. This paid offer is
+    for the next problem: keeping evidence current. Monitor selected official
+    GOV.UK sponsor-guidance sources for version and semantic-fingerprint changes
+    and re-check them through a private reusable link for 30 days.
   </p>
 
   <div class="badges">
@@ -240,9 +262,25 @@ a{color:var(--blue)}
   <section class="offer">
     <div>
       <strong>Sponsor Monitoring Report</strong>
-      <span>Repeated access during a 30-day entitlement period. No subscription.</span>
+      <span>Repeated official-source checks during a 30-day entitlement period. No subscription.</span>
     </div>
     <div class="price">£49</div>
+  </section>
+
+  <section class="card">
+    <h2>What the paid report adds</h2>
+    <p>
+      Free interactive preflight is for one sponsor-change scenario. The paid
+      monitoring report instead creates a baseline for the GOV.UK sources you
+      select, then lets you return and compare those sources repeatedly for 30
+      days. Each check shows source version, observation time, change/review
+      state, and links back to the official guidance.
+    </p>
+    <p>
+      Need to assess many employee or organisation changes rather than monitor
+      source drift? Use the paid batch API, which evaluates up to 25 structured
+      sponsor-change events in one call.
+    </p>
   </section>
 
   <section class="card">
