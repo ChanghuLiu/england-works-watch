@@ -1003,11 +1003,8 @@ async def agent_json(_request):
 async def glama_json(_request):
     return JSONResponse(
         {
-            "name": "England Works Watch",
-            "description": "UK Skilled Worker sponsor compliance/change intelligence via remote MCP.",
-            "serverUrl": PUBLIC_MCP_URL,
-            "transport": "streamable-http",
-            "repository": "https://github.com/ChanghuLiu/england-works-watch",
+            "$schema": "https://glama.ai/mcp/schemas/connector.json",
+            "claim": "glama_claim_w9AF-xs40XYIYfk0LmecMd2kKI5eY-Lt",
         }
     )
 
