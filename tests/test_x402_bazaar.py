@@ -1,4 +1,12 @@
-from england_works_watch.x402_gate import PaidToolSpec, discovery_extensions
+from england_works_watch.x402_gate import PaidToolSpec, discovery_extensions, public_mcp_resource_url
+
+
+def test_bazaar_resource_uses_public_http_mcp_endpoint(monkeypatch):
+    monkeypatch.setenv('EWW_PUBLIC_ORIGIN', 'https://mcp.example.test/')
+    assert public_mcp_resource_url() == 'https://mcp.example.test/mcp'
+
+    monkeypatch.delenv('EWW_PUBLIC_ORIGIN')
+    assert public_mcp_resource_url() == 'https://works.regevidencehub.com/mcp'
 
 
 def test_assess_paid_tool_declares_mcp_bazaar_metadata():

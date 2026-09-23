@@ -29,6 +29,12 @@ def eip712_token_identity(network: str) -> tuple[str, str]:
     return name, version
 
 
+def public_mcp_resource_url() -> str:
+    """Return the public HTTP endpoint used to discover this MCP resource."""
+    origin = os.getenv("EWW_PUBLIC_ORIGIN", "https://works.regevidencehub.com").strip().rstrip("/")
+    return f"{origin}/mcp"
+
+
 @dataclass(frozen=True)
 class PaidToolSpec:
     name:str; price:str; description:str
@@ -146,7 +152,7 @@ class MCP2X402Gate:
             SyncPaymentWrapperConfig(
                 accepts=accepts,
                 resource=ResourceInfo(
-                    url=f'mcp://tool/{spec.name}',
+                    url=public_mcp_resource_url(),
                     description=spec.description,
                     mime_type='application/json',
                     service_name='England Works Watch',
