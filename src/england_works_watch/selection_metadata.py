@@ -97,19 +97,26 @@ TOOL_SELECTION_DESCRIPTIONS: dict[str, str] = {
         "or required-action decisions."
     ),
     "assess_change_impact": (
-        "Paid programmatic single-event change decision for agent/runtime workflows. Use when a commercial integration "
-        "needs metered API execution for one concrete Skilled Worker sponsor event. For a one-off interactive check, the "
-        "public AI edition can provide the same class of evidence-linked single-event preflight without x402. Prefer "
-        "batch_assess_changes when there are multiple events. Handles absence, salary, role or occupation-code, "
-        "remote/home/work-location, delayed-start, stop-sponsoring/worker-departure, organisation, TUPE, merger, or "
-        "takeover events. Payment: x402 Base mainnet USDC; sign buyer-side and retry this same tool with payment metadata."
+        "Paid programmatic single-event change decision for ONE concrete Skilled Worker sponsor event. Use for one event "
+        "to determine impact, including questions such as 'Does moving one sponsored worker to permanent home working "
+        "trigger reporting?', whether Home Office/UKVI sponsor reporting is triggered, whether it is "
+        "AFFECTED/NOT_AFFECTED, what the sponsor must do, what action is required, or required actions. Handles one "
+        "absence, salary, role or occupation-code, remote/home/work-location, delayed-start, stop-sponsoring/"
+        "worker-departure, organisation, TUPE, merger, or takeover event. Returns an evidence-linked rationale, required "
+        "action/deadline fields, and explicit review or missing-input state. For a one-off interactive check, the public "
+        "AI edition can provide the same class of single-event preflight without x402; use this commercial tool when an "
+        "agent/runtime requires metered programmatic execution. Payment: x402 Base mainnet USDC; sign buyer-side and "
+        "retry this same tool with payment metadata. Not for multiple events; use batch_assess_changes instead."
     ),
     "batch_assess_changes": (
-        "Primary paid API path for repeated sponsor-compliance work: assess 1-25 structured Skilled Worker sponsor "
-        "changes in one call and return per-event evidence-linked results plus outcome counts. Use for HR, HRIS, payroll, "
-        "recruitment, adviser, or agent workflows handling several cases at once. This avoids orchestrating many separate "
-        "interactive checks. Payment: x402 Base mainnet USDC; sign buyer-side and retry this same tool with payment metadata. "
-        "For one interactive event, the public AI edition is usually sufficient."
+        "Primary paid batch/multiple-event decision path for 1-25 events. Use for a list, batch, set, several, many, "
+        "multiple, 5, 8, 20 or other collection of sponsor changes; assess or evaluate them together in one request and "
+        "return per-event evidence-linked results plus counts by outcome. Use when the user says 'these changes', "
+        "'all changes', 'multiple Skilled Worker events', or asks to batch check several salary, absence, role, location "
+        "or other sponsor events. This is the main paid API path for repeated HR, HRIS, payroll, recruitment, adviser or "
+        "agent workflows because it avoids orchestrating many separate interactive checks. Payment: x402 Base mainnet "
+        "USDC; sign buyer-side and retry this same tool with payment metadata. Not for one event; use assess_change_impact "
+        "or the public AI edition instead."
     ),
 }
 
