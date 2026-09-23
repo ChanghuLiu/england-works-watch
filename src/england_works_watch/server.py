@@ -914,14 +914,17 @@ async def monitoring_report_cancelled(request):
 async def llms(_request):
     return PlainTextResponse(
         f"England Works Watch — UK sponsor compliance/change intelligence\n"
-        f"MCP: {PUBLIC_MCP_URL}\n"
+        f"Commercial MCP: {PUBLIC_MCP_URL}\n"
+        f"Public AI MCP: {PUBLIC_ORIGIN}/ai/mcp\n"
         "Scope: Skilled Worker sponsor duties only.\n"
-        "Free MCP tools: england_works_watch_info, licensing_source_status, list_supported_change_events.\n"
-        f"Paid: assess_change_impact {PRICE_ASSESS}; batch_assess_changes {PRICE_BATCH}.\n"
-        "Use when an employer/HR/HRIS Agent needs deterministic evidence-backed sponsor change impact.\n"
-        "Free vs paid: free tools provide scope, source status and supported-event vocabulary; paid tools return a deterministic decision with evidence-linked rationale, required action/deadline fields, and explicit review or missing-input state.\n"
-        "Example paid result (synthetic shape only): unauthorised_absence, Skilled Worker, 11 consecutive working days -> a response containing status, decision_code, rationale, required_actions, deadline, missing_inputs, review_reasons, affected_rules and disclaimer.\n"
-        f"Payment guidance: x402 PaymentRequired -> sign buyer-side Base mainnet USDC ({NETWORK}) -> retry the same paid tool with payment metadata. If payment or settlement is not verified, the paid decision is not executed.\n"
+        "Public AI/directory edition: one interactive single-event sponsor-change preflight is available without x402, alongside source-status and supported-event discovery.\n"
+        "Commercial MCP free discovery tools: england_works_watch_info, licensing_source_status, list_supported_change_events.\n"
+        f"Primary paid API: batch_assess_changes {PRICE_BATCH}; assess 1-25 structured sponsor changes in one x402 call with per-event results and outcome counts.\n"
+        f"Single-event commercial API: assess_change_impact {PRICE_ASSESS}; retained for metered programmatic integrations that need one-event execution.\n"
+        f"30-day Sponsor Monitoring Report: £49 via Stripe at {PUBLIC_ORIGIN}/monitoring-report; creates a source baseline and supports repeated official-source version/fingerprint checks through a private reusable link.\n"
+        "Use paid access for automation, repeated business use, batch processing, or continued evidence monitoring rather than to unlock the basic one-off answer.\n"
+        "Example decision shape: status, decision_code, rationale, required_actions, deadline, missing_inputs, review_reasons, affected_rules and disclaimer.\n"
+        f"x402 payment guidance: PaymentRequired -> sign buyer-side Base mainnet USDC ({NETWORK}) -> retry the same paid tool with payment metadata. If payment or settlement is not verified, the paid API decision is not executed.\n"
         "Decision arguments use a top-level payload object containing structured change facts.\n"
         "Official GOV.UK evidence is fingerprinted continuously; changed/stale evidence fails closed.\n"
         "Never treat REVIEW_REQUIRED or INSUFFICIENT_INPUT as clearance. Not legal advice.\n"
@@ -947,6 +950,7 @@ async def sitemap(_request):
 
 @mcp.custom_route("/.well-known/x402", methods=["GET"])
 async def x402_info(_request):
+    payment = _payment_info()
     result = {
         "x402Version": 2,
         "scheme": "exact",
@@ -954,8 +958,20 @@ async def x402_info(_request):
         "asset": "USDC",
         "payment_enforced": PAYMENT_ENFORCED,
         "tools": {
-            "assess_change_impact": {"price": PRICE_ASSESS},
-            "batch_assess_changes": {"price": PRICE_BATCH},
+            "assess_change_impact": {
+                "price": PRICE_ASSESS,
+                "role": "metered programmatic single-event compatibility path",
+            },
+            "batch_assess_changes": {
+                "price": PRICE_BATCH,
+                "role": "primary paid API path for repeated work",
+                "max_events": 25,
+            },
+        },
+        "recommended_paid_paths": payment["recommended_paid_paths"],
+        "public_ai_alternative": {
+            "url": f"{PUBLIC_ORIGIN}/ai/mcp",
+            "value": "One interactive single-event sponsor-change preflight is available without x402.",
         },
         "facilitator": FACILITATOR,
         "payment_flow": [

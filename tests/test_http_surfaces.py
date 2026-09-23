@@ -20,12 +20,22 @@ def test_local_public_policy_discovery_and_health_routes_return_200(monkeypatch,
     from england_works_watch.entrypoint import build_http_app
 
     with TestClient(build_http_app()) as client:
-        for path in ("/health", "/pricing", "/privacy", "/terms", "/support", "/monitoring-report", "/llms.txt", "/sitemap.xml", "/openapi.json", "/.well-known/mcp/server-card.json"):
+        for path in ("/health", "/pricing", "/privacy", "/terms", "/support", "/monitoring-report", "/llms.txt", "/sitemap.xml", "/openapi.json", "/.well-known/mcp/server-card.json", "/.well-known/x402"):
             response = client.get(path)
             assert response.status_code == 200, (path, response.text)
         assert client.get("/health").json()["status"] == "ok"
         assert "/monitoring-report" in client.get("/sitemap.xml").text
         assert "create_source_checkpoint" in client.get("/openapi.json").text or "monitoring" in client.get("/openapi.json").text
+        llms = client.get("/llms.txt").text
+        assert "Public AI/directory edition" in llms
+        assert "Primary paid API: batch_assess_changes" in llms
+        assert "30-day Sponsor Monitoring Report" in llms
+        assert "free tools provide scope, source status" not in llms
+        x402 = client.get("/.well-known/x402").json()
+        assert x402["tools"]["batch_assess_changes"]["role"] == "primary paid API path for repeated work"
+        assert x402["tools"]["batch_assess_changes"]["max_events"] == 25
+        assert x402["recommended_paid_paths"]["monitoring_report"]["price"] == "£49"
+        assert x402["public_ai_alternative"]["url"].endswith("/ai/mcp")
 
 
 def test_monitoring_report_checkout_requires_verified_entitlement(monkeypatch, tmp_path):
