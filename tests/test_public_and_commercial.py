@@ -107,6 +107,9 @@ def test_c7b_acquisition_aliases_and_monitoring_form_are_bounded():
     assert "Secure Stripe checkout" in page
     assert "Stripe Test checkout" not in page
     assert "Continue to checkout" in page
+    assert page.count('name="source_ids"') == 4
+    assert "Sponsor duties and compliance — Part 3" in page
+    assert "Source IDs" not in page
 
 
 def test_production_pricing_route_has_no_stale_test_mode_label():
@@ -208,3 +211,27 @@ def test_paid_monitoring_return_requires_entitlement_and_reuses_link(monkeypatch
     assert events.count("payment_succeeded") == 1
     assert events.count("entitlement_activated") == 1
     assert events.count("premium_fulfilled") == 2
+
+
+def test_monitoring_form_preserves_multiple_source_choices_and_legacy_comma_input():
+    from england_works_watch import server
+
+    class FormRequest:
+        headers = {"content-type": "application/x-www-form-urlencoded"}
+
+        def __init__(self, body: bytes):
+            self.encoded = body
+
+        async def body(self):
+            return self.encoded
+
+    selected = asyncio.run(server._read_monitoring_request(FormRequest(
+        b"source_ids=sponsor-part2&source_ids=appendix-d&source_channel=organic"
+    )))
+    assert server._monitoring_ids(selected) == ["sponsor-part2", "appendix-d"]
+    assert selected["source_channel"] == "organic"
+
+    legacy = asyncio.run(server._read_monitoring_request(FormRequest(
+        b"source_ids=sponsor-part2%2Csponsor-part3"
+    )))
+    assert server._monitoring_ids(legacy) == ["sponsor-part2", "sponsor-part3"]

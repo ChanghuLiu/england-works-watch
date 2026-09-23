@@ -481,7 +481,7 @@ async def _read_monitoring_request(request) -> dict[str, Any]:
         return payload
     raw = (await request.body()).decode("utf-8", "replace")
     values = parse_qs(raw, keep_blank_values=True)
-    return {key: items[-1] for key, items in values.items()}
+    return {key: (items if key == "source_ids" and len(items) > 1 else items[-1]) for key, items in values.items()}
 
 
 def _monitoring_ids(payload: dict[str, Any]) -> list[str]:
