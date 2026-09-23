@@ -165,6 +165,26 @@ input:focus{
   outline:3px solid rgba(21,94,239,.15);
   border-color:var(--blue);
 }
+.source-list{border:0;padding:0;margin:22px 0 0}
+.source-list legend{font-weight:700;padding:0}
+.source-option{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  margin:10px 0;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  font-weight:400;
+}
+.source-option input{
+  width:auto;
+  flex:0 0 auto;
+  margin:5px 0 0;
+  accent-color:var(--blue);
+}
+.source-option strong,.source-option small{display:block}
+.source-option small{color:var(--muted)}
 button{
   margin-top:18px;
   border:0;
@@ -234,15 +254,17 @@ a{color:var(--blue)}
 
     <form method="post" action="/monitoring-report/checkout">
       <input type="hidden" name="source_channel" value="{source_channel}">
-      <label for="source_ids">Source IDs</label>
-      <input
-        id="source_ids"
-        name="source_ids"
-        value="sponsor-part2,sponsor-part3,skilled-worker,appendix-d"
-        autocomplete="off"
-      >
+      <fieldset class="source-list">
+        <legend>Official guidance to include</legend>
+        <p>Choose one or more sources. All four are selected by default.</p>
+        <label class="source-option"><input type="checkbox" name="source_ids" value="sponsor-part2" checked><span><strong>Sponsor a worker — Part 2</strong><small>Start dates, unpaid or reduced pay, and changes of employment.</small></span></label>
+        <label class="source-option"><input type="checkbox" name="source_ids" value="sponsor-part3" checked><span><strong>Sponsor duties and compliance — Part 3</strong><small>Reporting duties and changes affecting workers or your organisation.</small></span></label>
+        <label class="source-option"><input type="checkbox" name="source_ids" value="skilled-worker" checked><span><strong>Sponsor a Skilled Worker</strong><small>Skilled Worker route guidance, including salary changes.</small></span></label>
+        <label class="source-option"><input type="checkbox" name="source_ids" value="appendix-d" checked><span><strong>Appendix D — keeping records</strong><small>Sponsorship record-keeping duties.</small></span></label>
+      </fieldset>
 
-      <button type="submit">Continue to checkout</button>
+      <p>Your report shows each selected source's version, last observation and change or review state. Save the private return link to check again during the 30 days. Changes require your review; this service does not send alerts.</p>
+      <button type="submit">Continue to checkout — £49</button>
     </form>
   </section>
 
