@@ -140,3 +140,38 @@ def test_paid_report_entitlement_code_wraps_without_layout_overflow():
     )
     assert "overflow-wrap:anywhere" in page
     assert "e" * 160 in page
+
+
+def test_paid_monitoring_report_links_to_official_sources_and_escapes_result_text():
+    from england_works_watch.policy import SOURCE_BY_ID
+    from england_works_watch.server import _monitoring_paid_page
+
+    page = _monitoring_paid_page(
+        entitlement_code="monitoring",
+        report={
+            "status": "CHANGED",
+            "checked_at": "2026-09-23T16:00:00Z",
+            "sources": [
+                {
+                    "source_id": "sponsor-part3",
+                    "status": "CHANGED",
+                    "current_source_version": "08/26",
+                    "current_observed_at": "2026-09-23T15:00:00Z",
+                    "reason": "<untrusted>",
+                },
+                {
+                    "source_id": "unknown-source",
+                    "status": "REVIEW_REQUIRED",
+                    "reason": "No official registry entry",
+                },
+            ],
+        },
+        return_token="private-token",
+    )
+    assert SOURCE_BY_ID["sponsor-part3"]["url"] in page
+    assert SOURCE_BY_ID["sponsor-part3"]["title"] in page
+    assert 'target="_blank" rel="noopener noreferrer"' in page
+    assert "no detected change since that snapshot" in page
+    assert "&lt;untrusted&gt;" in page
+    assert "<untrusted>" not in page
+    assert "<strong>unknown-source</strong>" in page

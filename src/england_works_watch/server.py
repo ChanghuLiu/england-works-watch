@@ -619,14 +619,22 @@ def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], retu
         for source in sources:
             if not isinstance(source, dict):
                 continue
-            source_id = escape(str(source.get("source_id") or ""))
+            raw_source_id = str(source.get("source_id") or "")
+            source_id = escape(raw_source_id)
+            official = SOURCE_BY_ID.get(raw_source_id) or {}
+            official_url = str(official.get("url") or "")
+            source_label = (
+                f'<a href="{escape(official_url, quote=True)}" target="_blank" rel="noopener noreferrer">'
+                f'{escape(str(official.get("title") or raw_source_id))}</a>'
+                if official_url.startswith("https://www.gov.uk/") else source_id
+            )
             source_status = escape(str(source.get("status") or "UNKNOWN"))
             version = escape(str(source.get("current_source_version") or ""))
             observed = escape(str(source.get("current_observed_at") or ""))
             reason = escape(str(source.get("reason") or ""))
             rows.append(
                 "<tr>"
-                f"<td><strong>{source_id}</strong></td>"
+                f"<td><strong>{source_label}</strong></td>"
                 f"<td>{source_status}</td>"
                 f"<td>{version}</td>"
                 f"<td>{observed}</td>"
@@ -778,6 +786,7 @@ a{{color:var(--blue)}}
   <section class="card">
     <h2>Source monitoring results</h2>
     <p>Checked at: {checked_at}</p>
+    <p>The comparison starts with a source snapshot saved before checkout. UNCHANGED means no detected change since that snapshot; it does not describe earlier updates. Open each official source to review its current guidance.</p>
     <div class="table-wrap">
       <table>
         <thead>

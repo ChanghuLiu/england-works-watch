@@ -263,7 +263,7 @@ a{color:var(--blue)}
         <label class="source-option"><input type="checkbox" name="source_ids" value="appendix-d" checked><span><strong>Appendix D — keeping records</strong><small>Sponsorship record-keeping duties.</small></span></label>
       </fieldset>
 
-      <p>Your report shows each selected source's version, last observation and change or review state. Save the private return link to check again during the 30 days. Changes require your review; this service does not send alerts.</p>
+      <p>Your first comparison starts with a source snapshot saved when you continue to checkout; it does not show changes from before that point. The report links to each selected GOV.UK source and shows its version, last observation and change or review state. Save the private return link to check again during the 30 days. Changes require your review; this service does not send alerts.</p>
       <button type="submit">Continue to checkout — £49</button>
     </form>
   </section>
