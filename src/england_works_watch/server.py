@@ -332,6 +332,7 @@ async def product_page(_request):
             "payment": _payment_info(),
             "value_preview": _value_preview(),
             "docs": f"{PUBLIC_ORIGIN}/llms.txt",
+            "smithery": "https://smithery.ai/servers/liuchanghu2018/england-works-watch",
         }
     )
 
