@@ -300,10 +300,29 @@ a{color:var(--blue)}
   </section>
 
   <section class="card">
+    <h2>See what the report shows before you pay</h2>
+    <p><strong>Illustrative report fields — this is not a current source result.</strong></p>
+    <p>
+      <strong>Source:</strong> Sponsor duties and compliance — Part 3<br>
+      <strong>Baseline version:</strong> version captured when checkout starts<br>
+      <strong>Current version:</strong> latest version observed by the service<br>
+      <strong>Change state:</strong> UNCHANGED, CHANGED, or REVIEW REQUIRED<br>
+      <strong>Checked at:</strong> timestamp of the latest source observation<br>
+      <strong>Evidence:</strong> direct link back to the official GOV.UK guidance
+    </p>
+    <p>
+      Your private return link re-runs the comparison during the 30-day access
+      period. If a monitored source changes or cannot be safely compared, the
+      report flags it for review instead of silently treating it as unchanged.
+    </p>
+  </section>
+
+  <section class="card">
     <h2>Select the guidance sources to monitor</h2>
     <p>
-      The default scope covers the core sponsor-duty and Skilled Worker
-      guidance used by England Works Watch.
+      All four core sponsor-duty sources are already selected by default. If
+      that scope works for you, no setup is required — continue directly to
+      secure checkout.
     </p>
 
     <form method="post" action="/monitoring-report/checkout">
@@ -319,7 +338,7 @@ a{color:var(--blue)}
 
       <p>Your first comparison starts with a source snapshot saved when you continue to checkout; it does not show changes from before that point. The report links to each selected GOV.UK source and shows its version, last observation and change or review state. Save the private return link to check again during the 30 days. Changes require your review; this service does not send alerts.</p>
       {verification_control}
-      <button type="submit">Continue to checkout — £49</button>
+      <button type="submit">Create baseline & continue to secure checkout — £49</button>
     </form>
   </section>
 
