@@ -111,6 +111,22 @@ def _payment_info() -> dict[str, Any]:
             "assess_change_impact": PRICE_ASSESS,
             "batch_assess_changes": PRICE_BATCH,
         },
+        "recommended_paid_paths": {
+            "batch_api": {
+                "tool": "batch_assess_changes",
+                "value": "Primary paid API path for repeated work: assess 1-25 structured sponsor changes in one call.",
+            },
+            "monitoring_report": {
+                "url": f"{PUBLIC_ORIGIN}/monitoring-report",
+                "price": "£49",
+                "access": "30 days",
+                "value": "Repeated official-source version and semantic-fingerprint checks through a private reusable link.",
+            },
+            "single_event_api": {
+                "tool": "assess_change_impact",
+                "positioning": "Metered programmatic compatibility path; a one-off interactive preflight is available on the public AI edition.",
+            },
+        },
         "buyer_security": "Never send private keys or seed phrases to this service; payment authorization is signed buyer-side.",
     }
     if PAY_TO:
@@ -137,6 +153,11 @@ def _server_card() -> dict[str, Any]:
         "decision_labels": ["AFFECTED", "NOT_AFFECTED", "REVIEW_REQUIRED", "INSUFFICIENT_INPUT"],
         "free_tools": ["england_works_watch_info", "licensing_source_status", "list_supported_change_events"],
         "paid_tools": ["assess_change_impact", "batch_assess_changes"],
+        "commercial_value_paths": {
+            "primary_api": "batch_assess_changes for 1-25 events",
+            "continued_monitoring": f"{PUBLIC_ORIGIN}/monitoring-report for 30-day official-source drift checks",
+            "single_event_api": "assess_change_impact retained for metered programmatic compatibility",
+        },
         "decision_argument_shape": {
             "payload": {
                 "event_type": "unauthorised_absence",
@@ -427,9 +448,9 @@ async def pricing(_request):
         render_pricing_page(
             origin=PUBLIC_ORIGIN,
             prices={
-                "assess_change_impact": f"{PRICE_ASSESS} USDC per x402 call",
-                "batch_assess_changes": f"{PRICE_BATCH} USDC per x402 call",
-                "human monitoring/report": "shared commercial Stripe checkout; £49 human monitoring/report offer",
+                "Single-event commercial API (assess_change_impact)": f"{PRICE_ASSESS} USDC per x402 call; programmatic compatibility path",
+                "Primary paid batch API (batch_assess_changes)": f"{PRICE_BATCH} USDC per x402 call; 1-25 events",
+                "30-day Sponsor Monitoring Report": "£49 via shared commercial Stripe checkout",
             },
         ),
         media_type="text/html",
