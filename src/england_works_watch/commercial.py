@@ -60,7 +60,7 @@ class CommercialSettings:
     success_url: str | None = None
     cancel_url: str | None = None
     timeout_seconds: float = 5.0
-    pending_ttl_seconds: int = 1800
+    pending_ttl_seconds: int = 86400
 
     @classmethod
     def from_env(cls) -> "CommercialSettings":
@@ -72,7 +72,7 @@ class CommercialSettings:
         cancel_url = _required_url("EWW_COMMERCIAL_CANCEL_URL", cancel_url)
         try:
             timeout = float(os.getenv("EWW_COMMERCIAL_TIMEOUT_SECONDS", "5"))
-            pending_ttl = int(os.getenv("EWW_COMMERCIAL_PENDING_TTL_SECONDS", "1800"))
+            pending_ttl = int(os.getenv("EWW_COMMERCIAL_PENDING_TTL_SECONDS", "86400"))
         except ValueError as exc:
             raise ValueError("commercial timeout/TTL settings are invalid") from exc
         if not 0.1 <= timeout <= 30:
@@ -98,6 +98,7 @@ class PendingMonitoringCheckout:
     owner_test: bool
     checkout_id: str | None
     expires_at: float
+    paid_access_activated: bool = False
 
 
 class PendingMonitoringCheckoutStore:
@@ -174,6 +175,7 @@ class PendingMonitoringCheckoutStore:
             "owner_test": row.owner_test,
             "checkout_id": row.checkout_id,
             "expires_at": row.expires_at,
+            "paid_access_activated": row.paid_access_activated,
         }
 
     @staticmethod
@@ -186,6 +188,7 @@ class PendingMonitoringCheckoutStore:
         owner_test = item.get("owner_test", classification == "owner_test")
         checkout_id = item.get("checkout_id")
         expires_at = item.get("expires_at")
+        paid_access_activated = item.get("paid_access_activated", False)
 
         if not isinstance(return_token, str) or not return_token:
             raise ValueError("invalid persisted return_token")
@@ -203,6 +206,8 @@ class PendingMonitoringCheckoutStore:
             raise ValueError("invalid persisted checkout_id")
         if not isinstance(expires_at, (int, float)):
             raise ValueError("invalid persisted expires_at")
+        if not isinstance(paid_access_activated, bool):
+            raise ValueError("invalid persisted paid_access_activated")
 
         return PendingMonitoringCheckout(
             return_token=return_token,
@@ -213,6 +218,7 @@ class PendingMonitoringCheckoutStore:
             owner_test=owner_test,
             checkout_id=checkout_id,
             expires_at=float(expires_at),
+            paid_access_activated=paid_access_activated,
         )
 
     def _persist_locked(self) -> None:
@@ -351,6 +357,21 @@ class PendingMonitoringCheckoutStore:
             self._rows[return_token] = updated
             self._persist_locked()
             return updated
+
+    def activate_paid_access(self, return_token: str, *, duration_seconds: int = 2592000) -> bool:
+        """Extend a verified paid return link once; each visit still rechecks entitlement."""
+        if duration_seconds < 60 or duration_seconds > 2592000:
+            raise ValueError("paid access duration must be at most 30 days")
+        with self._lock:
+            self._prune_locked()
+            row = self._rows.get(return_token)
+            if row is None or row.paid_access_activated:
+                return False
+            self._rows[return_token] = replace(
+                row, expires_at=time.time() + duration_seconds, paid_access_activated=True
+            )
+            self._persist_locked()
+            return True
 
     def get(
         self,
