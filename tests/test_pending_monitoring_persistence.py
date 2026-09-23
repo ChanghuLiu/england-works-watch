@@ -114,3 +114,34 @@ def test_corrupt_persisted_file_fails_safely(tmp_path):
         assert "unreadable" in str(exc)
     else:
         raise AssertionError("corrupt state must fail closed")
+
+
+def test_verified_paid_link_survives_restart_without_extending_on_repeat(tmp_path):
+    path = tmp_path / "pending-monitoring.json"
+    first = PendingMonitoringCheckoutStore(1800, path=path)
+    row = first.create(checkpoint=_checkpoint(), source_channel="direct")
+    first.attach_checkout(row.return_token, "checkout_paid")
+
+    assert first.activate_paid_access(row.return_token) is True
+    activated = first.get(row.return_token)
+    assert activated is not None and activated.paid_access_activated is True
+    assert activated.expires_at > time.time() + 29 * 24 * 60 * 60
+    assert first.activate_paid_access(row.return_token) is False
+    assert first.get(row.return_token).expires_at == activated.expires_at
+
+    restarted = PendingMonitoringCheckoutStore(1800, path=path)
+    assert restarted.get(row.return_token).paid_access_activated is True
+    assert restarted.activate_paid_access(row.return_token) is False
+    assert restarted.get(row.return_token).expires_at == activated.expires_at
+    assert restarted.get(row.return_token).principal_ref == row.principal_ref
+
+
+def test_paid_link_cannot_outlive_its_stored_expiration(tmp_path):
+    from dataclasses import replace
+
+    store = PendingMonitoringCheckoutStore(1800, path=tmp_path / "pending.json")
+    row = store.create(checkpoint=_checkpoint(), source_channel="direct")
+    assert store.activate_paid_access(row.return_token) is True
+    store._rows[row.return_token] = replace(store.get(row.return_token), expires_at=time.time() - 1)
+    assert store.get(row.return_token) is None
+    assert store.activate_paid_access(row.return_token) is False

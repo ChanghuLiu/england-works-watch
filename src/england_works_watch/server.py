@@ -4,7 +4,7 @@ import argparse
 import os
 import time
 from typing import Any, Mapping
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlencode
 
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
@@ -602,7 +602,7 @@ async def monitoring_report_checkout(request):
 
 
 
-def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any]) -> str:
+def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], return_token: str) -> str:
     from html import escape
 
     status = escape(str(report.get("status") or "UNKNOWN"))
@@ -611,6 +611,7 @@ def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any]) -> s
     source_gate = report.get("source_gate") is True
     next_action = escape(str(report.get("next_action") or ""))
     disclaimer = escape(str(report.get("disclaimer") or ""))
+    access_link = escape("/monitoring-report/checkout-success?" + urlencode({"return_token": return_token}), quote=True)
 
     rows = []
     sources = report.get("sources")
@@ -801,7 +802,9 @@ a{{color:var(--blue)}}
   <p>{disclaimer}</p>
 
   <p class="links">
-    <a href="/monitoring-report">Run another monitoring report</a> ·
+    Save this private link to check the selected sources again during your 30-day access period.<br>
+    <a href="{access_link}">Check these sources again</a> ·
+    <a href="/monitoring-report">Start a new purchase</a> ·
     <a href="/pricing">Pricing</a> ·
     <a href="/privacy">Privacy</a> ·
     <a href="/terms">Terms</a> ·
@@ -824,19 +827,23 @@ async def monitoring_report_success(request):
         return JSONResponse({"status": "ENTITLEMENT_UNAVAILABLE", "detail": str(exc)}, status_code=503)
     if entitlement.get("active") is not True or not isinstance(entitlement.get("token"), str) or not entitlement["token"]:
         return JSONResponse({"status": "ENTITLEMENT_REQUIRED", "detail": "A verified active shared-commercial entitlement is required."}, status_code=403)
+    # Verified entitlements remain the authority on every visit. The opaque
+    # return link is extended only once, so repeat views cannot extend access.
+    first_paid_view = PENDING_MONITORING_CHECKOUTS.activate_paid_access(token)
     report = changed_since(row.checkpoint)
-    await _safe_commercial_event(
-        "payment_succeeded",
-        source_channel=row.source_channel,
-        classification=row.classification,
-        owner_test=row.owner_test,
-    )
-    await _safe_commercial_event(
-        "entitlement_activated",
-        source_channel=row.source_channel,
-        classification=row.classification,
-        owner_test=row.owner_test,
-    )
+    if first_paid_view:
+        await _safe_commercial_event(
+            "payment_succeeded",
+            source_channel=row.source_channel,
+            classification=row.classification,
+            owner_test=row.owner_test,
+        )
+        await _safe_commercial_event(
+            "entitlement_activated",
+            source_channel=row.source_channel,
+            classification=row.classification,
+            owner_test=row.owner_test,
+        )
     await _safe_commercial_event(
         "premium_fulfilled",
         source_channel=row.source_channel,
@@ -858,11 +865,13 @@ async def monitoring_report_success(request):
             _monitoring_paid_page(
                 entitlement_code=str(entitlement.get("entitlement_code") or ""),
                 report=report,
+                return_token=token,
             ),
             media_type="text/html",
+            headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"},
         )
 
-    return JSONResponse(result)
+    return JSONResponse(result, headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"})
 
 
 @mcp.custom_route("/monitoring-report/checkout-cancelled", methods=["GET"])

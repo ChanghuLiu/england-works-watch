@@ -137,3 +137,74 @@ def test_c7c_monitoring_traffic_quality_classification_is_bounded():
     assert server._monitoring_classification(node, {}) == ("automated_external", False)
     assert server._monitoring_classification(indexer, {}) == ("automated_external", False)
     assert server._monitoring_classification(owner_node, {}) == ("owner_test", True)
+
+
+def test_paid_monitoring_return_requires_entitlement_and_reuses_link(monkeypatch, tmp_path):
+    from england_works_watch import server
+    from england_works_watch.commercial import PendingMonitoringCheckoutStore
+
+    checkpoint = {
+        "schema_version": "c5-monitoring-v1",
+        "created_at": "2026-09-23T00:00:00Z",
+        "sources": [{
+            "source_id": "sponsor-part2",
+            "source_version": "08/26",
+            "semantic_sha256": "a" * 64,
+            "observed_at": "2026-09-23T00:00:00Z",
+        }],
+    }
+    store = PendingMonitoringCheckoutStore(1800, path=tmp_path / "pending.json")
+    row = store.create(checkpoint=checkpoint, source_channel="direct")
+    store.attach_checkout(row.return_token, "checkout_paid")
+    request = SimpleNamespace(
+        headers={"accept": "text/html"},
+        query_params={"return_token": row.return_token},
+    )
+
+    class VerifiedCommercial:
+        active = False
+
+        async def verify_entitlement(self, **_kwargs):
+            return {
+                "active": self.active,
+                "token": "signed" if self.active else None,
+                "entitlement_code": "eww_sponsor_monitoring_report",
+            }
+
+    client = VerifiedCommercial()
+    events = []
+
+    async def record_event(event_type, **_kwargs):
+        events.append(event_type)
+
+    monkeypatch.setattr(server, "PENDING_MONITORING_CHECKOUTS", store)
+    monkeypatch.setattr(server, "COMMERCIAL_CLIENT", client)
+    monkeypatch.setattr(server, "_safe_commercial_event", record_event)
+    monkeypatch.setattr(server, "changed_since", lambda _checkpoint: {
+        "status": "UNCHANGED",
+        "checked_at": "2026-09-23T12:00:00Z",
+        "decision_usable": True,
+        "source_gate": True,
+        "next_action": "Keep monitoring.",
+        "disclaimer": "Not legal advice.",
+        "sources": [],
+    })
+
+    denied = asyncio.run(server.monitoring_report_success(request))
+    assert denied.status_code == 403
+    assert store.get(row.return_token).paid_access_activated is False
+    assert events == []
+
+    client.active = True
+    first = asyncio.run(server.monitoring_report_success(request))
+    expiry = store.get(row.return_token).expires_at
+    second = asyncio.run(server.monitoring_report_success(request))
+    assert first.status_code == second.status_code == 200
+    assert store.get(row.return_token).expires_at == expiry
+    assert first.headers["referrer-policy"] == "no-referrer"
+    assert first.headers["cache-control"] == "private, no-store"
+    assert row.return_token in first.body.decode("utf-8")
+    assert "Check these sources again" in first.body.decode("utf-8")
+    assert events.count("payment_succeeded") == 1
+    assert events.count("entitlement_activated") == 1
+    assert events.count("premium_fulfilled") == 2

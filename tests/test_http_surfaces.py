@@ -136,6 +136,7 @@ def test_paid_report_entitlement_code_wraps_without_layout_overflow():
     page = _monitoring_paid_page(
         entitlement_code="e" * 160,
         report={"status": "UNCHANGED", "decision_usable": True, "source_gate": True},
+        return_token="sample-return-token",
     )
     assert "overflow-wrap:anywhere" in page
     assert "e" * 160 in page
