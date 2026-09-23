@@ -338,7 +338,7 @@ a{color:var(--blue)}
 
       <p>Your first comparison starts with a source snapshot saved when you continue to checkout; it does not show changes from before that point. The report links to each selected GOV.UK source and shows its version, last observation and change or review state. Save the private return link to check again during the 30 days. Changes require your review; this service does not send alerts.</p>
       {verification_control}
-      <button type="submit">Create baseline & continue to secure checkout — £49</button>
+      <button type="submit">Create baseline & Continue to checkout — £49</button>
     </form>
   </section>
 
