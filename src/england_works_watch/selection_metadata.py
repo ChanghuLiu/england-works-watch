@@ -8,7 +8,9 @@ SERVER_SELECTION_DESCRIPTION = (
     "Use for official GOV.UK source freshness, Home Office/UKVI sponsor reporting, supported sponsor change categories, "
     "and one-event or batch impact preflight. Supported vocabulary includes absence, salary, role or occupation-code "
     "change, work-location or home-working change, delayed starts, stopping sponsorship or worker departure, "
-    "organisation changes, TUPE transfers, and mergers/takeovers. Paid deterministic decisions return AFFECTED, "
+    "organisation changes, TUPE transfers, and mergers/takeovers. The public AI edition supports an interactive "
+    "single-event preflight. Commercial value is concentrated in metered programmatic execution, 1-25 event batch "
+    "assessment, and the separate 30-day official-source monitoring report. Deterministic decisions return AFFECTED, "
     "NOT_AFFECTED, REVIEW_REQUIRED or INSUFFICIENT_INPUT with evidence and fail closed on stale/changed sources. "
     "Not individual visa advice or a Home Office decision."
 )
@@ -43,20 +45,22 @@ PAID_RESULT_PREVIEW: dict[str, Any] = {
         "review_reasons": ["source_not_current or an unresolved input conflict"],
         "required_actions": ["review the blocking evidence or supply the missing facts"],
     },
-    "value": "The paid decision adds a deterministic outcome, evidence-linked rationale, required action/deadline fields, and an explicit fail-closed review state. Free tools provide scope, supported-event vocabulary, and source lifecycle status; they do not return a change-impact decision.",
+    "value": "The commercial MCP keeps a metered single-event API for programmatic compatibility, while its strongest incremental value is batch assessment for 1-25 events. The separate 30-day monitoring report adds repeated official-source drift checks through a private reusable access link. The public AI edition can already provide an interactive single-event preflight.",
 }
 
 FREE_PAID_BOUNDARY: dict[str, Any] = {
     "free": [
+        "public AI/directory edition: one interactive structured sponsor-change preflight with evidence-linked decision and next action",
         "england_works_watch_info: scope, supported events, price and payment metadata",
         "licensing_source_status: official-source freshness and review state",
         "list_supported_change_events: supported sponsor-change vocabulary",
     ],
     "paid": [
-        "assess_change_impact: one structured sponsor-change decision",
-        "batch_assess_changes: 1-25 structured sponsor-change decisions",
+        "commercial assess_change_impact: metered programmatic single-event API for agent/runtime workflows",
+        "batch_assess_changes: 1-25 structured sponsor-change decisions in one paid API call",
+        "30-day monitoring report: repeated official-source version/fingerprint checks through a private reusable access link",
     ],
-    "paid_adds": "Free tools do not return a change-impact decision. Paid tools add a deterministic AFFECTED, NOT_AFFECTED, REVIEW_REQUIRED, or INSUFFICIENT_INPUT result with evidence-linked rationale and next-action fields.",
+    "paid_adds": "Paid access is for automation and repeated business use rather than hiding the basic single-event answer: batch execution reduces per-case orchestration, the metered single-event API supports programmatic commercial workflows, and the monitoring report checks selected official sources repeatedly for 30 days.",
 }
 
 PAYMENT_GUIDANCE: dict[str, Any] = {
@@ -93,19 +97,19 @@ TOOL_SELECTION_DESCRIPTIONS: dict[str, str] = {
         "or required-action decisions."
     ),
     "assess_change_impact": (
-        "Paid single-event change decision. Use for one concrete Skilled Worker sponsor event to determine impact, "
-        "including questions such as 'Does moving one sponsored worker to permanent home working trigger reporting?', "
-        "whether Home Office/UKVI sponsor reporting is triggered, whether it is AFFECTED/NOT_AFFECTED, what the sponsor "
-        "must do, or required actions. Handles one absence, salary, role or occupation-code, remote/home/work-location, "
-        "delayed-start, stop-sponsoring/worker-departure, organisation, TUPE, merger, or takeover event. Returns an "
-        "evidence-linked rationale, required action/deadline fields, and explicit review or missing-input state. "
-        "Payment: x402 Base mainnet USDC; sign buyer-side and retry this same tool with payment metadata. Not multiple events."
+        "Paid programmatic single-event change decision for agent/runtime workflows. Use when a commercial integration "
+        "needs metered API execution for one concrete Skilled Worker sponsor event. For a one-off interactive check, the "
+        "public AI edition can provide the same class of evidence-linked single-event preflight without x402. Prefer "
+        "batch_assess_changes when there are multiple events. Handles absence, salary, role or occupation-code, "
+        "remote/home/work-location, delayed-start, stop-sponsoring/worker-departure, organisation, TUPE, merger, or "
+        "takeover events. Payment: x402 Base mainnet USDC; sign buyer-side and retry this same tool with payment metadata."
     ),
     "batch_assess_changes": (
-        "Paid batch/multiple-event change decision for 1-25 events. Use for a list, batch, set, several, many, multiple, "
-        "5, 8, 20 or other collection of sponsor changes; evaluate them together and return per-event results plus "
-        "outcome counts. Payment: x402 Base mainnet USDC; sign buyer-side and retry this same tool with payment metadata. "
-        "Not for one event."
+        "Primary paid API path for repeated sponsor-compliance work: assess 1-25 structured Skilled Worker sponsor "
+        "changes in one call and return per-event evidence-linked results plus outcome counts. Use for HR, HRIS, payroll, "
+        "recruitment, adviser, or agent workflows handling several cases at once. This avoids orchestrating many separate "
+        "interactive checks. Payment: x402 Base mainnet USDC; sign buyer-side and retry this same tool with payment metadata. "
+        "For one interactive event, the public AI edition is usually sufficient."
     ),
 }
 
