@@ -486,7 +486,11 @@ async def monitoring_report_entry(request):
         owner_test=owner_test,
     )
     return PlainTextResponse(
-        monitoring_page(origin=PUBLIC_ORIGIN, source_channel=source_channel),
+        monitoring_page(
+            origin=PUBLIC_ORIGIN,
+            source_channel=source_channel,
+            owner_test=owner_test,
+        ),
         media_type="text/html",
     )
 
@@ -516,7 +520,7 @@ def _monitoring_ids(payload: dict[str, Any]) -> list[str]:
 
 
 def _monitoring_classification(request, payload: Mapping[str, Any]) -> tuple[str, bool]:
-    """Read only an explicit operator marker; never infer ownership from facts."""
+    """Use explicit attribution evidence only; never infer customer identity from PII or case facts."""
     headers = getattr(request, "headers", {})
     query = getattr(request, "query_params", {})
     raw = (
@@ -533,9 +537,22 @@ def _monitoring_classification(request, payload: Mapping[str, Any]) -> tuple[str
         return "owner_test", True
     if value in {"synthetic", "fixture"}:
         return "synthetic", False
+
+    # Automated traffic can never promote itself into customer evidence.
     user_agent = str(headers.get("user-agent") or "")
     if is_automated_user_agent(user_agent):
         return "automated_external", False
+
+    confirmation = payload.get("independent_customer_confirmation")
+    confirmed = confirmation is True or str(confirmation or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "independent",
+        "confirmed_external",
+    }
+    if confirmed:
+        return "confirmed_external", False
     return "unknown", False
 
 

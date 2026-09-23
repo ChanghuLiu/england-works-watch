@@ -71,8 +71,22 @@ def render_pricing_page(*, origin: str, prices: dict[str, str]) -> str:
     )
 
 
-def monitoring_page(*, origin: str, source_channel: str = "direct") -> str:
+def monitoring_page(*, origin: str, source_channel: str = "direct", owner_test: bool = False) -> str:
     source_channel = escape(source_channel)
+    if owner_test:
+        verification_control = (
+            '<input type="hidden" name="run_class" value="owner_test">'
+            '<div class="verification-note"><strong>Operator/test run</strong><br>'
+            'This checkout is explicitly marked owner/test and is excluded from customer and revenue evidence.</div>'
+        )
+    else:
+        verification_control = (
+            '<label class="source-option verification-option">'
+            '<input type="checkbox" name="independent_customer_confirmation" value="yes" required>'
+            '<span><strong>Independent customer confirmation</strong>'
+            '<small>I confirm this purchase is independent and is not being made by the service operator, owner, or a test runner. '
+            'This boolean confirmation is used only for aggregate commercial attribution.</small></span></label>'
+        )
     return """<!doctype html>
 <html lang="en">
 <head>
@@ -206,6 +220,8 @@ input:focus{
 }
 .source-option strong,.source-option small{display:block}
 .source-option small{color:var(--muted)}
+.verification-option{margin-top:22px;background:#f7fbf9;border-color:#b7dccb}
+.verification-note{margin-top:22px;padding:14px 16px;background:#fff7e6;border:1px solid #ead3a0;border-radius:8px;color:#654b13}
 button{
   margin-top:18px;
   border:0;
@@ -302,15 +318,18 @@ a{color:var(--blue)}
       </fieldset>
 
       <p>Your first comparison starts with a source snapshot saved when you continue to checkout; it does not show changes from before that point. The report links to each selected GOV.UK source and shows its version, last observation and change or review state. Save the private return link to check again during the 30 days. Changes require your review; this service does not send alerts.</p>
+      {verification_control}
       <button type="submit">Continue to checkout — £49</button>
     </form>
   </section>
 
   <section class="boundary">
     <strong>Privacy boundary</strong><br>
-    This monitoring flow accepts source IDs and opaque source checkpoints only.
-    Do not submit worker names, employer case facts, HR notes, addresses,
-    payment credentials, private keys, or seed phrases.
+    This monitoring flow accepts source IDs, opaque source checkpoints, and a
+    boolean independent-customer attribution confirmation only. RegEvidenceHub
+    does not use payment email, address, card details, or other Stripe PII for
+    customer attribution. Do not submit worker names, employer case facts, HR
+    notes, addresses, payment credentials, private keys, or seed phrases.
   </section>
 
   <p class="links">
@@ -321,4 +340,4 @@ a{color:var(--blue)}
   </p>
 </main>
 </body>
-</html>""".replace("{source_channel}", source_channel)
+</html>""".replace("{source_channel}", source_channel).replace("{verification_control}", verification_control)

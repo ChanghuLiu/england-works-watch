@@ -108,8 +108,20 @@ def test_c7b_acquisition_aliases_and_monitoring_form_are_bounded():
     assert "Stripe Test checkout" not in page
     assert "Continue to checkout" in page
     assert page.count('name="source_ids"') == 4
+    assert 'name="independent_customer_confirmation"' in page
+    assert 'value="yes" required' in page
+    assert "boolean independent-customer attribution confirmation" in page
     assert "Sponsor duties and compliance — Part 3" in page
     assert "Source IDs" not in page
+
+    owner_page = monitoring_page(
+        origin="https://eww.test",
+        source_channel="direct",
+        owner_test=True,
+    )
+    assert 'name="run_class" value="owner_test"' in owner_page
+    assert 'name="independent_customer_confirmation"' not in owner_page
+    assert "excluded from customer and revenue evidence" in owner_page
 
 
 def test_production_pricing_route_has_no_stale_test_mode_label():
@@ -137,9 +149,21 @@ def test_c7c_monitoring_traffic_quality_classification_is_bounded():
     )
 
     assert server._monitoring_classification(browser, {}) == ("unknown", False)
+    assert server._monitoring_classification(
+        browser, {"independent_customer_confirmation": "yes"}
+    ) == ("confirmed_external", False)
+    assert server._monitoring_classification(
+        browser, {"independent_customer_confirmation": True}
+    ) == ("confirmed_external", False)
     assert server._monitoring_classification(node, {}) == ("automated_external", False)
+    assert server._monitoring_classification(
+        node, {"independent_customer_confirmation": "yes"}
+    ) == ("automated_external", False)
     assert server._monitoring_classification(indexer, {}) == ("automated_external", False)
     assert server._monitoring_classification(owner_node, {}) == ("owner_test", True)
+    assert server._monitoring_classification(
+        owner_node, {"independent_customer_confirmation": "yes"}
+    ) == ("owner_test", True)
 
 
 def test_paid_monitoring_return_requires_entitlement_and_reuses_link(monkeypatch, tmp_path):
