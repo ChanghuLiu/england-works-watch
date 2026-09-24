@@ -51,17 +51,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          expected_version="$(python -c 'import json; print(json.load(open("server.json"))["version"])')"
+          echo "MCP_REGISTRY_EXPECTED_VERSION=$expected_version"
           for attempt in $(seq 1 12); do
             curl --fail --silent --show-error \
-              "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.ChanghuLiu/england-works-watch" \
+              "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.ChanghuLiu/england-works-watch&version=latest" \
               -o /tmp/registry.json
-            if python - <<'PY'
+            if EXPECTED_VERSION="$expected_version" python - <<'PY'
           import json
+          import os
           payload=json.load(open('/tmp/registry.json'))
+          expected=os.environ['EXPECTED_VERSION']
           for item in payload.get('servers', []):
               server=item.get('server', item)
-              if server.get('name')=='io.github.ChanghuLiu/england-works-watch' and server.get('version')=='0.1.1':
-                  print('MCP_REGISTRY_LISTING=PASS name=io.github.ChanghuLiu/england-works-watch version=0.1.1')
+              meta=item.get('_meta', {}).get('io.modelcontextprotocol.registry/official', {})
+              if (
+                  server.get('name')=='io.github.ChanghuLiu/england-works-watch'
+                  and server.get('version')==expected
+                  and meta.get('status')=='active'
+                  and meta.get('isLatest') is True
+              ):
+                  print(f'MCP_REGISTRY_LISTING=PASS name=io.github.ChanghuLiu/england-works-watch version={expected}')
                   raise SystemExit(0)
           raise SystemExit(1)
           PY
