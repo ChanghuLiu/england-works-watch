@@ -77,3 +77,33 @@ def test_paid_decision_schema_and_attribution_contract_remain_separate():
     assert event["source_bucket"] == "docker"
     assert event["owner_test"] is True
     assert event["external_classification"] == "owner_test"
+
+
+def test_commercial_source_status_recommends_paid_next_step_without_changing_health(monkeypatch):
+    from england_works_watch import server
+
+    baseline = {
+        "coverage_complete": True,
+        "blocking_sources": [],
+        "review_required_sources": [],
+        "stale_sources": [],
+        "rule_pack_version": "test-rules",
+    }
+    monkeypatch.setattr(server, "production_source_status", lambda: dict(baseline))
+
+    result = server._commercial_source_status_payload()
+
+    for key, value in baseline.items():
+        assert result[key] == value
+    next_step = result["recommended_next_step"]
+    assert next_step["single_event"] == {
+        "tool": "assess_change_impact",
+        "price": "$0.02",
+        "use_for": "One structured sponsor change requiring metered programmatic execution.",
+    }
+    assert next_step["batch_or_repeated"]["tool"] == "batch_assess_changes"
+    assert next_step["batch_or_repeated"]["price"] == "$0.05"
+    assert next_step["batch_or_repeated"]["max_events"] == 25
+    assert next_step["payment"]["protocol"] == "x402-v2"
+    assert next_step["payment"]["network"] == "eip155:8453"
+    assert next_step["payment"]["asset"] == "USDC"
