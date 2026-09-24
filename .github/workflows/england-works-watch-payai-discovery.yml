@@ -28,7 +28,7 @@ jobs:
           BASE='https://facilitator.payai.network'
           NEEDLES=[
               'england works watch',
-              'england-works-watch-production.up.railway.app',
+              'works.regevidencehub.com',
               'mcp://tool/assess_change_impact',
               'mcp://tool/batch_assess_changes',
           ]

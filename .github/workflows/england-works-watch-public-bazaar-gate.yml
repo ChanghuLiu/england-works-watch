@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      MCP_URL: "https://england-works-watch-production.up.railway.app/mcp"
+      MCP_URL: "https://works.regevidencehub.com/mcp"
       PAY_TO: "0xDAAef0FD525278aAD0bA11066A96c338642A3d1A"
     steps:
       - name: Verify public unpaid MCP challenge exposes Bazaar metadata

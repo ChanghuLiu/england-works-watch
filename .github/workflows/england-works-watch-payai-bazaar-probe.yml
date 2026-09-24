@@ -35,7 +35,7 @@ jobs:
               'batch_assess_changes': '50000',
           }
           RESOURCE_HINTS = (
-              'england-works-watch-production.up.railway.app',
+              'works.regevidencehub.com',
               'works.regevidencehub.com',
           )
           PAGE_SIZE = 1000

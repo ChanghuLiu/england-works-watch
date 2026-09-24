@@ -22,7 +22,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          URL='https://england-works-watch-production.up.railway.app/analytics/summary'
+          URL='https://works.regevidencehub.com/analytics/summary'
           mkdir -p .github/ops
           tmp="$(mktemp)"
           curl --fail --silent --show-error --location --max-time 30 "$URL" -o "$tmp"
@@ -34,7 +34,7 @@ jobs:
               payload = json.load(fh)
           snapshot = {
               'captured_at_utc': datetime.now(timezone.utc).isoformat(),
-              'source': 'https://england-works-watch-production.up.railway.app/analytics/summary',
+              'source': 'https://works.regevidencehub.com/analytics/summary',
               'analytics': payload,
           }
           with open(dst, 'w', encoding='utf-8') as fh:
