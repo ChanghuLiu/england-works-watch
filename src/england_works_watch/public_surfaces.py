@@ -323,7 +323,7 @@ a{color:var(--blue)}
       {verification_control}
       <button type="submit">Lock today's sponsor-guidance baseline — £49</button>
     </form>
-    <p><small>One payment · 30-day access · no worker names or case facts required · secure Stripe checkout.</small></p>
+    <p><small>One payment · 30-day access · no worker names or case facts required · Secure Stripe checkout.</small></p>
   </section>
 
   <section class="card">
