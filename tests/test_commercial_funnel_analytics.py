@@ -15,16 +15,27 @@ def test_windowed_commercial_funnel_separates_owner_external_and_unattributed(tm
     }
 
     record("england_works_watch_info", "ok", billable=False, meta=external_meta)
+    record("list_supported_change_events", "ok", billable=False, meta=external_meta)
+    record("batch_assess_changes", "challenge", billable=True, payment_state="challenge", meta=external_meta)
     record("assess_change_impact", "ok", billable=True, payment_state="paid_executed", meta=external_meta)
     record("assess_change_impact", "ok", billable=True, payment_state="paid_executed", meta=external_meta)
     record("assess_change_impact", "ok", billable=True, payment_state="paid_executed", meta=owner_meta)
     record("assess_change_impact", "ok", billable=True, payment_state="paid_executed", meta={})
 
-    window = summary()["windows"]["24h"]["commercial_funnel"]
+    summary_24h = summary()["windows"]["24h"]
+    window = summary_24h["commercial_funnel"]
 
-    assert window["free_business_call"]["raw"] == 1
-    assert window["free_business_call"]["confirmed_external"] == 1
+    assert window["free_business_call"]["raw"] == 2
+    assert window["free_business_call"]["confirmed_external"] == 2
     assert window["paid_executed"]["raw"] == 4
     assert window["paid_executed"]["confirmed_external"] == 2
+    assert summary_24h["confirmed_external_by_tool"] == {
+        "free_business_call": {
+            "england_works_watch_info": 1,
+            "list_supported_change_events": 1,
+        },
+        "paid_challenge": {"batch_assess_changes": 1},
+        "paid_executed": {"assess_change_impact": 2},
+    }
     assert window["repeat_paid"]["raw"] == 1
     assert window["repeat_paid"]["confirmed_external"] == 1

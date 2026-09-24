@@ -240,6 +240,9 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
     external_free = [row for row in free_rows if row["actor"] == "declared_external"]
     external_challenge = [row for row in challenge_rows if row["actor"] == "declared_external"]
     external_executed = [row for row in executed_rows if row["actor"] == "declared_external"]
+    external_free_by_tool = Counter(row["tool"] for row in external_free)
+    external_challenge_by_tool = Counter(row["tool"] for row in external_challenge)
+    external_executed_by_tool = Counter(row["tool"] for row in external_executed)
 
     paid_by_external_client = Counter(row["client"] for row in external_executed if row["client"])
     repeat_clients = {name: count for name, count in paid_by_external_client.items() if count >= 2}
@@ -277,6 +280,11 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
         "discovery_by_route": dict(discovery_by_route),
         "paid_funnel": dict(paid_funnel),
         "paid_funnel_by_actor": paid_funnel_by_actor,
+        "confirmed_external_by_tool": {
+            "free_business_call": dict(external_free_by_tool),
+            "paid_challenge": dict(external_challenge_by_tool),
+            "paid_executed": dict(external_executed_by_tool),
+        },
         "source_attribution": source_attribution,
         "source_attribution_scope": "commercial_funnel_rows_only",
         "commercial_funnel": {
