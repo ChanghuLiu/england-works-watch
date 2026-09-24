@@ -107,7 +107,11 @@ def test_c7b_acquisition_aliases_and_monitoring_form_are_bounded():
     assert "Secure Stripe checkout" in page
     assert "Stripe Test checkout" not in page
     assert "Continue to checkout" in page
-    assert page.count('name="source_ids"') == 4
+    assert "Start 30-day monitoring — £49" in page
+    assert page.count('<form method="post" action="/monitoring-report/checkout">') == 2
+    assert page.count('name="source_ids"') == 8
+    for source_id in ("sponsor-part2", "sponsor-part3", "skilled-worker", "appendix-d"):
+        assert page.count(f'value="{source_id}"') == 2
     assert 'name="independent_customer_confirmation"' in page
     assert 'value="yes" required' in page
     assert "boolean independent-customer attribution confirmation" in page
