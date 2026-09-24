@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      DIRECTORY_MCP_URL: "https://england-works-watch-production.up.railway.app/mcp-directory/"
+      DIRECTORY_MCP_URL: "https://works.regevidencehub.com/ai/mcp"
     steps:
       - name: Verify production MCP initialize
         shell: bash
@@ -28,7 +28,7 @@ jobs:
             -D /tmp/init.headers \
             -H 'Content-Type: application/json' \
             -H 'Accept: application/json, text/event-stream' \
-            --data '{"jsonrpc":"2.0","id":101,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"england-works-watch-directory-gate","version":"1.0"}}}' \
+            --data '{"jsonrpc":"2.0","id":101,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"england-works-watch-ai-distribution-gate","version":"1.0"}}}' \
             "$DIRECTORY_MCP_URL" -o /tmp/init.body
           python - <<'PY'
           import json
@@ -93,5 +93,5 @@ jobs:
           lowered = serialized.lower()
           assert 'evidence' in lowered or 'source' in lowered, body
           print('DIRECTORY_TOOL_CALL=PASS')
-          print('PUBLIC_DIRECTORY_MCP_PROTOCOL=PASS')
+          print('PUBLIC_AI_DISTRIBUTION_MCP_PROTOCOL=PASS')
           PY
