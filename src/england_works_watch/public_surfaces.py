@@ -164,6 +164,29 @@ h1{
   display:block;
   font-size:1.15rem;
 }
+.quick-buy{
+  border:1px solid #cddcff;
+  border-radius:14px;
+  padding:22px 24px;
+  margin:0 0 26px;
+  background:#fff;
+}
+.quick-buy h2{
+  margin:0 0 6px;
+  font-size:1.2rem;
+}
+.quick-buy p{
+  margin:6px 0;
+  color:var(--muted);
+}
+.quick-buy .verification-option{
+  margin-top:16px;
+}
+.quick-buy button{
+  width:100%;
+  padding:14px 18px;
+  font-size:1.02rem;
+}
 .price{
   font-size:1.7rem;
   font-weight:800;
@@ -281,6 +304,24 @@ a{color:var(--blue)}
       <span>Repeated official-source checks during a 30-day entitlement period. No subscription.</span>
     </div>
     <div class="price">£49</div>
+  </section>
+
+  <section class="quick-buy" id="checkout">
+    <h2>Start with all 4 core sponsor-duty sources</h2>
+    <p>
+      No setup needed. Create the baseline now, then re-check the same official
+      GOV.UK sources through your private link for 30 days.
+    </p>
+    <form method="post" action="/monitoring-report/checkout">
+      <input type="hidden" name="source_channel" value="{source_channel}">
+      <input type="hidden" name="source_ids" value="sponsor-part2">
+      <input type="hidden" name="source_ids" value="sponsor-part3">
+      <input type="hidden" name="source_ids" value="skilled-worker">
+      <input type="hidden" name="source_ids" value="appendix-d">
+      {verification_control}
+      <button type="submit">Start 30-day monitoring — £49</button>
+    </form>
+    <p><small>No subscription. No worker names or case facts required. Secure Stripe checkout.</small></p>
   </section>
 
   <section class="card">
