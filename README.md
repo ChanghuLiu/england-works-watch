@@ -4,6 +4,24 @@
 
 This product converts current UK Home Office sponsor guidance into deterministic, evidence-linked change-impact decisions for **Skilled Worker sponsors**. It is designed for employer HR/People Ops agents, HRIS/payroll/recruitment workflows, sponsor-compliance tooling, and regulated adviser tooling. It is not an individual visa-advice chatbot.
 
+## Public service
+
+Canonical RegEvidenceHub product page:
+
+`https://regevidencehub.com/products/works.html`
+
+Human 30-day guidance monitoring workflow:
+
+`https://works.regevidencehub.com/monitoring-report`
+
+AI-safe MCP endpoint:
+
+`https://works.regevidencehub.com/ai/mcp`
+
+Commercial MCP endpoint:
+
+`https://works.regevidencehub.com/mcp`
+
 ## Decision contract
 
 Every supported change returns exactly one of:
