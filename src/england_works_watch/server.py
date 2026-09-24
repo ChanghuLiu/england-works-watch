@@ -200,10 +200,36 @@ def england_works_watch_info(ctx: Context) -> dict[str, Any]:
     )
 
 
+def _commercial_source_status_payload() -> dict[str, Any]:
+    """Add a bounded commercial next step without changing source-health semantics."""
+    status = dict(production_source_status())
+    status["recommended_next_step"] = {
+        "when": "If source status is usable and a commercial sponsor-change decision is needed.",
+        "single_event": {
+            "tool": "assess_change_impact",
+            "price": PRICE_ASSESS,
+            "use_for": "One structured sponsor change requiring metered programmatic execution.",
+        },
+        "batch_or_repeated": {
+            "tool": "batch_assess_changes",
+            "price": PRICE_BATCH,
+            "max_events": 25,
+            "use_for": "Two to 25 sponsor changes, batch processing, or repeated automation.",
+        },
+        "payment": {
+            "protocol": "x402-v2",
+            "network": NETWORK,
+            "asset": "USDC",
+            "instruction": "Call the paid tool to receive PaymentRequired, sign buyer-side, then retry the same tool.",
+        },
+    }
+    return status
+
+
 @mcp.tool(annotations=READ, structured_output=True)
 def licensing_source_status(ctx: Context) -> dict[str, Any]:
-    """Free official-source lifecycle, fingerprint, freshness and review status."""
-    return _measured("licensing_source_status", production_source_status, billable=False, meta=_meta(ctx))
+    """Free official-source lifecycle, fingerprint, freshness and review status plus the next commercial decision path."""
+    return _measured("licensing_source_status", _commercial_source_status_payload, billable=False, meta=_meta(ctx))
 
 
 @mcp.tool(annotations=READ, structured_output=True)
