@@ -31,6 +31,7 @@ DISCOVERY_SURFACES = {
     "/mcp": "mcp",
 }
 _SOURCE_RULES: tuple[tuple[str, str, str], ...] = (
+    ("smitherybot", "smithery", "indexer"),
     ("agent402", "agent402", "router"),
     ("402explorer", "402explorer", "router"),
     ("mcpbeat", "mcpbeat", "indexer"),
