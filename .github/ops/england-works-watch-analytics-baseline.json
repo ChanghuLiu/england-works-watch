@@ -2,17 +2,17 @@
   "analytics": {
     "by_actor_class": {
       "declared_external": 26,
-      "owned_ci": 221,
+      "owned_ci": 222,
       "unattributed": 16679
     },
     "by_payment_status": {
-      "challenged": 88,
+      "challenged": 89,
       "not_applicable": 10729,
       "unknown": 6109
     },
     "by_tool": {
       "__machine_discovery__": 16499,
-      "assess_change_impact": 167,
+      "assess_change_impact": 168,
       "batch_assess_changes": 37,
       "directory_assess_change_impact": 19,
       "directory_list_supported_change_events": 2,
@@ -39,7 +39,7 @@
         "confirmed_external": 1,
         "measured": true,
         "note": "x402 challenges; owner CI and unattributed traffic are excluded from confirmed external.",
-        "raw": 203
+        "raw": 204
       },
       "paid_executed": {
         "confirmed_external": 0,
@@ -82,10 +82,10 @@
       "/robots.txt": 357,
       "/sitemap.xml": 23
     },
-    "generated_at": "2026-09-24T15:45:00Z",
+    "generated_at": "2026-09-24T15:45:52Z",
     "hours": null,
     "paid_funnel": {
-      "challenge": 203,
+      "challenge": 204,
       "paid_executed": 1
     },
     "paid_funnel_by_actor": {
@@ -93,7 +93,7 @@
         "challenge": 1
       },
       "owned_ci": {
-        "challenge": 129
+        "challenge": 130
       },
       "unattributed": {
         "challenge": 73,
@@ -111,26 +111,26 @@
       "unknown": {
         "discovery_observed": 13464,
         "free_business_call": 77,
-        "paid_challenge": 103,
+        "paid_challenge": 104,
         "unknown": 3252
       }
     },
     "source_attribution_scope": "commercial_funnel_rows_only",
-    "total_events": 16926,
+    "total_events": 16927,
     "windows": {
       "24h": {
         "by_actor_class": {
           "declared_external": 1,
-          "owned_ci": 20,
+          "owned_ci": 21,
           "unattributed": 1139
         },
         "by_payment_status": {
-          "challenged": 19,
+          "challenged": 20,
           "not_applicable": 1141
         },
         "by_tool": {
           "__machine_discovery__": 1137,
-          "assess_change_impact": 19,
+          "assess_change_impact": 20,
           "directory_assess_change_impact": 1,
           "directory_list_supported_change_events": 1,
           "directory_sponsor_change_checker_info": 1,
@@ -153,7 +153,7 @@
             "confirmed_external": 0,
             "measured": true,
             "note": "x402 challenges; owner CI and unattributed traffic are excluded from confirmed external.",
-            "raw": 19
+            "raw": 20
           },
           "paid_executed": {
             "confirmed_external": 0,
@@ -192,11 +192,11 @@
         },
         "hours": 24,
         "paid_funnel": {
-          "challenge": 19
+          "challenge": 20
         },
         "paid_funnel_by_actor": {
           "owned_ci": {
-            "challenge": 19
+            "challenge": 20
           }
         },
         "payment_errors": 0,
@@ -205,25 +205,25 @@
           "unknown": {
             "discovery_observed": 1137,
             "free_business_call": 1,
-            "paid_challenge": 19
+            "paid_challenge": 20
           }
         },
         "source_attribution_scope": "commercial_funnel_rows_only",
-        "total_events": 1160
+        "total_events": 1161
       },
       "7d": {
         "by_actor_class": {
           "declared_external": 9,
-          "owned_ci": 46,
+          "owned_ci": 47,
           "unattributed": 7293
         },
         "by_payment_status": {
-          "challenged": 71,
+          "challenged": 72,
           "not_applicable": 7277
         },
         "by_tool": {
           "__machine_discovery__": 7213,
-          "assess_change_impact": 44,
+          "assess_change_impact": 45,
           "batch_assess_changes": 27,
           "directory_assess_change_impact": 17,
           "directory_list_supported_change_events": 2,
@@ -249,7 +249,7 @@
             "confirmed_external": 0,
             "measured": true,
             "note": "x402 challenges; owner CI and unattributed traffic are excluded from confirmed external.",
-            "raw": 71
+            "raw": 72
           },
           "paid_executed": {
             "confirmed_external": 0,
@@ -292,11 +292,11 @@
         },
         "hours": 168,
         "paid_funnel": {
-          "challenge": 71
+          "challenge": 72
         },
         "paid_funnel_by_actor": {
           "owned_ci": {
-            "challenge": 38
+            "challenge": 39
           },
           "unattributed": {
             "challenge": 33
@@ -308,26 +308,26 @@
           "unknown": {
             "discovery_observed": 7213,
             "free_business_call": 41,
-            "paid_challenge": 71
+            "paid_challenge": 72
           }
         },
         "source_attribution_scope": "commercial_funnel_rows_only",
-        "total_events": 7348
+        "total_events": 7349
       },
       "all_time": {
         "by_actor_class": {
           "declared_external": 26,
-          "owned_ci": 221,
+          "owned_ci": 222,
           "unattributed": 16679
         },
         "by_payment_status": {
-          "challenged": 88,
+          "challenged": 89,
           "not_applicable": 10729,
           "unknown": 6109
         },
         "by_tool": {
           "__machine_discovery__": 16499,
-          "assess_change_impact": 167,
+          "assess_change_impact": 168,
           "batch_assess_changes": 37,
           "directory_assess_change_impact": 19,
           "directory_list_supported_change_events": 2,
@@ -353,7 +353,7 @@
             "confirmed_external": 1,
             "measured": true,
             "note": "x402 challenges; owner CI and unattributed traffic are excluded from confirmed external.",
-            "raw": 203
+            "raw": 204
           },
           "paid_executed": {
             "confirmed_external": 0,
@@ -398,7 +398,7 @@
         },
         "hours": null,
         "paid_funnel": {
-          "challenge": 203,
+          "challenge": 204,
           "paid_executed": 1
         },
         "paid_funnel_by_actor": {
@@ -406,7 +406,7 @@
             "challenge": 1
           },
           "owned_ci": {
-            "challenge": 129
+            "challenge": 130
           },
           "unattributed": {
             "challenge": 73,
@@ -424,15 +424,15 @@
           "unknown": {
             "discovery_observed": 13464,
             "free_business_call": 77,
-            "paid_challenge": 103,
+            "paid_challenge": 104,
             "unknown": 3252
           }
         },
         "source_attribution_scope": "commercial_funnel_rows_only",
-        "total_events": 16926
+        "total_events": 16927
       }
     }
   },
-  "captured_at_utc": "2026-09-24T15:45:00.987914+00:00",
+  "captured_at_utc": "2026-09-24T15:45:52.651138+00:00",
   "source": "https://works.regevidencehub.com/analytics/summary"
 }
