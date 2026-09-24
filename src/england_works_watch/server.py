@@ -216,6 +216,17 @@ def _commercial_source_status_payload() -> dict[str, Any]:
             "max_events": 25,
             "use_for": "Two to 25 sponsor changes, batch processing, or repeated automation.",
         },
+        "continued_evidence_baseline": {
+            "url": f"{PUBLIC_ORIGIN}/monitoring-report",
+            "price": "£49",
+            "access": "30 days",
+            "use_for": (
+                "When later sponsor decisions should be checked against the same four core GOV.UK "
+                "guidance sources: lock today's evidence baseline and re-check whether it is unchanged, "
+                "changed, or needs review through a private reusable link."
+            ),
+            "boundary": "No worker names or case facts are required; this does not decide sponsor cases or send alerts.",
+        },
         "payment": {
             "protocol": "x402-v2",
             "network": NETWORK,

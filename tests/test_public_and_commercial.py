@@ -266,3 +266,26 @@ def test_monitoring_form_preserves_multiple_source_choices_and_legacy_comma_inpu
         b"source_ids=sponsor-part2%2Csponsor-part3"
     )))
     assert server._monitoring_ids(legacy) == ["sponsor-part2", "sponsor-part3"]
+
+
+def test_commercial_source_status_exposes_contextual_paid_evidence_baseline(monkeypatch):
+    from england_works_watch import server
+
+    monkeypatch.setattr(
+        server,
+        "production_source_status",
+        lambda: {
+            "coverage_complete": True,
+            "blocking_sources": [],
+            "review_required_sources": [],
+            "stale_sources": [],
+        },
+    )
+    payload = server._commercial_source_status_payload()
+    next_step = payload["recommended_next_step"]
+    baseline = next_step["continued_evidence_baseline"]
+    assert baseline["url"] == "https://works.regevidencehub.com/monitoring-report"
+    assert baseline["price"] == "£49"
+    assert baseline["access"] == "30 days"
+    assert "four core GOV.UK" in baseline["use_for"]
+    assert "worker names" in baseline["boundary"]
