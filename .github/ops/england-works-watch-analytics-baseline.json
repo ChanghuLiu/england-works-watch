@@ -1,37 +1,45 @@
 {
   "analytics": {
     "by_actor_class": {
-      "declared_external": 7,
-      "owned_ci": 159,
-      "unattributed": 1304
+      "declared_external": 26,
+      "owned_ci": 221,
+      "unattributed": 16679
+    },
+    "by_payment_status": {
+      "challenged": 88,
+      "not_applicable": 10729,
+      "unknown": 6109
     },
     "by_tool": {
-      "__machine_discovery__": 1272,
-      "assess_change_impact": 87,
-      "batch_assess_changes": 1,
-      "england_works_watch_info": 44,
-      "licensing_source_status": 65,
-      "list_supported_change_events": 1
+      "__machine_discovery__": 16499,
+      "assess_change_impact": 167,
+      "batch_assess_changes": 37,
+      "directory_assess_change_impact": 19,
+      "directory_list_supported_change_events": 2,
+      "directory_sponsor_change_checker_info": 4,
+      "england_works_watch_info": 84,
+      "licensing_source_status": 89,
+      "list_supported_change_events": 25
     },
     "classification_note": "Exact owner client names are excluded. A sanitized declared client name that is not on the owner allow-list is classified as declared_external. Requests without a usable client identity remain unattributed and are never counted as confirmed customers. Discovery HTTP hits are raw-only by design.",
     "commercial_funnel": {
       "discovery": {
         "confirmed_external": null,
         "measured": true,
-        "note": "Privacy-minimal hits to machine capability/discovery routes. No IP/UA/query data is stored, so raw discovery is not a customer count.",
-        "raw": 1272
+        "note": "Privacy-minimal machine discovery observations; raw discovery is not a customer count.",
+        "raw": 16499
       },
       "free_business_call": {
-        "confirmed_external": 6,
+        "confirmed_external": 22,
         "measured": true,
-        "note": "Free MCP info/source/event calls; confirmed external requires a non-owned declared software identity.",
-        "raw": 110
+        "note": "Confirmed external requires a non-owned declared software identity.",
+        "raw": 198
       },
       "paid_challenge": {
         "confirmed_external": 1,
         "measured": true,
         "note": "x402 challenges; owner CI and unattributed traffic are excluded from confirmed external.",
-        "raw": 87
+        "raw": 203
       },
       "paid_executed": {
         "confirmed_external": 0,
@@ -42,31 +50,42 @@
       "repeat_paid": {
         "confirmed_external": 0,
         "measured": true,
-        "note": "Count of non-owned declared software integrations with at least two successful paid executions in the window.",
+        "note": "Non-owned declared software integrations with at least two successful paid executions.",
         "raw": 0,
         "repeat_executions_beyond_first": 0
       }
     },
-    "discovery_by_route": {
-      "/": 26,
-      "/.well-known/agent-card.json": 30,
-      "/.well-known/agent.json": 8,
-      "/.well-known/ai-catalog.json": 3,
-      "/.well-known/api-catalog": 5,
-      "/.well-known/glama.json": 11,
-      "/.well-known/mcp.json": 12,
-      "/.well-known/mcp/server-card.json": 11,
-      "/.well-known/x402": 13,
-      "/llms.txt": 10,
-      "/mcp": 1105,
-      "/openapi.json": 14,
-      "/robots.txt": 17,
-      "/sitemap.xml": 7
+    "confirmed_external_by_tool": {
+      "free_business_call": {
+        "england_works_watch_info": 11,
+        "licensing_source_status": 11
+      },
+      "paid_challenge": {
+        "assess_change_impact": 1
+      },
+      "paid_executed": {}
     },
-    "generated_at": "2026-09-10T19:23:27Z",
+    "correlation_note": "Request IDs correlate stages only when explicitly propagated by the client/path; generated IDs are event-local and are not user identity.",
+    "discovery_by_route": {
+      "/": 478,
+      "/.well-known/agent-card.json": 662,
+      "/.well-known/agent.json": 20,
+      "/.well-known/ai-catalog.json": 30,
+      "/.well-known/api-catalog": 6,
+      "/.well-known/glama.json": 139,
+      "/.well-known/mcp.json": 46,
+      "/.well-known/mcp/server-card.json": 21,
+      "/.well-known/x402": 780,
+      "/llms.txt": 50,
+      "/mcp": 13092,
+      "/openapi.json": 795,
+      "/robots.txt": 357,
+      "/sitemap.xml": 23
+    },
+    "generated_at": "2026-09-24T15:45:00Z",
     "hours": null,
     "paid_funnel": {
-      "challenge": 87,
+      "challenge": 203,
       "paid_executed": 1
     },
     "paid_funnel_by_actor": {
@@ -74,45 +93,67 @@
         "challenge": 1
       },
       "owned_ci": {
-        "challenge": 79
+        "challenge": 129
       },
       "unattributed": {
-        "challenge": 7,
+        "challenge": 73,
         "paid_executed": 1
       }
     },
     "payment_errors": 0,
-    "privacy": "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or query strings are stored. Only sanitized self-declared software identifiers are retained for paid/free attribution and repeat-use aggregation.",
-    "total_events": 1470,
+    "privacy": "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or raw query strings are stored. Only bounded source/request correlation and sanitized self-declared software identifiers are retained.",
+    "source_attribution": {
+      "docker": {
+        "discovery_observed": 1,
+        "free_business_call": 2,
+        "paid_challenge": 2
+      },
+      "unknown": {
+        "discovery_observed": 13464,
+        "free_business_call": 77,
+        "paid_challenge": 103,
+        "unknown": 3252
+      }
+    },
+    "source_attribution_scope": "commercial_funnel_rows_only",
+    "total_events": 16926,
     "windows": {
       "24h": {
         "by_actor_class": {
-          "declared_external": 2,
-          "unattributed": 1081
+          "declared_external": 1,
+          "owned_ci": 20,
+          "unattributed": 1139
+        },
+        "by_payment_status": {
+          "challenged": 19,
+          "not_applicable": 1141
         },
         "by_tool": {
-          "__machine_discovery__": 1081,
-          "england_works_watch_info": 1,
-          "licensing_source_status": 1
+          "__machine_discovery__": 1137,
+          "assess_change_impact": 19,
+          "directory_assess_change_impact": 1,
+          "directory_list_supported_change_events": 1,
+          "directory_sponsor_change_checker_info": 1,
+          "list_supported_change_events": 1
         },
         "commercial_funnel": {
           "discovery": {
             "confirmed_external": null,
             "measured": true,
-            "note": "Privacy-minimal hits to machine capability/discovery routes. No IP/UA/query data is stored, so raw discovery is not a customer count.",
-            "raw": 1081
+            "note": "Privacy-minimal machine discovery observations; raw discovery is not a customer count.",
+            "raw": 1137
           },
           "free_business_call": {
-            "confirmed_external": 2,
+            "confirmed_external": 0,
             "measured": true,
-            "note": "Free MCP info/source/event calls; confirmed external requires a non-owned declared software identity.",
-            "raw": 2
+            "note": "Confirmed external requires a non-owned declared software identity.",
+            "raw": 1
           },
           "paid_challenge": {
             "confirmed_external": 0,
             "measured": true,
             "note": "x402 challenges; owner CI and unattributed traffic are excluded from confirmed external.",
-            "raw": 0
+            "raw": 19
           },
           "paid_executed": {
             "confirmed_external": 0,
@@ -123,150 +164,196 @@
           "repeat_paid": {
             "confirmed_external": 0,
             "measured": true,
-            "note": "Count of non-owned declared software integrations with at least two successful paid executions in the window.",
+            "note": "Non-owned declared software integrations with at least two successful paid executions.",
             "raw": 0,
             "repeat_executions_beyond_first": 0
           }
         },
+        "confirmed_external_by_tool": {
+          "free_business_call": {},
+          "paid_challenge": {},
+          "paid_executed": {}
+        },
+        "correlation_note": "Request IDs correlate stages only when explicitly propagated by the client/path; generated IDs are event-local and are not user identity.",
         "discovery_by_route": {
-          "/": 22,
-          "/.well-known/agent-card.json": 22,
-          "/.well-known/agent.json": 2,
-          "/.well-known/ai-catalog.json": 1,
+          "/": 61,
+          "/.well-known/agent-card.json": 271,
+          "/.well-known/ai-catalog.json": 3,
           "/.well-known/api-catalog": 1,
-          "/.well-known/glama.json": 2,
-          "/.well-known/mcp.json": 3,
+          "/.well-known/glama.json": 23,
+          "/.well-known/mcp.json": 1,
           "/.well-known/mcp/server-card.json": 3,
-          "/.well-known/x402": 6,
-          "/llms.txt": 3,
-          "/mcp": 997,
-          "/openapi.json": 7,
-          "/robots.txt": 11,
-          "/sitemap.xml": 1
+          "/.well-known/x402": 70,
+          "/llms.txt": 6,
+          "/mcp": 589,
+          "/openapi.json": 66,
+          "/robots.txt": 41,
+          "/sitemap.xml": 2
         },
         "hours": 24,
-        "paid_funnel": {},
-        "paid_funnel_by_actor": {},
+        "paid_funnel": {
+          "challenge": 19
+        },
+        "paid_funnel_by_actor": {
+          "owned_ci": {
+            "challenge": 19
+          }
+        },
         "payment_errors": 0,
-        "privacy": "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or query strings are stored. Only sanitized self-declared software identifiers are retained for paid/free attribution and repeat-use aggregation.",
-        "total_events": 1083
+        "privacy": "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or raw query strings are stored. Only bounded source/request correlation and sanitized self-declared software identifiers are retained.",
+        "source_attribution": {
+          "unknown": {
+            "discovery_observed": 1137,
+            "free_business_call": 1,
+            "paid_challenge": 19
+          }
+        },
+        "source_attribution_scope": "commercial_funnel_rows_only",
+        "total_events": 1160
       },
       "7d": {
         "by_actor_class": {
-          "declared_external": 7,
-          "owned_ci": 159,
-          "unattributed": 1304
+          "declared_external": 9,
+          "owned_ci": 46,
+          "unattributed": 7293
+        },
+        "by_payment_status": {
+          "challenged": 71,
+          "not_applicable": 7277
         },
         "by_tool": {
-          "__machine_discovery__": 1272,
-          "assess_change_impact": 87,
-          "batch_assess_changes": 1,
-          "england_works_watch_info": 44,
-          "licensing_source_status": 65,
-          "list_supported_change_events": 1
+          "__machine_discovery__": 7213,
+          "assess_change_impact": 44,
+          "batch_assess_changes": 27,
+          "directory_assess_change_impact": 17,
+          "directory_list_supported_change_events": 2,
+          "directory_sponsor_change_checker_info": 4,
+          "england_works_watch_info": 19,
+          "licensing_source_status": 11,
+          "list_supported_change_events": 11
         },
         "commercial_funnel": {
           "discovery": {
             "confirmed_external": null,
             "measured": true,
-            "note": "Privacy-minimal hits to machine capability/discovery routes. No IP/UA/query data is stored, so raw discovery is not a customer count.",
-            "raw": 1272
+            "note": "Privacy-minimal machine discovery observations; raw discovery is not a customer count.",
+            "raw": 7213
           },
           "free_business_call": {
             "confirmed_external": 6,
             "measured": true,
-            "note": "Free MCP info/source/event calls; confirmed external requires a non-owned declared software identity.",
-            "raw": 110
+            "note": "Confirmed external requires a non-owned declared software identity.",
+            "raw": 41
           },
           "paid_challenge": {
-            "confirmed_external": 1,
+            "confirmed_external": 0,
             "measured": true,
             "note": "x402 challenges; owner CI and unattributed traffic are excluded from confirmed external.",
-            "raw": 87
+            "raw": 71
           },
           "paid_executed": {
             "confirmed_external": 0,
             "measured": true,
             "note": "Settled/verified paid business executions; owner validation is technical proof only.",
-            "raw": 1
+            "raw": 0
           },
           "repeat_paid": {
             "confirmed_external": 0,
             "measured": true,
-            "note": "Count of non-owned declared software integrations with at least two successful paid executions in the window.",
+            "note": "Non-owned declared software integrations with at least two successful paid executions.",
             "raw": 0,
             "repeat_executions_beyond_first": 0
           }
         },
+        "confirmed_external_by_tool": {
+          "free_business_call": {
+            "england_works_watch_info": 3,
+            "licensing_source_status": 3
+          },
+          "paid_challenge": {},
+          "paid_executed": {}
+        },
+        "correlation_note": "Request IDs correlate stages only when explicitly propagated by the client/path; generated IDs are event-local and are not user identity.",
         "discovery_by_route": {
-          "/": 26,
-          "/.well-known/agent-card.json": 30,
+          "/": 270,
+          "/.well-known/agent-card.json": 487,
           "/.well-known/agent.json": 8,
-          "/.well-known/ai-catalog.json": 3,
-          "/.well-known/api-catalog": 5,
-          "/.well-known/glama.json": 11,
-          "/.well-known/mcp.json": 12,
-          "/.well-known/mcp/server-card.json": 11,
-          "/.well-known/x402": 13,
-          "/llms.txt": 10,
-          "/mcp": 1105,
-          "/openapi.json": 14,
-          "/robots.txt": 17,
-          "/sitemap.xml": 7
+          "/.well-known/ai-catalog.json": 17,
+          "/.well-known/api-catalog": 1,
+          "/.well-known/glama.json": 53,
+          "/.well-known/mcp.json": 19,
+          "/.well-known/mcp/server-card.json": 6,
+          "/.well-known/x402": 450,
+          "/llms.txt": 26,
+          "/mcp": 5213,
+          "/openapi.json": 448,
+          "/robots.txt": 207,
+          "/sitemap.xml": 8
         },
         "hours": 168,
         "paid_funnel": {
-          "challenge": 87,
-          "paid_executed": 1
+          "challenge": 71
         },
         "paid_funnel_by_actor": {
-          "declared_external": {
-            "challenge": 1
-          },
           "owned_ci": {
-            "challenge": 79
+            "challenge": 38
           },
           "unattributed": {
-            "challenge": 7,
-            "paid_executed": 1
+            "challenge": 33
           }
         },
         "payment_errors": 0,
-        "privacy": "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or query strings are stored. Only sanitized self-declared software identifiers are retained for paid/free attribution and repeat-use aggregation.",
-        "total_events": 1470
+        "privacy": "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or raw query strings are stored. Only bounded source/request correlation and sanitized self-declared software identifiers are retained.",
+        "source_attribution": {
+          "unknown": {
+            "discovery_observed": 7213,
+            "free_business_call": 41,
+            "paid_challenge": 71
+          }
+        },
+        "source_attribution_scope": "commercial_funnel_rows_only",
+        "total_events": 7348
       },
       "all_time": {
         "by_actor_class": {
-          "declared_external": 7,
-          "owned_ci": 159,
-          "unattributed": 1304
+          "declared_external": 26,
+          "owned_ci": 221,
+          "unattributed": 16679
+        },
+        "by_payment_status": {
+          "challenged": 88,
+          "not_applicable": 10729,
+          "unknown": 6109
         },
         "by_tool": {
-          "__machine_discovery__": 1272,
-          "assess_change_impact": 87,
-          "batch_assess_changes": 1,
-          "england_works_watch_info": 44,
-          "licensing_source_status": 65,
-          "list_supported_change_events": 1
+          "__machine_discovery__": 16499,
+          "assess_change_impact": 167,
+          "batch_assess_changes": 37,
+          "directory_assess_change_impact": 19,
+          "directory_list_supported_change_events": 2,
+          "directory_sponsor_change_checker_info": 4,
+          "england_works_watch_info": 84,
+          "licensing_source_status": 89,
+          "list_supported_change_events": 25
         },
         "commercial_funnel": {
           "discovery": {
             "confirmed_external": null,
             "measured": true,
-            "note": "Privacy-minimal hits to machine capability/discovery routes. No IP/UA/query data is stored, so raw discovery is not a customer count.",
-            "raw": 1272
+            "note": "Privacy-minimal machine discovery observations; raw discovery is not a customer count.",
+            "raw": 16499
           },
           "free_business_call": {
-            "confirmed_external": 6,
+            "confirmed_external": 22,
             "measured": true,
-            "note": "Free MCP info/source/event calls; confirmed external requires a non-owned declared software identity.",
-            "raw": 110
+            "note": "Confirmed external requires a non-owned declared software identity.",
+            "raw": 198
           },
           "paid_challenge": {
             "confirmed_external": 1,
             "measured": true,
             "note": "x402 challenges; owner CI and unattributed traffic are excluded from confirmed external.",
-            "raw": 87
+            "raw": 203
           },
           "paid_executed": {
             "confirmed_external": 0,
@@ -277,30 +364,41 @@
           "repeat_paid": {
             "confirmed_external": 0,
             "measured": true,
-            "note": "Count of non-owned declared software integrations with at least two successful paid executions in the window.",
+            "note": "Non-owned declared software integrations with at least two successful paid executions.",
             "raw": 0,
             "repeat_executions_beyond_first": 0
           }
         },
+        "confirmed_external_by_tool": {
+          "free_business_call": {
+            "england_works_watch_info": 11,
+            "licensing_source_status": 11
+          },
+          "paid_challenge": {
+            "assess_change_impact": 1
+          },
+          "paid_executed": {}
+        },
+        "correlation_note": "Request IDs correlate stages only when explicitly propagated by the client/path; generated IDs are event-local and are not user identity.",
         "discovery_by_route": {
-          "/": 26,
-          "/.well-known/agent-card.json": 30,
-          "/.well-known/agent.json": 8,
-          "/.well-known/ai-catalog.json": 3,
-          "/.well-known/api-catalog": 5,
-          "/.well-known/glama.json": 11,
-          "/.well-known/mcp.json": 12,
-          "/.well-known/mcp/server-card.json": 11,
-          "/.well-known/x402": 13,
-          "/llms.txt": 10,
-          "/mcp": 1105,
-          "/openapi.json": 14,
-          "/robots.txt": 17,
-          "/sitemap.xml": 7
+          "/": 478,
+          "/.well-known/agent-card.json": 662,
+          "/.well-known/agent.json": 20,
+          "/.well-known/ai-catalog.json": 30,
+          "/.well-known/api-catalog": 6,
+          "/.well-known/glama.json": 139,
+          "/.well-known/mcp.json": 46,
+          "/.well-known/mcp/server-card.json": 21,
+          "/.well-known/x402": 780,
+          "/llms.txt": 50,
+          "/mcp": 13092,
+          "/openapi.json": 795,
+          "/robots.txt": 357,
+          "/sitemap.xml": 23
         },
         "hours": null,
         "paid_funnel": {
-          "challenge": 87,
+          "challenge": 203,
           "paid_executed": 1
         },
         "paid_funnel_by_actor": {
@@ -308,19 +406,33 @@
             "challenge": 1
           },
           "owned_ci": {
-            "challenge": 79
+            "challenge": 129
           },
           "unattributed": {
-            "challenge": 7,
+            "challenge": 73,
             "paid_executed": 1
           }
         },
         "payment_errors": 0,
-        "privacy": "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or query strings are stored. Only sanitized self-declared software identifiers are retained for paid/free attribution and repeat-use aggregation.",
-        "total_events": 1470
+        "privacy": "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or raw query strings are stored. Only bounded source/request correlation and sanitized self-declared software identifiers are retained.",
+        "source_attribution": {
+          "docker": {
+            "discovery_observed": 1,
+            "free_business_call": 2,
+            "paid_challenge": 2
+          },
+          "unknown": {
+            "discovery_observed": 13464,
+            "free_business_call": 77,
+            "paid_challenge": 103,
+            "unknown": 3252
+          }
+        },
+        "source_attribution_scope": "commercial_funnel_rows_only",
+        "total_events": 16926
       }
     }
   },
-  "captured_at_utc": "2026-09-10T19:23:27.194085+00:00",
-  "source": "https://england-works-watch-production.up.railway.app/analytics/summary"
+  "captured_at_utc": "2026-09-24T15:45:00.987914+00:00",
+  "source": "https://works.regevidencehub.com/analytics/summary"
 }
