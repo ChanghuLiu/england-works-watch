@@ -59,13 +59,13 @@ def render_pricing_page(*, origin: str, prices: dict[str, str]) -> str:
         'Paid products are designed for repeated business use, automation, batch processing, or continued evidence monitoring.</p>'
         '<div class="compare"><strong>Choose the paid path when the work is bigger than one interactive check.</strong>'
         '<ul><li><strong>Batch API:</strong> assess up to 25 structured sponsor changes in one x402 call and receive per-event results plus outcome counts.</li>'
-        '<li><strong>30-day monitoring report:</strong> keep a private reusable link and re-check selected official GOV.UK sponsor-guidance sources for version or semantic-fingerprint drift during the entitlement period.</li>'
+        '<li><strong>30-day Sponsor Guidance Baseline:</strong> lock the current version of four core GOV.UK sponsor-duty sources, keep a private reusable link, and re-check whether that evidence is unchanged, changed, or needs review before later sponsor decisions.</li>'
         '<li><strong>Single-event commercial API:</strong> retained for programmatic integrations that require metered execution of one event.</li></ul></div>'
         '<h2>Commercial prices</h2><div class="price"><ul>' + rows + '</ul></div>'
         '<p>Agent/API calls use x402 Base mainnet USDC. The 30-day human/business monitoring report uses the shared commercial Stripe checkout. '
         'The monitoring offer is not an auto-renewing subscription. Stripe payment is handled by the shared commercial platform; this product does not receive payment credentials.</p>'
         '<p>Monitoring detects official-source change state; it does not send alerts, monitor employees, or provide legal advice.</p>'
-        '<p><a href="/monitoring-report"><strong>Open the £49 monitoring offer</strong></a> · '
+        '<p><a href="/monitoring-report"><strong>Lock today\'s sponsor-guidance baseline — £49</strong></a> · '
         '<a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/support">Support</a></p>'
         '</main></body></html>'
     )
@@ -83,9 +83,9 @@ def monitoring_page(*, origin: str, source_channel: str = "direct", owner_test: 
         verification_control = (
             '<label class="source-option verification-option">'
             '<input type="checkbox" name="independent_customer_confirmation" value="yes" required>'
-            '<span><strong>Independent customer confirmation</strong>'
-            '<small>I confirm this purchase is independent and is not being made by the service operator, owner, or a test runner. '
-            'This boolean confirmation is used only for aggregate commercial attribution.</small></span></label>'
+            '<span><strong>Real purchase — not an operator/test run</strong>'
+            '<small>Tick to continue. This only separates real customer conversions from our own test traffic; '
+            'it is not used to identify you or linked to Stripe payment details.</small></span></label>'
         )
     return """<!doctype html>
 <html lang="en">
@@ -282,35 +282,37 @@ a{color:var(--blue)}
 <main>
   <div class="eyebrow">England Works Watch</div>
 
-  <h1>Sponsor compliance monitoring report</h1>
+  <h1>Keep sponsor-change decisions tied to current GOV.UK guidance for 30 days</h1>
 
   <p class="lead">
-    A one-off sponsor-change preflight answers one case now. This paid offer is
-    for the next problem: keeping evidence current. Monitor selected official
-    GOV.UK sponsor-guidance sources for version and semantic-fingerprint changes
-    and re-check them through a private reusable link for 30 days.
+    Salary, role, work-location, absence, delayed-start, stopping-sponsorship,
+    TUPE and merger decisions can depend on sponsor guidance that changes over time.
+    Save today's official evidence baseline for four core GOV.UK sources, then use
+    one private link to re-check whether that evidence is unchanged, changed, or
+    needs review whenever the next sponsor decision comes up during the next 30 days.
   </p>
 
   <div class="badges">
-    <span class="badge">Official-source monitoring</span>
-    <span class="badge">Evidence-first</span>
+    <span class="badge">4 core GOV.UK sponsor sources</span>
+    <span class="badge">30-day reusable evidence link</span>
     <span class="badge">No worker PII required</span>
-    <span class="badge">Secure Stripe checkout</span>
+    <span class="badge">One payment · no subscription</span>
   </div>
 
   <section class="offer">
     <div>
-      <strong>Sponsor Monitoring Report</strong>
-      <span>Repeated official-source checks during a 30-day entitlement period. No subscription.</span>
+      <strong>30-day Sponsor Guidance Baseline</strong>
+      <span>Lock today's evidence baseline, then re-check the same four official sources whenever you need it for 30 days.</span>
     </div>
     <div class="price">£49</div>
   </section>
 
   <section class="quick-buy" id="checkout">
-    <h2>Start with all 4 core sponsor-duty sources</h2>
+    <h2>Lock today's 4-source sponsor-guidance baseline</h2>
     <p>
-      No setup needed. Create the baseline now, then re-check the same official
-      GOV.UK sources through your private link for 30 days.
+      Useful if you expect another sponsor decision this month or need a dated
+      record of which official guidance version you relied on. Checkout creates
+      the baseline and gives you a private link for repeated checks.
     </p>
     <form method="post" action="/monitoring-report/checkout">
       <input type="hidden" name="source_channel" value="{source_channel}">
@@ -319,29 +321,29 @@ a{color:var(--blue)}
       <input type="hidden" name="source_ids" value="skilled-worker">
       <input type="hidden" name="source_ids" value="appendix-d">
       {verification_control}
-      <button type="submit">Start 30-day monitoring — £49</button>
+      <button type="submit">Lock today's sponsor-guidance baseline — £49</button>
     </form>
-    <p><small>No subscription. No worker names or case facts required. Secure Stripe checkout.</small></p>
+    <p><small>One payment · 30-day access · no worker names or case facts required · secure Stripe checkout.</small></p>
   </section>
 
   <section class="card">
-    <h2>What the paid report adds</h2>
+    <h2>Use it before the next sponsor decision</h2>
     <p>
-      Free interactive preflight is for one sponsor-change scenario. The paid
-      monitoring report instead creates a baseline for the GOV.UK sources you
-      select, then lets you return and compare those sources repeatedly for 30
-      days. Each check shows source version, observation time, change/review
-      state, and links back to the official guidance.
+      Re-open the private link before salary or role changes, permanent work-location
+      changes, long absences, delayed starts, stopping sponsorship, or organisation
+      changes such as TUPE, merger or takeover. The report does not decide those cases;
+      it tells you whether the official evidence baseline you are relying on is still
+      unchanged or needs review first.
     </p>
     <p>
-      Need to assess many employee or organisation changes rather than monitor
-      source drift? Use the paid batch API, which evaluates up to 25 structured
-      sponsor-change events in one call.
+      Each check shows the source version, observation time, change/review state,
+      and direct GOV.UK evidence link. If you need to assess many structured sponsor
+      changes in one run, use the separate paid batch API for up to 25 events.
     </p>
   </section>
 
   <section class="card">
-    <h2>See what the report shows before you pay</h2>
+    <h2>What you get for £49</h2>
     <p><strong>Illustrative report fields — this is not a current source result.</strong></p>
     <p>
       <strong>Source:</strong> Sponsor duties and compliance — Part 3<br>
@@ -355,6 +357,8 @@ a{color:var(--blue)}
       Your private return link re-runs the comparison during the 30-day access
       period. If a monitored source changes or cannot be safely compared, the
       report flags it for review instead of silently treating it as unchanged.
+      This gives you a repeatable evidence checkpoint before acting on later
+      sponsor-change decisions; it does not replace Home Office guidance or legal advice.
     </p>
   </section>
 
@@ -379,7 +383,7 @@ a{color:var(--blue)}
 
       <p>Your first comparison starts with a source snapshot saved when you continue to checkout; it does not show changes from before that point. The report links to each selected GOV.UK source and shows its version, last observation and change or review state. Save the private return link to check again during the 30 days. Changes require your review; this service does not send alerts.</p>
       {verification_control}
-      <button type="submit">Create baseline & Continue to checkout — £49</button>
+      <button type="submit">Create my 30-day evidence baseline — £49</button>
     </form>
   </section>
 
