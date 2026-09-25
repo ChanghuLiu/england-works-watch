@@ -92,7 +92,8 @@ def monitoring_page(*, origin: str, source_channel: str = "direct", owner_test: 
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sponsor compliance monitoring — England Works Watch</title>
+<title>Sponsor decision evidence check — England Works Watch</title>
+<meta name="eww-offer-experiment" content="sponsor-offer-v3-2026-09-25">
 <style>
 :root{
   color-scheme:light;
@@ -282,37 +283,38 @@ a{color:var(--blue)}
 <main>
   <div class="eyebrow">England Works Watch</div>
 
-  <h1>Keep sponsor-change decisions tied to current GOV.UK guidance for 30 days</h1>
+  <h1>Before a sponsor change, check that the Home Office guidance you rely on is still current</h1>
 
   <p class="lead">
-    Salary, role, work-location, absence, delayed-start, stopping-sponsorship,
-    TUPE and merger decisions can depend on sponsor guidance that changes over time.
-    Save today's official evidence baseline for four core GOV.UK sources, then use
-    one private link to re-check whether that evidence is unchanged, changed, or
-    needs review whenever the next sponsor decision comes up during the next 30 days.
+    Use this before salary, role, work-location, long-absence, delayed-start,
+    stopping-sponsorship, TUPE, merger or takeover decisions. Create a dated
+    evidence checkpoint across four core GOV.UK sponsor sources, then re-check
+    the same official guidance for 30 days. If the evidence changes or cannot
+    be safely compared, the report flags it for review before you act.
   </p>
 
   <div class="badges">
-    <span class="badge">4 core GOV.UK sponsor sources</span>
-    <span class="badge">30-day reusable evidence link</span>
+    <span class="badge">Built for sponsor decisions</span>
+    <span class="badge">Dated GOV.UK evidence checkpoint</span>
+    <span class="badge">30-day reusable private link</span>
     <span class="badge">No worker PII required</span>
-    <span class="badge">One payment · no subscription</span>
   </div>
 
   <section class="offer">
     <div>
-      <strong>30-day Sponsor Guidance Baseline</strong>
-      <span>Lock today's evidence baseline, then re-check the same four official sources whenever you need it for 30 days.</span>
+      <strong>30-day Sponsor Decision Evidence Check</strong>
+      <span>Create a dated evidence checkpoint now, then re-check the same four official sources before later sponsor decisions this month.</span>
     </div>
     <div class="price">£49</div>
   </section>
 
   <section class="quick-buy" id="checkout">
-    <h2>Lock today's 4-source sponsor-guidance baseline</h2>
+    <h2>Create the evidence checkpoint before your next sponsor decision</h2>
     <p>
-      Useful if you expect another sponsor decision this month or need a dated
-      record of which official guidance version you relied on. Checkout creates
-      the baseline and gives you a private link for repeated checks.
+      Useful when HR, compliance or an adviser needs a dated record of which
+      official guidance was current while reviewing a salary, role, location,
+      absence or organisation change. No worker details are required. Checkout
+      creates the checkpoint and gives you a private link for repeated checks.
     </p>
     <form method="post" action="/monitoring-report/checkout">
       <input type="hidden" name="source_channel" value="{source_channel}">
@@ -321,13 +323,13 @@ a{color:var(--blue)}
       <input type="hidden" name="source_ids" value="skilled-worker">
       <input type="hidden" name="source_ids" value="appendix-d">
       {verification_control}
-      <button type="submit">Lock today's sponsor-guidance baseline — £49</button>
+      <button type="submit">Create sponsor decision evidence checkpoint — £49</button>
     </form>
     <p><small>One payment · 30-day access · no worker names or case facts required · Secure Stripe checkout.</small></p>
   </section>
 
   <section class="card">
-    <h2>Use it before the next sponsor decision</h2>
+    <h2>Use it when the sponsor decision has consequences</h2>
     <p>
       Re-open the private link before salary or role changes, permanent work-location
       changes, long absences, delayed starts, stopping sponsorship, or organisation
@@ -343,7 +345,7 @@ a{color:var(--blue)}
   </section>
 
   <section class="card">
-    <h2>What you get for £49</h2>
+    <h2>What the £49 evidence check gives you</h2>
     <p><strong>Illustrative report fields — this is not a current source result.</strong></p>
     <p>
       <strong>Source:</strong> Sponsor duties and compliance — Part 3<br>
@@ -363,11 +365,11 @@ a{color:var(--blue)}
   </section>
 
   <section class="card">
-    <h2>Select the guidance sources to monitor</h2>
+    <h2>The default evidence set</h2>
     <p>
-      All four core sponsor-duty sources are already selected by default. If
-      that scope works for you, no setup is required — continue directly to
-      secure checkout.
+      The £49 checkout above already includes all four core sponsor-duty sources,
+      so there is no setup required for the standard check. If you need a narrower
+      evidence set, you can customise the sources below before checkout.
     </p>
 
     <form method="post" action="/monitoring-report/checkout">
@@ -383,7 +385,7 @@ a{color:var(--blue)}
 
       <p>Your first comparison starts with a source snapshot saved when you continue to checkout; it does not show changes from before that point. The report links to each selected GOV.UK source and shows its version, last observation and change or review state. Save the private return link to check again during the 30 days. Changes require your review; this service does not send alerts.</p>
       {verification_control}
-      <button type="submit">Create my 30-day evidence baseline — £49</button>
+      <button type="submit">Create customised evidence checkpoint — £49</button>
     </form>
   </section>
 
