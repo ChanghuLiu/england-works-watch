@@ -404,8 +404,38 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
     }
 
 
+def _confirmed_external_client_sets(hours: int | None) -> dict[str, set[str]]:
+    free: set[str] = set()
+    challenge: set[str] = set()
+    executed: set[str] = set()
+    for row in _load_rows(hours):
+        actor = _effective_actor(row[5], row[6])
+        client = _safe(row[6])
+        if actor != "declared_external" or not client:
+            continue
+        tool = row[1]
+        billable = bool(row[3])
+        payment_state = row[4] or "none"
+        if tool in FREE_TOOLS and not billable:
+            free.add(client)
+        if tool in BUSINESS_TOOLS and billable and payment_state == "challenge":
+            challenge.add(client)
+        if tool in BUSINESS_TOOLS and billable and payment_state == "paid_executed":
+            executed.add(client)
+    return {"free": free, "challenge": challenge, "executed": executed}
+
+
 def summary():
     all_time = _window_summary(None)
+    clients_all = _confirmed_external_client_sets(None)
+    clients_7d = _confirmed_external_client_sets(24 * 7)
+    clients_24h = _confirmed_external_client_sets(24)
+    cross_window = {
+        "24h_free_to_all_time_paid_challenge_overlap_clients": len(clients_24h["free"] & clients_all["challenge"]),
+        "7d_free_to_all_time_paid_challenge_overlap_clients": len(clients_7d["free"] & clients_all["challenge"]),
+        "24h_free_to_all_time_paid_executed_overlap_clients": len(clients_24h["free"] & clients_all["executed"]),
+        "7d_free_to_all_time_paid_executed_overlap_clients": len(clients_7d["free"] & clients_all["executed"]),
+    }
     return {
         **all_time,
         "generated_at": datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
@@ -414,6 +444,11 @@ def summary():
             "7d": _window_summary(24 * 7),
             "all_time": all_time,
         },
+        "cross_window_external_client_cohorts": cross_window,
+        "cross_window_client_note": (
+            "Cross-window overlap counts only. They show whether currently active confirmed-external "
+            "software clients have ever reached a later payment stage, without exposing client identity."
+        ),
         "classification_note": (
             "Exact owner client names are excluded. A sanitized declared client name that is not on the owner allow-list is classified as declared_external. "
             "Requests without a usable client identity remain unattributed and are never counted as confirmed customers. Discovery HTTP hits are raw-only by design."
