@@ -1,4 +1,6 @@
-from england_works_watch.x402_gate import PaidToolSpec, discovery_extensions, public_mcp_resource_url
+import inspect
+
+from england_works_watch.x402_gate import MCP2X402Gate, PaidToolSpec, discovery_extensions, public_mcp_resource_url
 
 
 def test_bazaar_resource_uses_public_http_mcp_endpoint(monkeypatch):
@@ -41,3 +43,10 @@ def test_batch_paid_tool_declares_bounded_changes_array():
     assert changes['minItems'] == 1
     assert changes['maxItems'] == 25
     assert info['example']['payload']['changes'][0]['event_type'] == 'unauthorised_absence'
+
+
+def test_bazaar_resource_server_extension_is_registered_before_initialize():
+    source = inspect.getsource(MCP2X402Gate.__init__)
+    assert "bazaar_resource_server_extension" in source
+    assert "register_extension(bazaar_resource_server_extension)" in source
+    assert source.index("register_extension(bazaar_resource_server_extension)") < source.index("initialize()")
