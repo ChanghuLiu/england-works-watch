@@ -78,6 +78,36 @@ def _owned_client_names() -> set[str]:
     return DEFAULT_OWNED_CLIENT_NAMES | extra
 
 
+KNOWN_CLIENT_SOURCE_MARKERS = (
+    ("chatgpt", "openai"),
+    ("openai", "openai"),
+    ("claude", "claude"),
+    ("anthropic", "claude"),
+    ("grok", "grok"),
+    ("glama", "glama"),
+    ("smithery", "smithery"),
+    ("mcpbeat", "mcpbeat"),
+    ("agent402", "agent402"),
+    ("402explorer", "402explorer"),
+    ("golemreach", "golemreach"),
+    ("mcpindex", "mcpindex"),
+    ("mcpservers", "mcpservers_org"),
+    ("docker", "docker"),
+)
+
+
+def _effective_source_bucket(source: Any, client: Any) -> str:
+    """Fill an unknown source only from strongly recognizable software client labels."""
+    explicit = normalize_source_bucket(source)
+    if explicit != "unknown":
+        return explicit
+    candidate = str(_safe(client) or "").lower()
+    for marker, bucket in KNOWN_CLIENT_SOURCE_MARKERS:
+        if marker in candidate:
+            return bucket
+    return "unknown"
+
+
 def _effective_actor(actor: str | None, client: str | None) -> str:
     actor = str(actor or "").strip().lower()
     client = _safe(client)
@@ -221,7 +251,7 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
             "client": _safe(row[6]),
             "latency_ms": row[7],
             "event_type": row[8] or "unknown",
-            "source_bucket": normalize_source_bucket(row[9]),
+            "source_bucket": _effective_source_bucket(row[9], row[6]),
             "external_classification": row[10] or "unknown",
             "owner_test": bool(row[11]),
             "deployment_revision": row[12] or "unknown",
