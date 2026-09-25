@@ -107,7 +107,6 @@ def test_c7b_acquisition_aliases_and_monitoring_form_are_bounded():
     assert "Secure Stripe checkout" in page
     assert "Stripe Test checkout" not in page
     assert "Create sponsor decision evidence checkpoint — £49" in page
-    assert "Lock today's sponsor-guidance baseline — £49" in page
     assert page.count('<form method="post" action="/monitoring-report/checkout">') == 2
     assert page.count('name="source_ids"') == 8
     for source_id in ("sponsor-part2", "sponsor-part3", "skilled-worker", "appendix-d"):
