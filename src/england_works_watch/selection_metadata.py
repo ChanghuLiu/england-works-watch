@@ -45,7 +45,7 @@ PAID_RESULT_PREVIEW: dict[str, Any] = {
         "review_reasons": ["source_not_current or an unresolved input conflict"],
         "required_actions": ["review the blocking evidence or supply the missing facts"],
     },
-    "value": "The commercial MCP keeps a metered single-event API for programmatic compatibility, while its strongest incremental value is batch assessment for 1-25 events. The separate 30-day monitoring report adds repeated official-source drift checks through a private reusable access link. The public AI edition can already provide an interactive single-event preflight.",
+    "value": "The commercial MCP keeps a metered single-event API for programmatic compatibility, while its strongest incremental value is batch assessment for 1-25 events. The separate 30-day Sponsor Decision Evidence Check creates a dated checkpoint across four core GOV.UK sponsor sources before a sponsor decision and provides a private link to re-check that evidence for 30 days. The public AI edition can already provide an interactive single-event preflight.",
 }
 
 FREE_PAID_BOUNDARY: dict[str, Any] = {
@@ -58,9 +58,9 @@ FREE_PAID_BOUNDARY: dict[str, Any] = {
     "paid": [
         "commercial assess_change_impact: metered programmatic single-event API for agent/runtime workflows",
         "batch_assess_changes: 1-25 structured sponsor-change decisions in one paid API call",
-        "30-day monitoring report: repeated official-source version/fingerprint checks through a private reusable access link",
+        "30-day Sponsor Decision Evidence Check: dated GOV.UK evidence checkpoint before a sponsor decision plus repeated re-checks through a private reusable access link",
     ],
-    "paid_adds": "Paid access is for automation and repeated business use rather than hiding the basic single-event answer: batch execution reduces per-case orchestration, the metered single-event API supports programmatic commercial workflows, and the monitoring report checks selected official sources repeatedly for 30 days.",
+    "paid_adds": "Paid access is for automation, repeated business use, or a dated decision-evidence record rather than hiding the basic single-event answer: batch execution reduces per-case orchestration, the metered single-event API supports programmatic workflows, and the Sponsor Decision Evidence Check records and re-checks the selected official guidance for 30 days.",
 }
 
 PAYMENT_GUIDANCE: dict[str, Any] = {
