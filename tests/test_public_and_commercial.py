@@ -115,9 +115,9 @@ def test_c7b_acquisition_aliases_and_monitoring_form_are_bounded():
     assert 'value="yes" required' in page
     assert "Real purchase — not an operator/test run" in page
     assert "Sponsor duties and compliance — Part 3" in page
-    assert "Keep sponsor-change decisions tied to current GOV.UK guidance for 30 days" in page
-    assert "What you get for £49" in page
-    assert "Create my 30-day evidence baseline — £49" in page
+    assert "Before a sponsor change, check that the Home Office guidance you rely on is still current" in page
+    assert "What the £49 evidence check gives you" in page
+    assert "Create customised evidence checkpoint — £49" in page
     assert "Source IDs" not in page
 
     owner_page = monitoring_page(
