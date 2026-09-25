@@ -7,7 +7,8 @@ def test_windowed_commercial_funnel_separates_owner_external_and_unattributed(tm
     from england_works_watch.analytics import record, summary
 
     external_meta = {
-        "io.modelcontextprotocol/clientInfo": {"name": "external-agent", "version": "1.0"}
+        "io.modelcontextprotocol/clientInfo": {"name": "external-agent", "version": "1.0"},
+        "source_context": "glama",
     }
     owner_meta = {
         "englandworkswatch/actor": "owned_ci",
@@ -36,6 +37,11 @@ def test_windowed_commercial_funnel_separates_owner_external_and_unattributed(tm
         },
         "paid_challenge": {"batch_assess_changes": 1},
         "paid_executed": {"assess_change_impact": 2},
+    }
+    assert summary_24h["confirmed_external_by_source"] == {
+        "free_business_call": {"glama": 2},
+        "paid_challenge": {"glama": 1},
+        "paid_executed": {"glama": 2},
     }
     assert window["repeat_paid"]["raw"] == 1
     assert window["repeat_paid"]["confirmed_external"] == 1
