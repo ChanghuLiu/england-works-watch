@@ -52,6 +52,14 @@ def test_windowed_commercial_funnel_separates_owner_external_and_unattributed(tm
         "free_to_paid_executed_overlap_clients": 1,
     }
     assert "external-agent" not in str(summary_24h["confirmed_external_client_cohorts"])
+    complete = summary()
+    assert complete["cross_window_external_client_cohorts"] == {
+        "24h_free_to_all_time_paid_challenge_overlap_clients": 1,
+        "7d_free_to_all_time_paid_challenge_overlap_clients": 1,
+        "24h_free_to_all_time_paid_executed_overlap_clients": 1,
+        "7d_free_to_all_time_paid_executed_overlap_clients": 1,
+    }
+    assert "external-agent" not in str(complete["cross_window_external_client_cohorts"])
     assert window["repeat_paid"]["raw"] == 1
     assert window["repeat_paid"]["confirmed_external"] == 1
 
