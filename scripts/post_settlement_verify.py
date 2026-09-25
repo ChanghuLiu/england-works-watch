@@ -14,12 +14,12 @@ import urllib.request
 
 ORIGIN = os.getenv(
     "EWW_PUBLIC_ORIGIN",
-    "https://england-works-watch-production.up.railway.app",
+    "https://works.regevidencehub.com",
 ).rstrip("/")
 PAYAI = os.getenv("EWW_PAYAI_BASE", "https://facilitator.payai.network").rstrip("/")
 NEEDLES = [
     "england works watch",
-    "england-works-watch-production.up.railway.app",
+    "works.regevidencehub.com",
     "mcp://tool/assess_change_impact",
     "mcp://tool/batch_assess_changes",
 ]

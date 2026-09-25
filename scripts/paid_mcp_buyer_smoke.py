@@ -32,7 +32,7 @@ from x402.mcp import MCPToolResult, x402MCPClient
 
 URL = os.getenv(
     "EWW_PAID_MCP_URL",
-    "https://england-works-watch-production.up.railway.app/mcp",
+    "https://works.regevidencehub.com/mcp",
 )
 EXPECTED_SERVER = "England Works Watch"
 EXPECTED_PAY_TO = os.getenv(
