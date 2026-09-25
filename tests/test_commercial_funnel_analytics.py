@@ -45,3 +45,33 @@ def test_windowed_commercial_funnel_separates_owner_external_and_unattributed(tm
     }
     assert window["repeat_paid"]["raw"] == 1
     assert window["repeat_paid"]["confirmed_external"] == 1
+
+
+def test_known_declared_client_fills_unknown_source_without_exposing_client(tmp_path, monkeypatch):
+    monkeypatch.setenv("EWW_RUNTIME_DIR", str(tmp_path))
+
+    from england_works_watch.analytics import record, summary
+
+    record(
+        "assess_change_impact",
+        "challenge",
+        billable=True,
+        payment_state="challenge",
+        meta={"io.modelcontextprotocol/clientInfo": {"name": "grok-connector", "version": "1.0"}},
+    )
+    record(
+        "assess_change_impact",
+        "challenge",
+        billable=True,
+        payment_state="challenge",
+        meta={"io.modelcontextprotocol/clientInfo": {"name": "external-agent", "version": "1.0"}},
+    )
+
+    window = summary()["windows"]["24h"]
+
+    assert window["confirmed_external_by_source"]["paid_challenge"] == {
+        "grok": 1,
+        "unknown": 1,
+    }
+    assert "grok-connector" not in str(window)
+    assert "external-agent" not in str(window)
