@@ -120,7 +120,7 @@ def _payment_info() -> dict[str, Any]:
                 "url": f"{PUBLIC_ORIGIN}/monitoring-report",
                 "price": "£49",
                 "access": "30 days",
-                "value": "Repeated official-source version and semantic-fingerprint checks through a private reusable link.",
+                "value": "Create a dated checkpoint across four core GOV.UK sponsor sources before a sponsor decision, then re-check the same evidence for 30 days through a private reusable link.",
             },
             "single_event_api": {
                 "tool": "assess_change_impact",
@@ -155,7 +155,7 @@ def _server_card() -> dict[str, Any]:
         "paid_tools": ["assess_change_impact", "batch_assess_changes"],
         "commercial_value_paths": {
             "primary_api": "batch_assess_changes for 1-25 events",
-            "continued_monitoring": f"{PUBLIC_ORIGIN}/monitoring-report for 30-day official-source drift checks",
+            "continued_monitoring": f"{PUBLIC_ORIGIN}/monitoring-report for a 30-day Sponsor Decision Evidence Check",
             "single_event_api": "assess_change_impact retained for metered programmatic compatibility",
         },
         "decision_argument_shape": {
@@ -204,7 +204,7 @@ def _commercial_source_status_payload() -> dict[str, Any]:
     """Add a bounded commercial next step without changing source-health semantics."""
     status = dict(production_source_status())
     status["recommended_next_step"] = {
-        "when": "If source status is usable and a commercial sponsor-change decision is needed.",
+        "when": "If source status is usable and a sponsor decision needs a dated evidence checkpoint or repeated commercial assessment.",
         "single_event": {
             "tool": "assess_change_impact",
             "price": PRICE_ASSESS,
@@ -221,9 +221,9 @@ def _commercial_source_status_payload() -> dict[str, Any]:
             "price": "£49",
             "access": "30 days",
             "use_for": (
-                "When later sponsor decisions should be checked against the same four core GOV.UK "
-                "guidance sources: lock today's evidence baseline and re-check whether it is unchanged, "
-                "changed, or needs review through a private reusable link."
+                "Before salary, role, work-location, long-absence, delayed-start, stopping-sponsorship, "
+                "TUPE, merger or takeover decisions when a dated record of the current four core GOV.UK "
+                "sponsor sources is useful; re-check the same evidence for 30 days through a private link."
             ),
             "boundary": "No worker names or case facts are required; this does not decide sponsor cases or send alerts.",
         },
@@ -488,7 +488,7 @@ async def pricing(_request):
             prices={
                 "Single-event commercial API (assess_change_impact)": f"{PRICE_ASSESS} USDC per x402 call; programmatic compatibility path",
                 "Primary paid batch API (batch_assess_changes)": f"{PRICE_BATCH} USDC per x402 call; 1-25 events",
-                "30-day Sponsor Monitoring Report": "£49 via shared commercial Stripe checkout",
+                "30-day Sponsor Decision Evidence Check": "£49 via shared commercial Stripe checkout",
             },
         ),
         media_type="text/html",
@@ -976,7 +976,7 @@ async def llms(_request):
         "Commercial MCP free discovery tools: england_works_watch_info, licensing_source_status, list_supported_change_events.\n"
         f"Primary paid API: batch_assess_changes {PRICE_BATCH}; assess 1-25 structured sponsor changes in one x402 call with per-event results and outcome counts.\n"
         f"Single-event commercial API: assess_change_impact {PRICE_ASSESS}; retained for metered programmatic integrations that need one-event execution.\n"
-        f"30-day Sponsor Monitoring Report: £49 via Stripe at {PUBLIC_ORIGIN}/monitoring-report; creates a source baseline and supports repeated official-source version/fingerprint checks through a private reusable link.\n"
+        f"30-day Sponsor Decision Evidence Check: £49 via Stripe at {PUBLIC_ORIGIN}/monitoring-report; creates a dated checkpoint across four core GOV.UK sponsor sources before a sponsor decision, then re-checks the same evidence for 30 days through a private reusable link.\n"
         "Use paid access for automation, repeated business use, batch processing, or continued evidence monitoring rather than to unlock the basic one-off answer.\n"
         "Example decision shape: status, decision_code, rationale, required_actions, deadline, missing_inputs, review_reasons, affected_rules and disclaimer.\n"
         f"x402 payment guidance: PaymentRequired -> sign buyer-side Base mainnet USDC ({NETWORK}) -> retry the same paid tool with payment metadata. If payment or settlement is not verified, the paid API decision is not executed.\n"
@@ -1064,7 +1064,7 @@ async def agent_card(_request):
     return JSONResponse(
         {
             "name": "England Works Watch",
-            "description": "UK Skilled Worker sponsor-change preflight with a public interactive single-event path plus paid batch automation and 30-day official-source monitoring.",
+            "description": "UK Skilled Worker sponsor-change preflight with a public interactive single-event path, paid batch automation, and a 30-day Sponsor Decision Evidence Check.",
             "url": PUBLIC_ORIGIN,
             "mcp": PUBLIC_MCP_URL,
             "public_ai_mcp": f"{PUBLIC_ORIGIN}/ai/mcp",
@@ -1078,10 +1078,10 @@ async def agent_card(_request):
             },
             "commercial_value": {
                 "primary_paid_api": "batch_assess_changes for 1-25 sponsor changes",
-                "continued_monitoring": "30-day Sponsor Monitoring Report for repeated official-source drift checks",
+                "continued_monitoring": "30-day Sponsor Decision Evidence Check for dated GOV.UK evidence before and between sponsor decisions",
                 "single_event_api": "assess_change_impact for metered programmatic one-event execution",
             },
-            "instructions": "Use the public AI edition for a one-off interactive sponsor-change preflight. Use the commercial batch API for multiple events or repeated automation, and the monitoring report for continued official-source drift checks. On commercial execution, read source status first and escalate REVIEW_REQUIRED or INSUFFICIENT_INPUT.",
+            "instructions": "Use the public AI edition for a one-off interactive sponsor-change preflight. Use the commercial batch API for multiple events or repeated automation. Use the £49 Sponsor Decision Evidence Check when a buyer needs a dated GOV.UK evidence checkpoint before a sponsor decision and a private link to re-check that evidence for 30 days. On commercial execution, read source status first and escalate REVIEW_REQUIRED or INSUFFICIENT_INPUT.",
         }
     )
 
