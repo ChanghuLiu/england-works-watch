@@ -2,9 +2,9 @@ from __future__ import annotations
 
 
 def test_sponsor_offer_v3_positions_paid_value_around_decision_evidence():
-    from england_works_watch.public_surfaces import render_monitoring_report_page
+    from england_works_watch.public_surfaces import monitoring_page
 
-    page = render_monitoring_report_page(
+    page = monitoring_page(
         origin="https://works.regevidencehub.com",
         source_channel="direct",
         owner_test=False,
@@ -20,9 +20,9 @@ def test_sponsor_offer_v3_positions_paid_value_around_decision_evidence():
 
 
 def test_sponsor_offer_v3_does_not_overpromise_case_decision_or_alerting():
-    from england_works_watch.public_surfaces import render_monitoring_report_page
+    from england_works_watch.public_surfaces import monitoring_page
 
-    page = render_monitoring_report_page(
+    page = monitoring_page(
         origin="https://works.regevidencehub.com",
         source_channel="direct",
         owner_test=False,
