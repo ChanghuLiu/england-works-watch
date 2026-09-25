@@ -289,6 +289,10 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
     external_challenge_by_software_family = Counter(_declared_software_family(row["client"]) for row in external_challenge)
     external_executed_by_software_family = Counter(_declared_software_family(row["client"]) for row in external_executed)
 
+    external_free_clients = {row["client"] for row in external_free if row["client"]}
+    external_challenge_clients = {row["client"] for row in external_challenge if row["client"]}
+    external_executed_clients = {row["client"] for row in external_executed if row["client"]}
+
     paid_by_external_client = Counter(row["client"] for row in external_executed if row["client"])
     repeat_clients = {name: count for name, count in paid_by_external_client.items() if count >= 2}
     repeat_integrations = len(repeat_clients)
@@ -343,6 +347,18 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
         "software_family_note": (
             "Only allow-listed software families are exposed. Arbitrary self-declared client labels "
             "are collapsed to other_declared_software and are never returned verbatim."
+        ),
+        "confirmed_external_client_cohorts": {
+            "free_business_call_unique_clients": len(external_free_clients),
+            "paid_challenge_unique_clients": len(external_challenge_clients),
+            "paid_executed_unique_clients": len(external_executed_clients),
+            "free_to_paid_challenge_overlap_clients": len(external_free_clients & external_challenge_clients),
+            "paid_challenge_to_paid_executed_overlap_clients": len(external_challenge_clients & external_executed_clients),
+            "free_to_paid_executed_overlap_clients": len(external_free_clients & external_executed_clients),
+        },
+        "client_cohort_note": (
+            "Counts and cross-stage overlaps only. No client labels, hashes, IDs, IPs, user-agents, "
+            "wallets, request payloads or payment signatures are exposed."
         ),
         "source_attribution": source_attribution,
         "source_attribution_scope": "commercial_funnel_rows_only",
