@@ -104,10 +104,15 @@ class MCP2X402Gate:
         from x402 import x402ResourceServerSync
         from x402.http import FacilitatorConfig, HTTPFacilitatorClientSync
         from x402.mechanisms.evm.exact import ExactEvmServerScheme
+        from x402.extensions.bazaar import bazaar_resource_server_extension
         self.network=os.getenv('EWW_X402_NETWORK','eip155:8453').strip(); self.pay_to=os.getenv('EWW_X402_PAY_TO','').strip(); self.facilitator_url=os.getenv('EWW_X402_FACILITATOR_URL','https://facilitator.payai.network').strip()
         self.token_name,self.token_version=eip712_token_identity(self.network)
         if not self.pay_to: raise RuntimeError('EWW_X402_PAY_TO is required when payment enforcement is enabled')
-        facilitator=HTTPFacilitatorClientSync(FacilitatorConfig(url=self.facilitator_url)); self.resource_server=x402ResourceServerSync(facilitator); self.resource_server.register(self.network,ExactEvmServerScheme()); self.resource_server.initialize()
+        facilitator=HTTPFacilitatorClientSync(FacilitatorConfig(url=self.facilitator_url))
+        self.resource_server=x402ResourceServerSync(facilitator)
+        self.resource_server.register(self.network,ExactEvmServerScheme())
+        self.resource_server.register_extension(bazaar_resource_server_extension)
+        self.resource_server.initialize()
 
         # Non-sensitive payment lifecycle diagnostics. Never log payment payloads,
         # signatures, private keys, seed phrases, or raw MCP arguments.
