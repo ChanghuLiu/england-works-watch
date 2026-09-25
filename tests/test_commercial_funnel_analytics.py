@@ -73,5 +73,9 @@ def test_known_declared_client_fills_unknown_source_without_exposing_client(tmp_
         "grok": 1,
         "unknown": 1,
     }
+    assert window["confirmed_external_by_software_family"]["paid_challenge"] == {
+        "grok": 1,
+        "other_declared_software": 1,
+    }
     assert "grok-connector" not in str(window)
     assert "external-agent" not in str(window)
