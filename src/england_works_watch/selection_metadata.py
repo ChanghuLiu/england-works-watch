@@ -60,7 +60,7 @@ FREE_PAID_BOUNDARY: dict[str, Any] = {
         "batch_assess_changes: 1-25 structured sponsor-change decisions in one paid API call",
         "30-day Sponsor Decision Evidence Check: dated GOV.UK evidence checkpoint before a sponsor decision plus repeated re-checks through a private reusable access link",
     ],
-    "paid_adds": "Paid access is for automation, repeated business use, or a dated decision-evidence record rather than hiding the basic single-event answer: batch execution reduces per-case orchestration, the metered single-event API supports programmatic workflows, and the Sponsor Decision Evidence Check records and re-checks the selected official guidance for 30 days.",
+    "paid_adds": "Paid access is for automation and repeated business use, or for a dated decision-evidence record, rather than hiding the basic single-event answer: batch execution reduces per-case orchestration, the metered single-event API supports programmatic workflows, and the Sponsor Decision Evidence Check records and re-checks the selected official guidance for 30 days.",
 }
 
 PAYMENT_GUIDANCE: dict[str, Any] = {
