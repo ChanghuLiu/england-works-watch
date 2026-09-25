@@ -108,6 +108,15 @@ def _effective_source_bucket(source: Any, client: Any) -> str:
     return "unknown"
 
 
+def _declared_software_family(client: Any) -> str:
+    """Return a bounded software family without exposing arbitrary client labels."""
+    candidate = str(_safe(client) or "").lower()
+    for marker, bucket in KNOWN_CLIENT_SOURCE_MARKERS:
+        if marker in candidate:
+            return bucket
+    return "other_declared_software"
+
+
 def _effective_actor(actor: str | None, client: str | None) -> str:
     actor = str(actor or "").strip().lower()
     client = _safe(client)
@@ -276,6 +285,9 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
     external_free_by_source = Counter(row["source_bucket"] for row in external_free)
     external_challenge_by_source = Counter(row["source_bucket"] for row in external_challenge)
     external_executed_by_source = Counter(row["source_bucket"] for row in external_executed)
+    external_free_by_software_family = Counter(_declared_software_family(row["client"]) for row in external_free)
+    external_challenge_by_software_family = Counter(_declared_software_family(row["client"]) for row in external_challenge)
+    external_executed_by_software_family = Counter(_declared_software_family(row["client"]) for row in external_executed)
 
     paid_by_external_client = Counter(row["client"] for row in external_executed if row["client"])
     repeat_clients = {name: count for name, count in paid_by_external_client.items() if count >= 2}
@@ -323,6 +335,15 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
             "paid_challenge": dict(external_challenge_by_source),
             "paid_executed": dict(external_executed_by_source),
         },
+        "confirmed_external_by_software_family": {
+            "free_business_call": dict(external_free_by_software_family),
+            "paid_challenge": dict(external_challenge_by_software_family),
+            "paid_executed": dict(external_executed_by_software_family),
+        },
+        "software_family_note": (
+            "Only allow-listed software families are exposed. Arbitrary self-declared client labels "
+            "are collapsed to other_declared_software and are never returned verbatim."
+        ),
         "source_attribution": source_attribution,
         "source_attribution_scope": "commercial_funnel_rows_only",
         "commercial_funnel": {
