@@ -14,12 +14,13 @@ import sys
 import uvicorn
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
-from starlette.routing import Mount
+from starlette.routing import Mount, Route
 
 from . import server
 from . import submission_pages  # noqa: F401  # registers public policy/support routes
 from .directory_server import DIRECTORY_DESCRIPTION, DIRECTORY_NAME, directory_mcp, openai_mcp
 from .discovery_ecosystem import DiscoveryEcosystemASGI
+from .http_x402 import openapi_http, wrap_http_x402
 from .selection_metadata import apply_selection_metadata
 
 # The server module has already registered every existing tool by import time.
@@ -131,6 +132,7 @@ def build_http_app():
 
     app = Starlette(
         routes=[
+            Route("/openapi.json", openapi_http, methods=["GET"]),
             Mount("/openai", app=openai_app),
             Mount("/ai", app=ai_app),
             Mount("/mcp-directory", app=directory_app),
@@ -138,7 +140,7 @@ def build_http_app():
         ],
         lifespan=lifespan,
     )
-    return DiscoveryEcosystemASGI(app)
+    return wrap_http_x402(DiscoveryEcosystemASGI(app))
 
 
 def main() -> None:
