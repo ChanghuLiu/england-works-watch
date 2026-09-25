@@ -29,7 +29,7 @@ def test_local_public_policy_discovery_and_health_routes_return_200(monkeypatch,
         llms = client.get("/llms.txt").text
         assert "Public AI/directory edition" in llms
         assert "Primary paid API: batch_assess_changes" in llms
-        assert "30-day Sponsor Monitoring Report" in llms
+        assert "30-day Sponsor Decision Evidence Check" in llms
         assert "free tools provide scope, source status" not in llms
         x402 = client.get("/.well-known/x402").json()
         assert x402["tools"]["batch_assess_changes"]["role"] == "primary paid API path for repeated work"
@@ -39,6 +39,7 @@ def test_local_public_policy_discovery_and_health_routes_return_200(monkeypatch,
         agent_card = client.get("/.well-known/agent-card.json").json()
         assert agent_card["public_ai_mcp"].endswith("/ai/mcp")
         assert agent_card["monitoring_report"].endswith("/monitoring-report")
+        assert "Sponsor Decision Evidence Check" in agent_card["commercial_value"]["continued_monitoring"]
         assert agent_card["capabilities"]["monitoring"] is True
         assert "batch_assess_changes" in agent_card["commercial_value"]["primary_paid_api"]
         assert "one-off interactive" in agent_card["instructions"]

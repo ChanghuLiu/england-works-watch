@@ -27,7 +27,7 @@ def test_free_paid_boundary_and_payment_guidance_are_explicit():
     assert "interactive" in FREE_PAID_BOUNDARY["free"][0]
     assert "assess_change_impact" in FREE_PAID_BOUNDARY["paid"][0]
     assert "batch_assess_changes" in FREE_PAID_BOUNDARY["paid"][1]
-    assert "30-day monitoring report" in FREE_PAID_BOUNDARY["paid"][2]
+    assert "Sponsor Decision Evidence Check" in FREE_PAID_BOUNDARY["paid"][2]
     assert "automation and repeated business use" in FREE_PAID_BOUNDARY["paid_adds"]
     assert PAYMENT_GUIDANCE["network"] == "Base mainnet (eip155:8453)"
     assert PAYMENT_GUIDANCE["token"] == "USDC"
@@ -53,6 +53,7 @@ def test_price_network_token_and_payment_protocol_contract_are_unchanged():
     }
     assert payment["recommended_paid_paths"]["batch_api"]["tool"] == "batch_assess_changes"
     assert payment["recommended_paid_paths"]["monitoring_report"]["price"] == "£49"
+    assert "dated checkpoint" in payment["recommended_paid_paths"]["monitoring_report"]["value"]
     assert "public AI edition" in payment["recommended_paid_paths"]["single_event_api"]["positioning"]
 
 
