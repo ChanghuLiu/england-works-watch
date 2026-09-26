@@ -221,6 +221,17 @@ async def openapi_http(request):
             + " The two paid HTTP compatibility routes execute the same deterministic "
               "decision engine as the MCP tools."
         )
+        info["contact"] = {"email": "launchcircle.server@gmail.com"}
+        info["x-guidance"] = (
+            "Use this API for UK Skilled Worker sponsor-change impact checks. "
+            "Call /api/v1/assess-change-impact for one structured change and "
+            "/api/v1/batch-assess-changes for repeated work. Provide the sponsor event facts requested by the schema. "
+            "The service returns deterministic evidence-linked reporting impact and fails closed when official evidence is stale or incomplete."
+        )
+    payload["externalDocs"] = {
+        "description": "Agent-readable usage and capability guide",
+        "url": f"{server.PUBLIC_ORIGIN}/llms.txt",
+    }
     return JSONResponse(payload)
 
 
