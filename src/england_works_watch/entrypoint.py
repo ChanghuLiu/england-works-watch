@@ -21,6 +21,7 @@ from . import submission_pages  # noqa: F401  # registers public policy/support 
 from .directory_server import DIRECTORY_DESCRIPTION, DIRECTORY_NAME, directory_mcp, openai_mcp
 from .discovery_ecosystem import DiscoveryEcosystemASGI
 from .http_x402 import openapi_http, wrap_http_x402
+from .http_x402_analytics import HttpX402TelemetryASGI
 from .selection_metadata import apply_selection_metadata
 
 # The server module has already registered every existing tool by import time.
@@ -140,7 +141,7 @@ def build_http_app():
         ],
         lifespan=lifespan,
     )
-    return wrap_http_x402(DiscoveryEcosystemASGI(app))
+    return HttpX402TelemetryASGI(wrap_http_x402(DiscoveryEcosystemASGI(app)))
 
 
 def main() -> None:

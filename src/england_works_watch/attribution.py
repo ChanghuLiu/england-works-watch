@@ -15,7 +15,8 @@ SOURCE_BUCKETS = frozenset({
     "mcpbeat", "agent402", "402explorer", "wellknown", "mcpmetrics", "smithery",
     "mcp_directory", "safemcp", "unyly", "truespar", "agentshare",
     "sentineloracle", "proofbench", "mcpcheckup", "golemreach", "mcpscan", "agentstatus",
-    "openai", "claude", "grok", "regevidencehub",
+    "openai", "claude", "grok", "regevidencehub", "unknown_machine",
+    "x402_list", "x402_trust", "x402lens", "x402_watch", "x402_probe",
 })
 EXPLICIT_SOURCE_ALIASES = {
     "chatgpt": "openai",
