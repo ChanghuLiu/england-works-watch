@@ -362,4 +362,7 @@ def wrap_http_x402(app: Any) -> Any:
             ),
         ),
     }
-    return PaymentMiddlewareASGI(app, routes=routes, server=resource_server)
+    from .http_x402_analytics import HttpX402TelemetryASGI
+
+    protected = PaymentMiddlewareASGI(app, routes=routes, server=resource_server)
+    return HttpX402TelemetryASGI(protected)
