@@ -5,6 +5,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 from starlette.testclient import TestClient
 
+from england_works_watch import analytics
 from england_works_watch.http_x402 import (
     ASSESS_EXAMPLE,
     ASSESS_PATH,
@@ -29,11 +30,12 @@ def test_paid_openapi_paths_declare_x402_and_prices(monkeypatch):
     assert "402" in paths[ASSESS_PATH]["post"]["responses"]
 
 
-def test_unpaid_http_compatibility_route_stops_at_x402(monkeypatch):
+def test_unpaid_http_compatibility_route_stops_at_x402(monkeypatch, tmp_path):
     monkeypatch.setenv("EWW_PAYMENT_ENFORCED", "1")
     monkeypatch.setenv("EWW_X402_PAY_TO", PAY_TO)
     monkeypatch.setenv("EWW_X402_NETWORK", "eip155:8453")
     monkeypatch.setenv("EWW_X402_FACILITATOR_URL", "https://facilitator.payai.network")
+    monkeypatch.setenv("EWW_RUNTIME_DIR", str(tmp_path))
 
     executed = {"value": False}
 
@@ -50,3 +52,9 @@ def test_unpaid_http_compatibility_route_stops_at_x402(monkeypatch):
     assert response.status_code == 402
     assert executed["value"] is False
     assert response.headers.get("payment-required")
+
+    # The production wrapper must expose the HTTP challenge through the same
+    # canonical commercial funnel used by MCP payment telemetry.
+    window = analytics._window_summary(24)
+    assert window["commercial_funnel"]["paid_challenge"]["raw"] == 1
+    assert window["commercial_funnel"]["paid_executed"]["raw"] == 0
