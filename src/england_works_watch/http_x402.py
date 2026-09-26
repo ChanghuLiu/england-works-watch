@@ -75,9 +75,45 @@ def settings() -> dict[str, str | bool]:
         "facilitator_url": os.getenv(
             "EWW_X402_FACILITATOR_URL", "https://facilitator.payai.network"
         ).strip(),
+        "http_facilitator": os.getenv(
+            "EWW_HTTP_X402_FACILITATOR", "payai"
+        ).strip().lower() or "payai",
+        "http_facilitator_url": os.getenv(
+            "EWW_HTTP_X402_FACILITATOR_URL", ""
+        ).strip(),
         "assess_price": os.getenv("EWW_X402_PRICE_ASSESS", "$0.02").strip() or "$0.02",
         "batch_price": os.getenv("EWW_X402_PRICE_BATCH", "$0.05").strip() or "$0.05",
     }
+
+
+def _http_facilitator_config(cfg: dict[str, str | bool]):
+    """Select the paid HTTP facilitator without changing MCP settlement."""
+    from x402.http import FacilitatorConfig
+
+    mode = str(cfg.get("http_facilitator") or "payai").strip().lower()
+    if mode == "cdp":
+        if not os.getenv("CDP_API_KEY_ID", "").strip() or not os.getenv(
+            "CDP_API_KEY_SECRET", ""
+        ).strip():
+            raise RuntimeError(
+                "CDP_API_KEY_ID and CDP_API_KEY_SECRET are required when "
+                "EWW_HTTP_X402_FACILITATOR=cdp"
+            )
+        try:
+            from cdp.x402 import create_facilitator_config
+        except ImportError as exc:
+            raise RuntimeError("CDP HTTP x402 support requires cdp-sdk") from exc
+        return create_facilitator_config()
+
+    if mode in {"payai", "legacy", "url"}:
+        url = str(cfg.get("http_facilitator_url") or cfg.get("facilitator_url") or "").strip()
+        if not url:
+            raise RuntimeError("HTTP x402 facilitator URL is required")
+        return FacilitatorConfig(url=url)
+
+    raise RuntimeError(
+        "EWW_HTTP_X402_FACILITATOR must be one of: payai, url, cdp"
+    )
 
 
 def _amount(value: object) -> str:
@@ -256,9 +292,7 @@ def wrap_http_x402(app: Any) -> Any:
     if not network.startswith("eip155:"):
         raise RuntimeError("England Works Watch HTTP x402 supports eip155:* exact payment only")
 
-    facilitator = HTTPFacilitatorClient(
-        FacilitatorConfig(url=str(cfg["facilitator_url"]))
-    )
+    facilitator = HTTPFacilitatorClient(_http_facilitator_config(cfg))
     resource_server = x402ResourceServer(facilitator)
     resource_server.register(network, ExactEvmServerScheme())
     resource_server.register_extension(bazaar_resource_server_extension)
