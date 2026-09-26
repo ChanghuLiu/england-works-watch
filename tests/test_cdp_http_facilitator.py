@@ -7,7 +7,7 @@ def test_http_facilitator_defaults_to_existing_payai_url(monkeypatch):
     monkeypatch.delenv("EWW_HTTP_X402_FACILITATOR", raising=False)
     monkeypatch.delenv("EWW_HTTP_X402_FACILITATOR_URL", raising=False)
     monkeypatch.setenv("EWW_X402_FACILITATOR_URL", "https://facilitator.payai.network")
-    assert _http_facilitator_config(settings())["url"] == "https://facilitator.payai.network"
+    assert getattr(_http_facilitator_config(settings()), "url", None) == "https://facilitator.payai.network"
 
 
 def test_cdp_mode_fails_closed_without_credentials(monkeypatch):
