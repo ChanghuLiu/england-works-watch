@@ -17,7 +17,9 @@ RUN ln -s /app/data /usr/local/lib/python3.12/data \
  && python -c "from england_works_watch.policy import source_status; s=source_status(); assert s['coverage_complete']; print('installed-runtime-import=PASS', s['rule_pack_version'])" \
  && python scripts/mcp_transport_smoke.py \
  && python scripts/x402_unpaid_smoke.py
-RUN useradd --uid 10001 --create-home appuser && mkdir -p /data && chown -R appuser:appuser /data /app
-USER appuser
+RUN useradd --uid 10001 --create-home appuser && mkdir -p /data && chown -R appuser:appuser /app
 ENV HOST=0.0.0.0 PORT=8000 EWW_RUNTIME_DIR=/data
-CMD ["england-works-watch", "--http"]
+# Railway mounts persistent volumes after image build, so the mount point is
+# root-owned at runtime. Fix ownership at container start, then immediately
+# drop privileges before importing or serving the application.
+CMD ["sh", "-c", "mkdir -p /data/england-works-watch && chown -R appuser:appuser /data/england-works-watch && exec runuser -u appuser -- england-works-watch --http"]
