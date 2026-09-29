@@ -424,6 +424,20 @@ class CommercialPlatformClient:
             raise CommercialPlatformError("checkout service returned invalid checkout_url")
         return {key: data[key] for key in ("checkout_id", "stripe_session_id", "checkout_url")}
 
+    async def issue_continuation(self, *, case_ref: str, state_ref: str) -> dict[str, Any]:
+        async with self._client() as client:
+            response = await client.post("/v1/continuations/issue", json={
+                "product_id": self.settings.product_id,
+                "case_ref": case_ref,
+                "state_ref": state_ref,
+            })
+        if response.status_code != 200:
+            raise CommercialPlatformError(f"continuation service returned {response.status_code}")
+        data = response.json()
+        if not isinstance(data, dict) or not isinstance(data.get("continuation_token"), str):
+            raise CommercialPlatformError("continuation service returned invalid response")
+        return data
+
     async def verify_entitlement(self, *, principal_ref: str) -> dict[str, Any]:
         async with self._client() as client:
             response = await client.post("/v1/entitlements/verify", json={"product_id": self.settings.product_id, "principal_ref": principal_ref})
