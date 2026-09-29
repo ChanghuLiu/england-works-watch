@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import secrets
 import time
 from typing import Any, Mapping
 from urllib.parse import parse_qs, urlencode
@@ -13,6 +14,8 @@ from starlette.responses import JSONResponse, PlainTextResponse, RedirectRespons
 from .analytics import record, summary
 from .attribution import OWNER_TEST_MARKERS, is_automated_user_agent
 from .commercial import CommercialPlatformClient, CommercialPlatformError, CommercialSettings, PendingMonitoringCheckoutStore, commercial_source_channel
+from .case_state import DurableCaseStore
+from .entitlement_token import verify_entitlement_token
 from .monitoring import changed_since, make_checkpoint
 from .ops_contract import build_alerts, health_payload, status_payload, version_payload
 from .policy import RULES, SOURCE_BY_ID, assess_change_impact as decide
@@ -42,6 +45,8 @@ PENDING_MONITORING_CHECKOUTS = PendingMonitoringCheckoutStore(
     COMMERCIAL_SETTINGS.pending_ttl_seconds,
     path=os.getenv("EWW_PENDING_STORE_PATH", "").strip() or None,
 )
+CASE_RUNTIME_DIR = os.getenv("EWW_RUNTIME_DIR") or ("/data/england-works-watch" if os.getenv("RAILWAY_ENVIRONMENT") else "/tmp/england-works-watch")
+DURABLE_CASES = DurableCaseStore(CASE_RUNTIME_DIR, ttl_seconds=int(os.getenv("EWW_CASE_TTL_SECONDS", "86400")))
 SUPPORTED_EVENTS = [
     "worker_start_delay",
     "unauthorised_absence",
@@ -354,6 +359,80 @@ else:
             meta=_meta(ctx),
         )
 
+
+@mcp.custom_route("/api/v1/continuation-case", methods=["POST"])
+async def continuation_case(request):
+    try:
+        body = await request.json()
+        action = str(body.get("action") or "sponsor_change_impact_preflight")
+        if action != "sponsor_change_impact_preflight":
+            return JSONResponse({"status": "invalid_request", "error_code": "unsupported_action"}, status_code=422)
+        payload = body.get("payload") or {}
+        if not isinstance(payload, dict) or not isinstance(payload.get("event_type"), str):
+            return JSONResponse({"status": "invalid_request", "error_code": "invalid_payload"}, status_code=422)
+        result = _assess(dict(payload))
+        if result.get("status") == "INSUFFICIENT_INPUT":
+            return JSONResponse({"status": "invalid_request", "error_code": "insufficient_input", "decision": result}, status_code=422)
+        source_bucket = str(body.get("source_bucket") or "direct")
+        classification = str(body.get("classification") or "unknown")
+        owner_test = bool(body.get("owner_test") or False)
+        if classification not in {"unknown", "confirmed_external", "owner_test", "synthetic"}:
+            return JSONResponse({"status": "invalid_request", "error_code": "invalid_classification"}, status_code=422)
+    except Exception:
+        return JSONResponse({"status": "invalid_request"}, status_code=422)
+    row = DURABLE_CASES.create(action=action, payload=payload, source_bucket=source_bucket, classification=classification, owner_test=owner_test)
+    try:
+        continuation = await COMMERCIAL_CLIENT.issue_continuation(case_ref=row.case_ref, state_ref=row.state_ref)
+    except Exception:
+        return JSONResponse({"status": "commercial_unavailable"}, status_code=503)
+    return JSONResponse({
+        "product_id": COMMERCIAL_SETTINGS.product_id,
+        "case_ref": row.case_ref,
+        "state_ref": row.state_ref,
+        "continuation_token": continuation["continuation_token"],
+        "expires_in_seconds": continuation.get("expires_in_seconds"),
+    })
+
+@mcp.custom_route("/api/v1/execute-restored-case", methods=["POST"])
+async def execute_restored_case(request):
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"status": "invalid_request"}, status_code=422)
+    if body.get("contract_version") not in {None, "reh-execution-v1"}:
+        return JSONResponse({"status":"invalid_request","error_code":"unsupported_contract_version"}, status_code=422)
+    if body.get("product_id") not in {None, COMMERCIAL_SETTINGS.product_id}:
+        return JSONResponse({"status":"invalid_request","error_code":"wrong_product"}, status_code=422)
+    if body.get("action") not in {None, "sponsor_change_impact_preflight"}:
+        return JSONResponse({"status":"invalid_request","error_code":"unsupported_action"}, status_code=422)
+    try:
+        claims = await verify_entitlement_token(
+            str(body.get("entitlement_token") or ""),
+            platform_url=COMMERCIAL_SETTINGS.platform_url,
+            expected_product_id=COMMERCIAL_SETTINGS.product_id,
+        )
+    except ValueError:
+        return JSONResponse({"status":"forbidden"}, status_code=403)
+    row = DURABLE_CASES.get(str(body.get("state_ref") or ""))
+    if row is None:
+        return JSONResponse({"status":"case_unavailable","error_code":"state_not_found"}, status_code=404)
+    if row.action != "sponsor_change_impact_preflight":
+        return JSONResponse({"status":"invalid_request","error_code":"stored_action_mismatch"}, status_code=422)
+    try:
+        decision = _assess(dict(row.payload))
+    except Exception:
+        return JSONResponse({
+            "contract_version":"reh-execution-v1","product_id":COMMERCIAL_SETTINGS.product_id,"status":"failed",
+            "execution_id":f"eww_{secrets.token_hex(12)}","result":None,"error_code":"execution_unavailable"
+        }, status_code=503)
+    return JSONResponse({
+        "contract_version":"reh-execution-v1",
+        "product_id":COMMERCIAL_SETTINGS.product_id,
+        "status":"executed",
+        "execution_id":f"eww_{secrets.token_hex(12)}",
+        "result":{"gateway_status":"OK","decision":decision,"entitlement_code":str(claims.get("entitlement_code") or "")},
+        "error_code":None,
+    })
 
 @mcp.custom_route("/", methods=["GET"])
 async def product_page(_request):
