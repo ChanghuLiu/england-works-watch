@@ -16,14 +16,16 @@ def test_local_public_policy_discovery_and_health_routes_return_200(monkeypatch,
     monkeypatch.setenv("EWW_RUNTIME_DIR", str(tmp_path / "runtime"))
     monkeypatch.setenv("EWW_SOURCE_MAX_AGE_HOURS", "1000")
     monkeypatch.setenv("EWW_SOURCE_MONITOR_ENABLED", "0")
+    monkeypatch.setenv("GLAMA_CLAIM_TOKEN", "glama_claim_test")
 
     from england_works_watch.entrypoint import build_http_app
 
     with TestClient(build_http_app()) as client:
-        for path in ("/health", "/pricing", "/privacy", "/terms", "/support", "/monitoring-report", "/llms.txt", "/sitemap.xml", "/openapi.json", "/.well-known/mcp/server-card.json", "/.well-known/x402", "/.well-known/agent-card.json"):
+        for path in ("/health", "/pricing", "/privacy", "/terms", "/support", "/monitoring-report", "/llms.txt", "/sitemap.xml", "/openapi.json", "/.well-known/mcp/server-card.json", "/.well-known/x402", "/.well-known/agent-card.json", "/.well-known/glama.json"):
             response = client.get(path)
             assert response.status_code == 200, (path, response.text)
         assert client.get("/health").json()["status"] == "ok"
+        assert client.get("/.well-known/glama.json").json()["claim"] == "glama_claim_test"
         assert "/monitoring-report" in client.get("/sitemap.xml").text
         assert "create_source_checkpoint" in client.get("/openapi.json").text or "monitoring" in client.get("/openapi.json").text
         llms = client.get("/llms.txt").text
