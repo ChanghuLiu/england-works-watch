@@ -2,7 +2,7 @@
   "mcpServers": {
     "england-works-watch": {
       "type": "http",
-      "url": "https://england-works-watch-production.up.railway.app/mcp"
+      "url": "https://works.regevidencehub.com/mcp"
     }
   }
 }
