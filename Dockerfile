@@ -22,4 +22,4 @@ ENV HOST=0.0.0.0 PORT=8000 EWW_RUNTIME_DIR=/data
 # Railway mounts persistent volumes after image build, so the mount point is
 # root-owned at runtime. Fix ownership at container start, then immediately
 # drop privileges before importing or serving the application.
-CMD ["sh", "-c", "mkdir -p /data/england-works-watch && chown -R appuser:appuser /data/england-works-watch && exec runuser -u appuser -- england-works-watch --http"]
+CMD ["sh", "-c", "mkdir -p /data/england-works-watch && chown -R appuser:appuser /data && exec runuser -u appuser -- england-works-watch --http"]
