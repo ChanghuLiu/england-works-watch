@@ -34,15 +34,6 @@ apply_selection_metadata(server.mcp)
 DIRECTORY_MCP_URL = f"{server.PUBLIC_ORIGIN}/mcp-directory/"
 
 
-@server.mcp.custom_route("/.well-known/glama.json", methods=["GET"])
-async def glama_discovery(_request):
-    """Expose Glama ownership metadata without storing the claim token in source control."""
-    payload = {"$schema": "https://glama.ai/mcp/schemas/connector.json"}
-    claim_token = os.getenv("GLAMA_CLAIM_TOKEN", "").strip()
-    if claim_token:
-        payload["claim"] = claim_token
-    return JSONResponse(payload, headers={"Cache-Control": "public, max-age=300"})
-
 
 @server.mcp.custom_route("/.well-known/ai-catalog.json", methods=["GET"])
 async def ai_catalog(_request):
