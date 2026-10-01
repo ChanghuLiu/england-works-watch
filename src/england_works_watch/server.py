@@ -41,11 +41,11 @@ NETWORK = os.getenv("EWW_X402_NETWORK", "eip155:8453").strip()
 FACILITATOR = os.getenv("EWW_X402_FACILITATOR_URL", "https://facilitator.payai.network").strip()
 COMMERCIAL_SETTINGS = CommercialSettings.from_env()
 COMMERCIAL_CLIENT = CommercialPlatformClient(COMMERCIAL_SETTINGS)
+CASE_RUNTIME_DIR = os.getenv("EWW_RUNTIME_DIR") or ("/data/england-works-watch" if os.getenv("RAILWAY_ENVIRONMENT") else "/tmp/england-works-watch")
 PENDING_MONITORING_CHECKOUTS = PendingMonitoringCheckoutStore(
     COMMERCIAL_SETTINGS.pending_ttl_seconds,
-    path=os.getenv("EWW_PENDING_STORE_PATH", "").strip() or None,
+    path=os.getenv("EWW_PENDING_STORE_PATH", "").strip() or os.path.join(CASE_RUNTIME_DIR, "pending-monitoring.json"),
 )
-CASE_RUNTIME_DIR = os.getenv("EWW_RUNTIME_DIR") or ("/data/england-works-watch" if os.getenv("RAILWAY_ENVIRONMENT") else "/tmp/england-works-watch")
 DURABLE_CASES = DurableCaseStore(CASE_RUNTIME_DIR, ttl_seconds=int(os.getenv("EWW_CASE_TTL_SECONDS", "86400")))
 SUPPORTED_EVENTS = [
     "worker_start_delay",
@@ -716,13 +716,16 @@ async def monitoring_report_checkout(request):
             classification=classification,
             owner_test=owner_test,
         )
-        checkout = await COMMERCIAL_CLIENT.create_checkout(
-            principal_ref=row.principal_ref,
+        contact_email = str(payload.get("contact_email") or "").strip()
+        if not contact_email or len(contact_email) > 254 or contact_email.count("@") != 1 or any(ch.isspace() for ch in contact_email):
+            return JSONResponse({"status":"INVALID_REQUEST","detail":"A valid recovery email is required."}, status_code=422)
+        checkout = await COMMERCIAL_CLIENT.create_report_checkout(
+            contact_email=contact_email,
             source_channel=row.source_channel,
             external_classification=row.classification,
             owner_test=row.owner_test,
             success_url=COMMERCIAL_SETTINGS.checkout_success_url(row.return_token),
-            cancel_url=COMMERCIAL_SETTINGS.cancel_url,
+            cancel_url=str(COMMERCIAL_SETTINGS.cancel_url),
         )
         PENDING_MONITORING_CHECKOUTS.attach_checkout(row.return_token, checkout["checkout_id"])
         await _safe_commercial_event(
@@ -735,7 +738,6 @@ async def monitoring_report_checkout(request):
             "status": "CHECKOUT_REQUIRED",
             "checkout_url": checkout["checkout_url"],
             "checkout_id": checkout["checkout_id"],
-            "return_token": row.return_token,
             "monitoring_scope": {
                 "source_ids": source_ids,
                 "stored": "opaque checkpoint only",
@@ -746,7 +748,13 @@ async def monitoring_report_checkout(request):
         # JSON clients retain the existing machine-readable contract.
         content_type = request.headers.get("content-type", "").lower()
         if "application/json" not in content_type:
-            return RedirectResponse(checkout["checkout_url"], status_code=303)
+            response = RedirectResponse(checkout["checkout_url"], status_code=303)
+            response.set_cookie(key=f"report_claim_{checkout['checkout_id']}", value=checkout["report_claim_token"], max_age=1800,
+                                httponly=True, secure=COMMERCIAL_SETTINGS.success_url.startswith("https://"), samesite="lax",
+                                path="/monitoring-report/checkout-success")
+            return response
+
+        result["report_claim_token"] = checkout["report_claim_token"]
 
         return JSONResponse(result)
 
@@ -757,7 +765,7 @@ async def monitoring_report_checkout(request):
 
 
 
-def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], return_token: str) -> str:
+def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], checkout_id: str) -> str:
     from html import escape
 
     status = escape(str(report.get("status") or "UNKNOWN"))
@@ -766,7 +774,7 @@ def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], retu
     source_gate = report.get("source_gate") is True
     next_action = escape(str(report.get("next_action") or ""))
     disclaimer = escape(str(report.get("disclaimer") or ""))
-    access_link = escape("/monitoring-report/checkout-success?" + urlencode({"return_token": return_token}), quote=True)
+    access_link = "/monitoring-report/checkout-success"
 
     rows = []
     sources = report.get("sources")
@@ -966,8 +974,10 @@ a{{color:var(--blue)}}
   <p>{disclaimer}</p>
 
   <p class="links">
-    Save this private link to check the selected sources again during your 30-day access period.<br>
+    Save the order reference below and keep this browser signed in to check the selected sources again.<br>
+    Order reference: <code>{escape(checkout_id)}</code><br>
     <a href="{access_link}">Check these sources again</a> ·
+    <a href="/monitoring-report/recover">Recover access by verified email</a> ·
     <a href="/monitoring-report">Start a new purchase</a> ·
     <a href="/pricing">Pricing</a> ·
     <a href="/privacy">Privacy</a> ·
@@ -981,19 +991,33 @@ a{{color:var(--blue)}}
 
 @mcp.custom_route("/monitoring-report/checkout-success", methods=["GET"])
 async def monitoring_report_success(request):
-    token = request.query_params.get("return_token", "")
-    row = PENDING_MONITORING_CHECKOUTS.get(token)
+    checkout_id = next((key.removeprefix("report_session_") for key in request.cookies if key.startswith("report_session_")), "")
+    if not checkout_id:
+        checkout_id = next((key.removeprefix("report_claim_") for key in request.cookies if key.startswith("report_claim_")), "")
+    if not checkout_id:
+        return Response("""<!doctype html><html><meta charset=utf-8><meta name=referrer content=no-referrer><title>Recover sponsor report</title><main><h1>Opening your recovered report…</h1><p id=status>Verifying access</p></main><script>(()=>{const p=new URLSearchParams(location.hash.slice(1));history.replaceState(null,'',location.pathname);const checkout_id=p.get('checkout_id'),report_session=p.get('report_session');if(!checkout_id||!report_session){document.getElementById('status').textContent='Recovery link is missing or expired.';return;}fetch('/api/v1/report-access/redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({checkout_id,report_session})}).then(r=>{if(!r.ok)throw Error();location.replace('/monitoring-report/checkout-success');}).catch(()=>{document.getElementById('status').textContent='Payment may still be processing, or this recovery link is invalid, expired, or already used.';});})();</script></html>""", media_type="text/html", headers={"Cache-Control":"no-store", "Referrer-Policy":"no-referrer", "Content-Security-Policy":"default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"})
+    row = PENDING_MONITORING_CHECKOUTS.get_by_checkout_id(checkout_id)
     if row is None:
-        return JSONResponse({"status": "INVALID_RETURN_TOKEN"}, status_code=400)
+        return JSONResponse({"status": "REPORT_UNAVAILABLE"}, status_code=403)
+    report_session = request.cookies.get(f"report_session_{checkout_id}")
+    if not report_session:
+        claim = request.cookies.get(f"report_claim_{checkout_id}")
+        if not claim:
+            return JSONResponse({"status": "REPORT_UNAVAILABLE"}, status_code=403)
+        try:
+            claimed = await COMMERCIAL_CLIENT.claim_report_access(checkout_id=checkout_id, report_claim_token=claim)
+            report_session = str(claimed["report_session"])
+        except CommercialPlatformError as exc:
+            return JSONResponse({"status": "PAYMENT_PENDING_OR_REPORT_UNAVAILABLE", "detail": str(exc)}, status_code=403)
     try:
-        entitlement = await COMMERCIAL_CLIENT.verify_entitlement(principal_ref=row.principal_ref)
+        verified = await COMMERCIAL_CLIENT.verify_report_access(checkout_id=checkout_id, report_session=report_session)
     except CommercialPlatformError as exc:
-        return JSONResponse({"status": "ENTITLEMENT_UNAVAILABLE", "detail": str(exc)}, status_code=503)
-    if entitlement.get("active") is not True or not isinstance(entitlement.get("token"), str) or not entitlement["token"]:
-        return JSONResponse({"status": "ENTITLEMENT_REQUIRED", "detail": "A verified active shared-commercial entitlement is required."}, status_code=403)
+        return JSONResponse({"status": "REPORT_ACCESS_UNAVAILABLE", "detail": str(exc)}, status_code=503)
+    if not verified:
+        return JSONResponse({"status": "REPORT_ACCESS_UNAVAILABLE"}, status_code=403)
     # Verified entitlements remain the authority on every visit. The opaque
     # return link is extended only once, so repeat views cannot extend access.
-    first_paid_view = PENDING_MONITORING_CHECKOUTS.activate_paid_access(token)
+    first_paid_view = PENDING_MONITORING_CHECKOUTS.activate_paid_access(row.return_token)
     report = changed_since(row.checkpoint)
     if first_paid_view:
         await _safe_commercial_event(
@@ -1017,7 +1041,7 @@ async def monitoring_report_success(request):
 
     result = {
         "status": "READY",
-        "entitlement_code": entitlement.get("entitlement_code"),
+        "entitlement_code": checkout_id,
         "report": report,
     }
 
@@ -1025,23 +1049,71 @@ async def monitoring_report_success(request):
     # Machine/API clients keep the existing JSON contract.
     accept = request.headers.get("accept", "").lower()
     if "text/html" in accept:
-        return Response(
+        response = Response(
             _monitoring_paid_page(
-                entitlement_code=str(entitlement.get("entitlement_code") or ""),
+                entitlement_code=checkout_id,
                 report=report,
-                return_token=token,
+                checkout_id=checkout_id,
             ),
             media_type="text/html",
             headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"},
         )
+        response.set_cookie(key=f"report_session_{checkout_id}", value=report_session, max_age=86400, httponly=True,
+                            secure=COMMERCIAL_SETTINGS.success_url.startswith("https://"), samesite="lax",
+                            path="/monitoring-report/checkout-success")
+        response.delete_cookie(key=f"report_claim_{checkout_id}", path="/monitoring-report/checkout-success")
+        return response
 
     return JSONResponse(result, headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"})
 
 
 @mcp.custom_route("/monitoring-report/checkout-cancelled", methods=["GET"])
 async def monitoring_report_cancelled(request):
-    token = request.query_params.get("return_token", "")
-    return JSONResponse({"status": "CHECKOUT_CANCELLED", "return_token_present": bool(token), "next_action": "Return to /monitoring-report to start again."})
+    return JSONResponse({"status": "CHECKOUT_CANCELLED", "next_action": "Return to /monitoring-report to start again."})
+
+
+@mcp.custom_route("/api/v1/report-access/redeem", methods=["POST"])
+async def redeem_recovered_report(request):
+    try:
+        body = await request.json()
+        checkout_id = str(body.get("checkout_id") or "")
+        report_session = str(body.get("report_session") or "")
+    except Exception:
+        return JSONResponse({"status":"invalid_request"}, status_code=422)
+    row = PENDING_MONITORING_CHECKOUTS.get_by_checkout_id(checkout_id)
+    try:
+        verified = bool(row is not None and await COMMERCIAL_CLIENT.verify_report_access(checkout_id=checkout_id, report_session=report_session))
+    except Exception:
+        verified = False
+    if not verified:
+        return JSONResponse({"status":"report_access_unavailable"}, status_code=403)
+    response = Response(status_code=204, headers={"Cache-Control":"no-store", "Referrer-Policy":"no-referrer"})
+    response.set_cookie(key=f"report_session_{checkout_id}", value=report_session, max_age=86400, httponly=True,
+                        secure=COMMERCIAL_SETTINGS.success_url.startswith("https://"), samesite="lax",
+                        path="/monitoring-report/checkout-success")
+    return response
+
+
+@mcp.custom_route("/api/v1/report-access/recovery", methods=["POST"])
+async def start_report_recovery(request):
+    try:
+        body = await request.json()
+        checkout_id = str(body.get("checkout_id") or "")
+        contact_email = str(body.get("contact_email") or "").strip()
+    except Exception:
+        return JSONResponse({"status":"invalid_request"}, status_code=422)
+    if len(contact_email) > 254 or contact_email.count("@") != 1 or any(ch.isspace() for ch in contact_email):
+        return JSONResponse({"status":"invalid_request"}, status_code=422)
+    try:
+        await COMMERCIAL_CLIENT.start_report_recovery(checkout_id=checkout_id, contact_email=contact_email)
+    except Exception:
+        pass
+    return JSONResponse({"status":"If a paid report matches those details, a recovery link will be sent."}, headers={"Cache-Control":"no-store"})
+
+
+@mcp.custom_route("/monitoring-report/recover", methods=["GET"])
+async def monitoring_report_recover(_request):
+    return Response("""<!doctype html><html><meta charset=utf-8><meta name=referrer content=no-referrer><title>Recover sponsor report</title><main><h1>Recover report access</h1><form id=form><label>Order reference <input name=checkout_id required></label><label>Checkout email <input name=contact_email type=email autocomplete=email required></label><button>Send recovery link</button></form><p id=status aria-live=polite></p></main><script>document.getElementById('form').addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget,r=await fetch('/api/v1/report-access/recovery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({checkout_id:f.elements.checkout_id.value,contact_email:f.elements.contact_email.value})});document.getElementById('status').textContent=r.ok?'If a paid report matches those details, a recovery link will be sent.':'Recovery is temporarily unavailable. Try again later.';});</script></html>""", media_type="text/html", headers={"Cache-Control":"no-store", "Referrer-Policy":"no-referrer", "Content-Security-Policy":"default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"})
 
 
 @mcp.custom_route("/llms.txt", methods=["GET"])

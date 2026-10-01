@@ -38,7 +38,7 @@ def test_commercial_adapter_sends_only_bounded_contract_and_fails_closed():
         principal_ref="eww_human_opaque",
         source_channel="linkedin_post",
         external_classification="confirmed_external",
-        success_url="https://eww.test/success?return_token=opaque",
+        success_url="https://eww.test/success",
     ))
     entitlement = asyncio.run(client.verify_entitlement(principal_ref="eww_human_opaque"))
     for event_type in ("checkout_started", "payment_succeeded", "entitlement_activated", "premium_fulfilled"):
@@ -172,7 +172,7 @@ def test_c7c_monitoring_traffic_quality_classification_is_bounded():
     ) == ("owner_test", True)
 
 
-def test_paid_monitoring_return_requires_entitlement_and_reuses_link(monkeypatch, tmp_path):
+def test_paid_monitoring_return_requires_verified_cookie_claim(monkeypatch, tmp_path):
     from england_works_watch import server
     from england_works_watch.commercial import PendingMonitoringCheckoutStore
 
@@ -191,18 +191,17 @@ def test_paid_monitoring_return_requires_entitlement_and_reuses_link(monkeypatch
     store.attach_checkout(row.return_token, "checkout_paid")
     request = SimpleNamespace(
         headers={"accept": "text/html"},
-        query_params={"return_token": row.return_token},
+        cookies={"report_claim_checkout_paid": "claim"},
     )
 
     class VerifiedCommercial:
         active = False
 
-        async def verify_entitlement(self, **_kwargs):
-            return {
-                "active": self.active,
-                "token": "signed" if self.active else None,
-                "entitlement_code": "eww_sponsor_monitoring_report",
-            }
+        async def claim_report_access(self, **_kwargs):
+            return {"report_session": "session"}
+
+        async def verify_report_access(self, **_kwargs):
+            return self.active
 
     client = VerifiedCommercial()
     events = []
@@ -236,7 +235,7 @@ def test_paid_monitoring_return_requires_entitlement_and_reuses_link(monkeypatch
     assert store.get(row.return_token).expires_at == expiry
     assert first.headers["referrer-policy"] == "no-referrer"
     assert first.headers["cache-control"] == "private, no-store"
-    assert row.return_token in first.body.decode("utf-8")
+    assert row.return_token not in first.body.decode("utf-8")
     assert "Check these sources again" in first.body.decode("utf-8")
     assert events.count("payment_succeeded") == 1
     assert events.count("entitlement_activated") == 1

@@ -317,6 +317,8 @@ a{color:var(--blue)}
       creates the checkpoint and gives you a private link for repeated checks.
     </p>
     <form method="post" action="/monitoring-report/checkout">
+      <label>Email for checkout and report recovery <input type="email" name="contact_email" autocomplete="email" maxlength="254" required></label>
+      <p>A verified email is enough; registration is not required.</p>
       <input type="hidden" name="source_channel" value="{source_channel}">
       <input type="hidden" name="source_ids" value="sponsor-part2">
       <input type="hidden" name="source_ids" value="sponsor-part3">
@@ -326,6 +328,7 @@ a{color:var(--blue)}
       <button type="submit">Create sponsor decision evidence checkpoint — £49</button>
     </form>
     <p><small>One payment · 30-day access · no worker names or case facts required · Secure Stripe checkout.</small></p>
+    <p><a href="/monitoring-report/recover">Recover an existing report with verified email</a></p>
   </section>
 
   <section class="card">
