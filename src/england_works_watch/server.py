@@ -769,6 +769,7 @@ def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], chec
     import json
     from datetime import datetime, timezone
     from html import escape
+    from urllib.parse import urlencode
 
     def display_time(value: Any) -> str:
         raw = str(value or "")
@@ -790,6 +791,7 @@ def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], chec
     next_action = escape(str(report.get("next_action") or ""))
     disclaimer = escape(str(report.get("disclaimer") or ""))
     access_link = "/monitoring-report/checkout-success"
+    recovery_link = escape("/monitoring-report/recover?" + urlencode({"checkout_id": checkout_id}), quote=True)
 
     rows = []
     sources = report.get("sources")
@@ -955,7 +957,7 @@ pre{{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--panel);padding
     <h2 id="access-heading">Keep access to this report</h2>
     <p class="muted">Save your order reference. Use it with your checkout email to recover access when you return.</p>
     <div class="order-reference"><span>Order reference</span><code>{escape(checkout_id)}</code></div>
-    <div class="actions"><a class="button secondary" href="/monitoring-report/recover">Recover access by verified email</a></div>
+    <div class="actions"><a class="button secondary" href="{recovery_link}">Recover access by verified email</a></div>
   </section>
 
   <footer class="footer">
@@ -1083,18 +1085,23 @@ async def start_report_recovery(request):
         contact_email = str(body.get("contact_email") or "").strip()
     except Exception:
         return JSONResponse({"status":"invalid_request"}, status_code=422)
-    if len(contact_email) > 254 or contact_email.count("@") != 1 or any(ch.isspace() for ch in contact_email):
-        return JSONResponse({"status":"invalid_request"}, status_code=422)
+    if not 32 <= len(checkout_id) <= 64 or not 5 <= len(contact_email) <= 254 or contact_email.count("@") != 1 or any(ch.isspace() for ch in contact_email):
+        return JSONResponse({"status":"invalid_request"}, status_code=422, headers={"Cache-Control":"no-store"})
     try:
-        await COMMERCIAL_CLIENT.start_report_recovery(checkout_id=checkout_id, contact_email=contact_email)
+        available = await COMMERCIAL_CLIENT.start_report_recovery(checkout_id=checkout_id, contact_email=contact_email)
     except Exception:
-        pass
+        available = False
+    if not available:
+        return JSONResponse({"status":"Recovery is temporarily unavailable. Try again shortly."}, status_code=503, headers={"Cache-Control":"no-store"})
     return JSONResponse({"status":"If a paid report matches those details, a recovery link will be sent."}, headers={"Cache-Control":"no-store"})
 
 
 @mcp.custom_route("/monitoring-report/recover", methods=["GET"])
-async def monitoring_report_recover(_request):
-    return Response("""<!doctype html><html><meta charset=utf-8><meta name=referrer content=no-referrer><title>Recover sponsor report</title><main><h1>Recover report access</h1><form id=form><label>Order reference <input name=checkout_id required></label><label>Checkout email <input name=contact_email type=email autocomplete=email required></label><button>Send recovery link</button></form><p id=status aria-live=polite></p></main><script>document.getElementById('form').addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget,r=await fetch('/api/v1/report-access/recovery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({checkout_id:f.elements.checkout_id.value,contact_email:f.elements.contact_email.value})});document.getElementById('status').textContent=r.ok?'If a paid report matches those details, a recovery link will be sent.':'Recovery is temporarily unavailable. Try again later.';});</script></html>""", media_type="text/html", headers={"Cache-Control":"no-store", "Referrer-Policy":"no-referrer", "Content-Security-Policy":"default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"})
+async def monitoring_report_recover(request):
+    from .report_recovery import RECOVERY_HEADERS, render_report_recovery
+
+    checkout_id = request.query_params.get("checkout_id", "")
+    return Response(render_report_recovery(checkout_id), media_type="text/html", headers=RECOVERY_HEADERS)
 
 
 @mcp.custom_route("/llms.txt", methods=["GET"])
