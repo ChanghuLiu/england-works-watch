@@ -766,10 +766,25 @@ async def monitoring_report_checkout(request):
 
 
 def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], checkout_id: str) -> str:
+    import json
+    from datetime import datetime, timezone
     from html import escape
 
-    status = escape(str(report.get("status") or "UNKNOWN"))
-    checked_at = escape(str(report.get("checked_at") or ""))
+    def display_time(value: Any) -> str:
+        raw = str(value or "")
+        try:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if parsed.tzinfo is not None:
+                return escape(parsed.astimezone(timezone.utc).strftime("%d %b %Y · %H:%M:%S UTC"))
+        except ValueError:
+            pass
+        return escape(raw or "Not recorded")
+
+    raw_status = str(report.get("status") or "UNKNOWN")
+    status = escape(raw_status)
+    status_class = "good" if raw_status == "UNCHANGED" else "review"
+    checked_at = display_time(report.get("checked_at"))
+    report_json = escape(json.dumps(report, indent=2, ensure_ascii=False))
     decision_usable = report.get("decision_usable") is True
     source_gate = report.get("source_gate") is True
     next_action = escape(str(report.get("next_action") or ""))
@@ -791,17 +806,19 @@ def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], chec
                 f'{escape(str(official.get("title") or raw_source_id))}</a>'
                 if official_url.startswith("https://www.gov.uk/") else source_id
             )
-            source_status = escape(str(source.get("status") or "UNKNOWN"))
-            version = escape(str(source.get("current_source_version") or ""))
-            observed = escape(str(source.get("current_observed_at") or ""))
+            raw_source_status = str(source.get("status") or "UNKNOWN")
+            source_status = escape(raw_source_status)
+            source_class = "good" if raw_source_status == "UNCHANGED" else "review"
+            version = escape(str(source.get("current_source_version") or "Not recorded"))
+            observed = display_time(source.get("current_observed_at"))
             reason = escape(str(source.get("reason") or ""))
             rows.append(
                 "<tr>"
-                f"<td><strong>{source_label}</strong></td>"
-                f"<td>{source_status}</td>"
-                f"<td>{version}</td>"
-                f"<td>{observed}</td>"
-                f"<td>{reason}</td>"
+                f'<td data-label="Source" class="source-name"><strong>{source_label}</strong></td>'
+                f'<td data-label="Status"><span class="badge {source_class}">{source_status}</span></td>'
+                f'<td data-label="Version">{version}</td>'
+                f'<td data-label="Observed" class="source-time">{observed}</td>'
+                f'<td data-label="Reason" class="source-reason">{reason}</td>'
                 "</tr>"
             )
 
@@ -811,6 +828,9 @@ def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], chec
 
     usable_text = "Yes" if decision_usable else "No"
     gate_text = "Pass" if source_gate else "Review required"
+    usable_class = "good" if decision_usable else "review"
+    gate_class = "good" if source_gate else "review"
+    source_count = sum(isinstance(source, dict) for source in sources) if isinstance(sources, list) else 0
 
     return f"""<!doctype html>
 <html lang="en">
@@ -819,102 +839,60 @@ def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], chec
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Paid sponsor monitoring report — England Works Watch</title>
 <style>
-:root {{
-  --ink:#17202a;
-  --muted:#5d6b78;
-  --blue:#155eef;
-  --green:#137a4b;
-  --line:#dfe6ec;
-  --panel:#f7f9fb;
-  --blue-soft:#eef4ff;
-}}
+:root{{--ink:#172b43;--muted:#586a80;--blue:#155eef;--green:#14532d;--line:#dce4ef;--panel:#f5f8fc;--blue-soft:#edf3ff}}
 *{{box-sizing:border-box}}
-body{{
-  margin:0;
-  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  color:var(--ink);
-  line-height:1.55;
-}}
-main{{
-  max-width:1080px;
-  margin:0 auto;
-  padding:54px 24px 72px;
-}}
-.eyebrow{{
-  color:var(--blue);
-  font-weight:750;
-  font-size:.9rem;
-  letter-spacing:.04em;
-  text-transform:uppercase;
-}}
-h1{{
-  margin:9px 0 18px;
-  font-size:2.35rem;
-  line-height:1.12;
-}}
-.lead{{color:var(--muted);max-width:800px}}
-.summary{{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:12px;
-  margin:28px 0;
-}}
-.metric{{
-  border:1px solid var(--line);
-  border-radius:12px;
-  padding:16px 18px;
-  background:#fff;
-}}
-.metric span{{
-  display:block;
-  color:var(--muted);
-  font-size:.82rem;
-  margin-bottom:4px;
-}}
-.metric strong{{font-size:1.05rem}}
+html{{scroll-behavior:smooth}}
+body{{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);line-height:1.65;background:#f3f6fb}}
+main{{max-width:1140px;margin:0 auto;padding:48px 28px 64px}}
+.eyebrow{{color:var(--blue);font-weight:750;font-size:.78rem;letter-spacing:.09em;text-transform:uppercase}}
+h1{{margin:12px 0 18px;font-size:clamp(1.9rem,4vw,2.8rem);letter-spacing:-.035em;line-height:1.15}}
+h2{{margin:0 0 16px;font-size:1.3rem;letter-spacing:-.02em}}
+p{{margin:12px 0}}
+.lead,.muted{{color:var(--muted)}}
+.lead{{max-width:760px;font-size:1.05rem}}
+.card{{background:#fff;border:1px solid var(--line);border-radius:18px;padding:30px;margin-top:24px;box-shadow:0 8px 30px #172b4308}}
+.report-header{{border-top:4px solid var(--blue)}}
+.summary{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:26px 0}}
+.metric{{border:1px solid var(--line);border-radius:12px;padding:18px 20px;background:var(--panel);min-width:0}}
+.metric span{{display:block;color:var(--muted);font-size:.8rem;font-weight:600;margin-bottom:8px}}
+.metric strong{{display:block;font-size:1.05rem;overflow-wrap:anywhere}}
 .good{{color:var(--green)}}
-.card{{
-  border:1px solid var(--line);
-  border-radius:14px;
-  padding:24px;
-  margin-top:22px;
-  box-shadow:0 8px 28px rgba(23,32,42,.045);
-}}
-table{{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:14px;
-  font-size:.92rem;
-}}
-th,td{{
-  text-align:left;
-  vertical-align:top;
-  padding:11px 10px;
-  border-bottom:1px solid var(--line);
-}}
-th{{background:var(--panel)}}
-.notice{{
-  margin-top:24px;
-  background:var(--blue-soft);
-  border-radius:10px;
-  padding:17px 19px;
-}}
-.links{{
-  margin-top:30px;
-  padding-top:20px;
-  border-top:1px solid var(--line);
-}}
-a{{color:var(--blue)}}
+.review{{color:#92400e}}
+.badge{{display:inline-block;font-size:.72rem;font-weight:750;padding:5px 9px;border-radius:6px;letter-spacing:.02em}}
+.badge.good{{background:#ecfdf3;border:1px solid #b5e6c4}}
+.badge.review{{background:#fffbeb;border:1px solid #f3d798}}
+.order-reference{{display:grid;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin-top:22px}}
+.order-reference span{{font-size:.8rem;font-weight:650;color:var(--muted)}}
+code{{font-size:.92rem;overflow-wrap:anywhere}}
+.actions{{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:24px}}
+.button{{display:inline-block;padding:12px 20px;background:var(--blue);color:#fff;border-radius:8px;text-decoration:none;font-weight:700}}
+.button:hover{{background:#124ac0}}
+.button.secondary{{background:#fff;color:var(--blue);border:1px solid #b6c9f2}}
+a{{color:var(--blue);text-underline-offset:3px}}
+:focus-visible{{outline:3px solid #94b9ff;outline-offset:3px}}
+.checked-at{{color:var(--muted);font-size:.88rem;margin:0 0 18px}}
+.explanation{{padding:16px 20px;background:var(--panel);border-radius:10px;font-size:.9rem;color:var(--muted);margin-bottom:22px}}
+table{{width:100%;border-collapse:collapse;font-size:.85rem;line-height:1.6}}
+th,td{{text-align:left;vertical-align:top;padding:16px 12px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}}
+th{{background:var(--panel);font-size:.78rem;color:var(--muted);font-weight:700}}
+.source-name{{width:30%}}.source-time{{min-width:125px;font-size:.8rem;color:var(--muted)}}.source-reason{{width:26%;color:var(--muted)}}
+tbody tr:last-child td{{border-bottom:0}}
+.notice{{border-left:4px solid var(--blue);background:var(--blue-soft)}}
+.notice strong{{display:block;margin-bottom:6px}}
+.recovery-card{{scroll-margin-top:24px}}.recovery-card .eyebrow{{margin:0 0 12px}}
+details.card{{padding:22px 30px}}summary{{font-weight:700;cursor:pointer}}
+pre{{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--panel);padding:20px;border-radius:10px;font-size:.78rem;margin:20px 0 0}}
+.footer{{margin-top:28px;font-size:.85rem;color:var(--muted)}}.footer nav{{display:flex;flex-wrap:wrap;gap:20px;margin-top:20px;padding-top:20px;border-top:1px solid var(--line)}}
 @media(max-width:760px){{
-  .summary{{grid-template-columns:1fr 1fr}}
-  .table-wrap{{overflow-x:auto}}
+  main{{padding:24px 16px 40px}}.card{{padding:22px 18px}}.summary{{grid-template-columns:1fr 1fr;gap:12px}}.metric{{padding:14px}}
+  table,tbody{{display:block}}thead{{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}}
+  tbody tr{{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:20px 0;border-top:1px solid var(--line)}}
+  td{{display:block;padding:0;border:0;min-width:0}}td::before{{content:attr(data-label);display:block;font-size:.72rem;color:var(--muted);font-weight:700;margin-bottom:6px}}
+  .source-name,.source-reason,td[colspan]{{grid-column:1/-1;width:auto}}.source-time{{min-width:0}}details.card{{padding:20px 18px}}
 }}
-
-.metric strong{{
-  display:block;
-  overflow-wrap:anywhere;
-  word-break:break-word;
-}}
+@media(max-width:420px){{.summary{{grid-template-columns:1fr}}.actions{{align-items:stretch}}.button{{width:100%;text-align:center}}}}
+@media(prefers-reduced-motion:reduce){{html{{scroll-behavior:auto}}}}
+@media print{{body{{background:#fff}}main{{padding:0}}.card{{box-shadow:none;break-inside:avoid}}.actions,.recovery-card,.footer nav{{display:none}}}}
 </style>
 </head>
 <body>
@@ -927,29 +905,24 @@ a{{color:var(--blue)}}
     guidance sources.
   </p>
 
-  <section class="summary">
-    <div class="metric">
-      <span>Report status</span>
-      <strong class="good">{status}</strong>
+  <section class="card report-header" aria-label="Report summary">
+    <div class="summary">
+      <div class="metric"><span>Report status</span><strong class="{status_class}">{status}</strong></div>
+      <div class="metric"><span>Decision usable</span><strong class="{usable_class}">{usable_text}</strong></div>
+      <div class="metric"><span>Source gate</span><strong class="{gate_class}">{gate_text}</strong></div>
+      <div class="metric"><span>Selected sources</span><strong>{source_count}</strong></div>
     </div>
-    <div class="metric">
-      <span>Entitlement</span>
-      <strong>{escape(entitlement_code)}</strong>
-    </div>
-    <div class="metric">
-      <span>Decision usable</span>
-      <strong>{usable_text}</strong>
-    </div>
-    <div class="metric">
-      <span>Source gate</span>
-      <strong>{gate_text}</strong>
+    <div class="order-reference"><span>Order reference</span><code>{escape(entitlement_code)}</code></div>
+    <div class="actions">
+      <a class="button" href="{access_link}">Check these sources again</a>
+      <a href="#report-access">Save access for later</a>
     </div>
   </section>
 
   <section class="card">
     <h2>Source monitoring results</h2>
-    <p>Checked at: {checked_at}</p>
-    <p>The comparison starts with a source snapshot saved before checkout. UNCHANGED means no detected change since that snapshot; it does not describe earlier updates. Open each official source to review its current guidance.</p>
+    <p class="checked-at">Last report check: <strong>{checked_at}</strong></p>
+    <p class="explanation">The comparison starts with a source snapshot saved before checkout. UNCHANGED means no detected change since that snapshot; it does not describe earlier updates. Open each official source to review its current guidance.</p>
     <div class="table-wrap">
       <table>
         <thead>
@@ -966,24 +939,31 @@ a{{color:var(--blue)}}
     </div>
   </section>
 
-  <section class="notice">
-    <strong>Next action</strong><br>
+  <section class="card notice">
+    <strong>Next action</strong>
     {next_action or "Continue only with current verified evidence."}
   </section>
 
-  <p>{disclaimer}</p>
+  <details class="card">
+    <summary>Complete monitoring result · JSON</summary>
+    <pre>{report_json}</pre>
+  </details>
 
-  <p class="links">
-    Save the order reference below and keep this browser signed in to check the selected sources again.<br>
-    Order reference: <code>{escape(checkout_id)}</code><br>
-    <a href="{access_link}">Check these sources again</a> ·
-    <a href="/monitoring-report/recover">Recover access by verified email</a> ·
-    <a href="/monitoring-report">Start a new purchase</a> ·
-    <a href="/pricing">Pricing</a> ·
-    <a href="/privacy">Privacy</a> ·
-    <a href="/terms">Terms</a> ·
-    <a href="/support">Support</a>
-  </p>
+  <section class="card recovery-card" id="report-access" aria-labelledby="access-heading">
+    <p class="eyebrow">Report access</p>
+    <h2 id="access-heading">Keep access to this report</h2>
+    <p class="muted">Save your order reference. Use it with your checkout email to recover access when you return.</p>
+    <div class="order-reference"><span>Order reference</span><code>{escape(checkout_id)}</code></div>
+    <div class="actions"><a class="button secondary" href="/monitoring-report/recover">Recover access by verified email</a></div>
+  </section>
+
+  <footer class="footer">
+    <p>{disclaimer}</p>
+    <nav aria-label="Service information">
+      <a href="/pricing">Pricing</a><a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a><a href="/support">Support</a>
+    </nav>
+  </footer>
 </main>
 </body>
 </html>"""

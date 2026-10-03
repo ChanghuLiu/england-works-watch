@@ -238,3 +238,12 @@ def test_paid_monitoring_report_links_to_official_sources_and_escapes_result_tex
     assert "&lt;untrusted&gt;" in page
     assert "<untrusted>" not in page
     assert "<strong>unknown-source</strong>" in page
+    assert '<strong class="review">CHANGED</strong>' in page
+    assert '<span class="badge review">CHANGED</span>' in page
+    assert '<strong class="good">CHANGED</strong>' not in page
+    assert "23 Sep 2026 · 16:00:00 UTC" in page
+    assert "Complete monitoring result · JSON" in page
+    from html import unescape
+    preserved_report = json.loads(unescape(page.split("<pre>", 1)[1].split("</pre>", 1)[0]))
+    assert preserved_report["sources"][0]["reason"] == "<untrusted>"
+    assert preserved_report["sources"][1]["status"] == "REVIEW_REQUIRED"
