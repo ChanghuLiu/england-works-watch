@@ -976,18 +976,20 @@ def _recovery_bootstrap_response():
     # The recovery credentials arrive in the URL fragment, which browsers do
     # not send to the server. Always keep a browser-side path available when
     # an old report-session cookie fails verification.
-    return Response("""<!doctype html><html><meta charset=utf-8><meta name=referrer content=no-referrer><title>Recover sponsor report</title><main><h1>Opening your recovered report…</h1><p id=status>Verifying access</p></main><script>(()=>{const p=new URLSearchParams(location.hash.slice(1));history.replaceState(null,'',location.pathname);const checkout_id=p.get('checkout_id'),report_session=p.get('report_session');if(!checkout_id||!report_session){document.getElementById('status').textContent='Recovery link is missing or expired.';return;}fetch('/api/v1/report-access/redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({checkout_id,report_session})}).then(r=>{if(!r.ok)throw Error();location.replace('/monitoring-report/checkout-success');}).catch(()=>{document.getElementById('status').textContent='Payment may still be processing, or this recovery link is invalid, expired, or already used.';});})();</script></html>""", media_type="text/html", headers={"Cache-Control":"no-store", "Referrer-Policy":"no-referrer", "Content-Security-Policy":"default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"})
+    return Response("""<!doctype html><html><meta charset=utf-8><meta name=referrer content=no-referrer><title>Recover sponsor report</title><main><h1>Opening your recovered report…</h1><p id=status>Verifying access</p></main><script>(()=>{const p=new URLSearchParams(location.hash.slice(1));history.replaceState(null,'',location.pathname);const checkout_id=p.get('checkout_id'),report_session=p.get('report_session');if(!checkout_id||!report_session){document.getElementById('status').textContent='Recovery link is missing or expired.';return;}fetch('/api/v1/report-access/redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({checkout_id,report_session})}).then(r=>{if(!r.ok)throw Error();location.replace('/monitoring-report/checkout-success?checkout_id='+encodeURIComponent(checkout_id));}).catch(()=>{document.getElementById('status').textContent='Payment may still be processing, or this recovery link is invalid, expired, or already used.';});})();</script></html>""", media_type="text/html", headers={"Cache-Control":"no-store", "Referrer-Policy":"no-referrer", "Content-Security-Policy":"default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"})
 
 
 @mcp.custom_route("/monitoring-report/checkout-success", methods=["GET"])
 async def monitoring_report_success(request):
-    checkout_id = next((key.removeprefix("report_session_") for key in request.cookies if key.startswith("report_session_")), "")
+    checkout_id = request.query_params.get("checkout_id", "") or next((key.removeprefix("report_session_") for key in request.cookies if key.startswith("report_session_")), "")
     if not checkout_id:
         checkout_id = next((key.removeprefix("report_claim_") for key in request.cookies if key.startswith("report_claim_")), "")
     if not checkout_id:
         return _recovery_bootstrap_response()
     row = PENDING_MONITORING_CHECKOUTS.get_by_checkout_id(checkout_id)
     if row is None:
+        if "text/html" in request.headers.get("accept", "").lower():
+            return _recovery_bootstrap_response()
         return JSONResponse({"status": "REPORT_UNAVAILABLE"}, status_code=403)
     report_session = request.cookies.get(f"report_session_{checkout_id}")
     if not report_session:

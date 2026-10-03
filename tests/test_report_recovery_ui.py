@@ -23,6 +23,14 @@ def test_recovery_form_escapes_prefill_and_allows_its_styles():
     asyncio.run(check())
 
 
+def test_recovery_bootstrap_returns_to_the_order_from_the_email_link():
+    response = server._recovery_bootstrap_response()
+    page = response.body.decode()
+    assert response.status_code == 200
+    assert "/api/v1/report-access/redeem" in page
+    assert "checkout_id='+encodeURIComponent(checkout_id)" in page
+
+
 def test_recovery_service_failures_are_not_reported_as_accepted(monkeypatch):
     class Commercial:
         outcome = True
