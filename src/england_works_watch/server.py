@@ -858,7 +858,7 @@ p{{margin:12px 0}}
 .metric strong{{display:block;font-size:1.05rem;overflow-wrap:anywhere}}
 .good{{color:var(--green)}}
 .review{{color:#92400e}}
-.badge{{display:inline-block;font-size:.72rem;font-weight:750;padding:5px 9px;border-radius:6px;letter-spacing:.02em}}
+.badge{{display:inline-block;font-size:.72rem;font-weight:750;padding:5px 9px;border-radius:6px;letter-spacing:.02em;white-space:nowrap;overflow-wrap:normal}}
 .badge.good{{background:#ecfdf3;border:1px solid #b5e6c4}}
 .badge.review{{background:#fffbeb;border:1px solid #f3d798}}
 .order-reference{{display:grid;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin-top:22px}}
@@ -874,8 +874,9 @@ a{{color:var(--blue);text-underline-offset:3px}}
 .explanation{{padding:16px 20px;background:var(--panel);border-radius:10px;font-size:.9rem;color:var(--muted);margin-bottom:22px}}
 table{{width:100%;border-collapse:collapse;font-size:.85rem;line-height:1.6}}
 th,td{{text-align:left;vertical-align:top;padding:16px 12px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}}
-th{{background:var(--panel);font-size:.78rem;color:var(--muted);font-weight:700}}
-.source-name{{width:30%}}.source-time{{min-width:125px;font-size:.8rem;color:var(--muted)}}.source-reason{{width:26%;color:var(--muted)}}
+th{{background:var(--panel);font-size:.78rem;color:var(--muted);font-weight:700;white-space:nowrap}}
+.source-name{{width:28%}}.source-time{{min-width:125px;font-size:.8rem;color:var(--muted)}}.source-reason{{width:24%;color:var(--muted)}}
+td[data-label="Status"]{{min-width:108px}}td[data-label="Version"]{{min-width:66px;white-space:nowrap}}
 tbody tr:last-child td{{border-bottom:0}}
 .notice{{border-left:4px solid var(--blue);background:var(--blue-soft)}}
 .notice strong{{display:block;margin-bottom:6px}}
