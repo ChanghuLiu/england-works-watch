@@ -981,7 +981,7 @@ def _recovery_bootstrap_response():
 
 @mcp.custom_route("/monitoring-report/checkout-success", methods=["GET"])
 async def monitoring_report_success(request):
-    checkout_id = request.query_params.get("checkout_id", "") or next((key.removeprefix("report_session_") for key in request.cookies if key.startswith("report_session_")), "")
+    checkout_id = getattr(request, "query_params", {}).get("checkout_id", "") or next((key.removeprefix("report_session_") for key in request.cookies if key.startswith("report_session_")), "")
     if not checkout_id:
         checkout_id = next((key.removeprefix("report_claim_") for key in request.cookies if key.startswith("report_claim_")), "")
     if not checkout_id:

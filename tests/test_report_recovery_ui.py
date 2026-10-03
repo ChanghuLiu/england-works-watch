@@ -31,6 +31,13 @@ def test_recovery_bootstrap_returns_to_the_order_from_the_email_link():
     assert "checkout_id='+encodeURIComponent(checkout_id)" in page
 
 
+def test_recovery_bootstrap_retains_order_reference_on_success_return():
+    response = server._recovery_bootstrap_response()
+    page = response.body.decode()
+    assert "/monitoring-report/checkout-success?checkout_id=" in page
+    assert "encodeURIComponent(checkout_id)" in page
+
+
 def test_recovery_service_failures_are_not_reported_as_accepted(monkeypatch):
     class Commercial:
         outcome = True
