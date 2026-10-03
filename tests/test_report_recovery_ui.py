@@ -69,3 +69,18 @@ def test_recovery_service_failures_are_not_reported_as_accepted(monkeypatch):
                 assert invalid.status_code == 422
             assert service.calls == 3
     asyncio.run(check())
+
+
+def test_browser_errors_preserve_machine_status_without_exposing_internal_details():
+    import json
+    from types import SimpleNamespace
+    from england_works_watch.purchase_ui import browser_report_response
+    payload = {"status": "COMMERCIAL_UNAVAILABLE", "detail": "internal transport failure"}
+    api = browser_report_response(SimpleNamespace(headers={}), payload, status_code=503, headers={"Cache-Control":"private, no-store"})
+    assert api.status_code == 503 and json.loads(api.body) == payload
+    assert api.headers["cache-control"] == "private, no-store"
+    browser = browser_report_response(SimpleNamespace(headers={"accept":"text/html"}), payload, status_code=503)
+    assert browser.status_code == 503
+    assert "internal transport failure" not in browser.body.decode()
+    assert "/monitoring-report/recover" in browser.body.decode()
+    assert browser.headers["referrer-policy"] == "no-referrer"

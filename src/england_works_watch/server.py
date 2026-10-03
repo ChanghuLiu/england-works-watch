@@ -1,4 +1,5 @@
 from __future__ import annotations
+from .purchase_ui import polish_page, browser_report_response
 
 import argparse
 import os
@@ -718,7 +719,7 @@ async def monitoring_report_checkout(request):
         )
         contact_email = str(payload.get("contact_email") or "").strip()
         if not contact_email or len(contact_email) > 254 or contact_email.count("@") != 1 or any(ch.isspace() for ch in contact_email):
-            return JSONResponse({"status":"INVALID_REQUEST","detail":"A valid recovery email is required."}, status_code=422)
+            return browser_report_response(request, {"status":"INVALID_REQUEST","detail":"A valid recovery email is required."}, status_code=422)
         checkout = await COMMERCIAL_CLIENT.create_report_checkout(
             contact_email=contact_email,
             source_channel=row.source_channel,
@@ -756,12 +757,12 @@ async def monitoring_report_checkout(request):
 
         result["report_claim_token"] = checkout["report_claim_token"]
 
-        return JSONResponse(result)
+        return browser_report_response(request, result)
 
     except ValueError as exc:
-        return JSONResponse({"status": "INVALID_REQUEST", "detail": str(exc)}, status_code=400)
+        return browser_report_response(request, {"status": "INVALID_REQUEST", "detail": str(exc)}, status_code=400)
     except CommercialPlatformError as exc:
-        return JSONResponse({"status": "COMMERCIAL_UNAVAILABLE", "detail": str(exc)}, status_code=503)
+        return browser_report_response(request, {"status": "COMMERCIAL_UNAVAILABLE", "detail": str(exc)}, status_code=503)
 
 
 
@@ -976,7 +977,7 @@ def _recovery_bootstrap_response():
     # The recovery credentials arrive in the URL fragment, which browsers do
     # not send to the server. Always keep a browser-side path available when
     # an old report-session cookie fails verification.
-    return Response("""<!doctype html><html><meta charset=utf-8><meta name=referrer content=no-referrer><title>Recover sponsor report</title><main><h1>Opening your recovered report…</h1><p id=status>Verifying access</p></main><script>(()=>{const p=new URLSearchParams(location.hash.slice(1));history.replaceState(null,'',location.pathname);const checkout_id=p.get('checkout_id'),report_session=p.get('report_session');if(!checkout_id||!report_session){document.getElementById('status').textContent='Recovery link is missing or expired.';return;}fetch('/api/v1/report-access/redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({checkout_id,report_session})}).then(r=>{if(!r.ok)throw Error();location.replace('/monitoring-report/checkout-success?checkout_id='+encodeURIComponent(checkout_id));}).catch(()=>{document.getElementById('status').textContent='Payment may still be processing, or this recovery link is invalid, expired, or already used.';});})();</script></html>""", media_type="text/html", headers={"Cache-Control":"no-store", "Referrer-Policy":"no-referrer", "Content-Security-Policy":"default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"})
+    return Response(polish_page("""<!doctype html><html><meta charset=utf-8><meta name=referrer content=no-referrer><title>Recover sponsor report</title><main><h1>Opening your recovered report…</h1><p id=status>Verifying access</p></main><script>(()=>{const p=new URLSearchParams(location.hash.slice(1));history.replaceState(null,'',location.pathname);const checkout_id=p.get('checkout_id'),report_session=p.get('report_session');if(!checkout_id||!report_session){document.getElementById('status').textContent='Recovery link is missing or expired.';return;}fetch('/api/v1/report-access/redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({checkout_id,report_session})}).then(r=>{if(!r.ok)throw Error();location.replace('/monitoring-report/checkout-success?checkout_id='+encodeURIComponent(checkout_id));}).catch(()=>{document.getElementById('status').textContent='Payment may still be processing, or this recovery link is invalid, expired, or already used.';});})();</script></html>"""), media_type="text/html", headers={"Cache-Control":"no-store", "Referrer-Policy":"no-referrer", "Content-Security-Policy":"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"})
 
 
 @mcp.custom_route("/monitoring-report/checkout-success", methods=["GET"])
@@ -990,28 +991,28 @@ async def monitoring_report_success(request):
     if row is None:
         if "text/html" in request.headers.get("accept", "").lower():
             return _recovery_bootstrap_response()
-        return JSONResponse({"status": "REPORT_UNAVAILABLE"}, status_code=403)
+        return browser_report_response(request, {"status": "REPORT_UNAVAILABLE"}, status_code=403)
     report_session = request.cookies.get(f"report_session_{checkout_id}")
     if not report_session:
         claim = request.cookies.get(f"report_claim_{checkout_id}")
         if not claim:
-            return JSONResponse({"status": "REPORT_UNAVAILABLE"}, status_code=403)
+            return browser_report_response(request, {"status": "REPORT_UNAVAILABLE"}, status_code=403)
         try:
             claimed = await COMMERCIAL_CLIENT.claim_report_access(checkout_id=checkout_id, report_claim_token=claim)
             report_session = str(claimed["report_session"])
         except CommercialPlatformError as exc:
-            return JSONResponse({"status": "PAYMENT_PENDING_OR_REPORT_UNAVAILABLE", "detail": str(exc)}, status_code=403)
+            return browser_report_response(request, {"status": "PAYMENT_PENDING_OR_REPORT_UNAVAILABLE", "detail": str(exc)}, status_code=403)
     try:
         verified = await COMMERCIAL_CLIENT.verify_report_access(checkout_id=checkout_id, report_session=report_session)
     except CommercialPlatformError as exc:
-        return JSONResponse({"status": "REPORT_ACCESS_UNAVAILABLE", "detail": str(exc)}, status_code=503)
+        return browser_report_response(request, {"status": "REPORT_ACCESS_UNAVAILABLE", "detail": str(exc)}, status_code=503)
     if not verified:
         # The browser may carry an expired report-session cookie while opening
         # a fresh recovery URL. Give the browser shell a chance to redeem the
         # new fragment token and replace that stale cookie.
         if "text/html" in request.headers.get("accept", "").lower() and request.cookies.get(f"report_session_{checkout_id}"):
             return _recovery_bootstrap_response()
-        return JSONResponse({"status": "REPORT_ACCESS_UNAVAILABLE"}, status_code=403)
+        return browser_report_response(request, {"status": "REPORT_ACCESS_UNAVAILABLE"}, status_code=403)
     # Verified entitlements remain the authority on every visit. The opaque
     # return link is extended only once, so repeat views cannot extend access.
     first_paid_view = PENDING_MONITORING_CHECKOUTS.activate_paid_access(row.return_token)
@@ -1061,12 +1062,12 @@ async def monitoring_report_success(request):
         response.delete_cookie(key=f"report_claim_{checkout_id}", path="/monitoring-report/checkout-success")
         return response
 
-    return JSONResponse(result, headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"})
+    return browser_report_response(request, result, headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"})
 
 
 @mcp.custom_route("/monitoring-report/checkout-cancelled", methods=["GET"])
 async def monitoring_report_cancelled(request):
-    return JSONResponse({"status": "CHECKOUT_CANCELLED", "next_action": "Return to /monitoring-report to start again."})
+    return browser_report_response(request, {"status": "CHECKOUT_CANCELLED", "next_action": "Return to /monitoring-report to start again."})
 
 
 @mcp.custom_route("/api/v1/report-access/redeem", methods=["POST"])
