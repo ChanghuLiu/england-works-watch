@@ -729,7 +729,7 @@ async def monitoring_report_checkout(request):
             owner_test=owner_test,
         )
         contact_email = str(payload.get("contact_email") or "").strip()
-        if not contact_email or len(contact_email) > 254 or contact_email.count("@") != 1 or any(ch.isspace() for ch in contact_email):
+        if not contact_email or len(contact_email) > 254 or contact_email.count("@") != 1 or contact_email.startswith("@") or contact_email.endswith("@") or any(ch.isspace() for ch in contact_email):
             return _monitoring_input_error(request, payload, "Checkout email: enter a valid email address, for example you@example.com.")
         checkout = await COMMERCIAL_CLIENT.create_report_checkout(
             contact_email=contact_email,
@@ -1111,7 +1111,7 @@ async def start_report_recovery(request):
         contact_email = str(body.get("contact_email") or "").strip()
     except Exception:
         return JSONResponse({"status":"invalid_request"}, status_code=422)
-    if not 32 <= len(checkout_id) <= 64 or not 5 <= len(contact_email) <= 254 or contact_email.count("@") != 1 or any(ch.isspace() for ch in contact_email):
+    if not 32 <= len(checkout_id) <= 64 or not 5 <= len(contact_email) <= 254 or contact_email.count("@") != 1 or contact_email.startswith("@") or contact_email.endswith("@") or any(ch.isspace() for ch in contact_email):
         return JSONResponse({"status":"invalid_request"}, status_code=422, headers={"Cache-Control":"no-store"})
     try:
         available = await COMMERCIAL_CLIENT.start_report_recovery(checkout_id=checkout_id, contact_email=contact_email)
