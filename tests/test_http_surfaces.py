@@ -94,6 +94,12 @@ def test_monitoring_report_checkout_requires_verified_entitlement(monkeypatch, t
 
     from england_works_watch import server
     from england_works_watch.entrypoint import build_http_app
+    from england_works_watch.commercial import PendingMonitoringCheckoutStore
+
+    # The server may already be imported; environment changes do not replace
+    # its persistent store. Keep fake checkout IDs isolated from earlier runs.
+    monkeypatch.setattr(server, "PENDING_MONITORING_CHECKOUTS",
+                        PendingMonitoringCheckoutStore(path=tmp_path / "pending.json"))
 
     class FakeCommercial:
         def __init__(self):
@@ -130,7 +136,8 @@ def test_monitoring_report_checkout_requires_verified_entitlement(monkeypatch, t
         assert completed.json()["status"] == "READY"
         assert completed.json()["report"]["status"] == "UNCHANGED"
         assert [event["event_type"] for event in fake.events] == [
-            "paid_intent", "checkout_started", "premium_fulfilled",
+            "paid_intent", "checkout_started", "payment_succeeded",
+            "entitlement_activated", "premium_fulfilled",
         ]
         assert all(event["commercial_intent"] == "monitoring" for event in fake.events)
         assert all(event["source_channel"] == "direct" for event in fake.events)
@@ -170,6 +177,12 @@ def test_monitoring_report_is_not_gated_by_telemetry_failure(monkeypatch, tmp_pa
 
     from england_works_watch import server
     from england_works_watch.entrypoint import build_http_app
+    from england_works_watch.commercial import PendingMonitoringCheckoutStore
+
+    # The server may already be imported; environment changes do not replace
+    # its persistent store. Keep fake checkout IDs isolated from earlier runs.
+    monkeypatch.setattr(server, "PENDING_MONITORING_CHECKOUTS",
+                        PendingMonitoringCheckoutStore(path=tmp_path / "pending.json"))
 
     class FailingTelemetry:
         async def create_report_checkout(self, **_kwargs):
