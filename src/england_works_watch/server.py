@@ -1255,12 +1255,11 @@ async def agent_json(_request):
 
 @mcp.custom_route("/.well-known/glama.json", methods=["GET"])
 async def glama_json(_request):
-    return JSONResponse(
-        {
-            "$schema": "https://glama.ai/mcp/schemas/connector.json",
-            "claim": "glama_claim_w9AF-xs40XYIYfk0LmecMd2kKI5eY-Lt",
-        }
-    )
+    payload = {"$schema": "https://glama.ai/mcp/schemas/connector.json"}
+    claim_token = os.getenv("GLAMA_CLAIM_TOKEN", "").strip()
+    if claim_token:
+        payload["claim"] = claim_token
+    return JSONResponse(payload, headers={"Cache-Control": "public, max-age=300"})
 
 
 @mcp.custom_route("/openapi.json", methods=["GET"])

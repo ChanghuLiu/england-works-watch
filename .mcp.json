@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "england-works-watch": {
+      "type": "http",
+      "url": "https://works.regevidencehub.com/mcp"
+    }
+  }
+}

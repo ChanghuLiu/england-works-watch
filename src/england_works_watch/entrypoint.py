@@ -34,6 +34,7 @@ apply_selection_metadata(server.mcp)
 DIRECTORY_MCP_URL = f"{server.PUBLIC_ORIGIN}/mcp-directory/"
 
 
+
 @server.mcp.custom_route("/.well-known/ai-catalog.json", methods=["GET"])
 async def ai_catalog(_request):
     """Machine-readable catalog advertising MCP and OpenAPI interfaces."""
