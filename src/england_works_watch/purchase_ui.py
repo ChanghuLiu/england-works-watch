@@ -1,4 +1,5 @@
 """Presentation helpers for purchase forms and browser notices."""
+from .form_feedback import with_form_feedback
 from functools import wraps
 from html import escape
 import re
@@ -31,7 +32,7 @@ body{max-width:760px;margin:0 auto;padding:48px 24px}main{background:white;borde
 
 def polish_page(markup):
     if 'data-purchase-ui="v1"' in markup:
-        return markup
+        return with_form_feedback(markup)
     naked = "<style" not in markup
     style = '<style data-purchase-ui="v1">' + FORM_STYLE + (NOTICE_STYLE if naked else "") + "</style>"
     viewport = "" if re.search(r'name=[\"\']?viewport', markup) else '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -47,7 +48,7 @@ def polish_page(markup):
         markup = re.sub(r'(<main[^>]*>)', r'\1<header class="purchase-brand">' + escape(PRODUCT) + '</header>', markup, count=1)
         navigation = '<nav class="purchase-nav"><a href="' + escape(RETURN_ROUTE, quote=True) + '">Return to ' + escape(PRODUCT) + '</a></nav>'
         markup = markup.replace("</main>", navigation + "</main>", 1)
-    return markup
+    return with_form_feedback(markup)
 
 
 def purchase_page(fn):

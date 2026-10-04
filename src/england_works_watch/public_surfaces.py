@@ -1,5 +1,6 @@
 """Public policy/distribution copy for the sponsor-compliance product."""
 from __future__ import annotations
+from .form_feedback import feedback_page, with_form_feedback, bind_form_values, error_summary
 
 from html import escape
 
@@ -71,7 +72,8 @@ def render_pricing_page(*, origin: str, prices: dict[str, str]) -> str:
     )
 
 
-def monitoring_page(*, origin: str, source_channel: str = "direct", owner_test: bool = False) -> str:
+@feedback_page
+def monitoring_page(*, origin: str, source_channel: str = "direct", owner_test: bool = False, values=None, errors=None) -> str:
     source_channel = escape(source_channel)
     if owner_test:
         verification_control = (
@@ -87,7 +89,7 @@ def monitoring_page(*, origin: str, source_channel: str = "direct", owner_test: 
             '<small>Tick to continue. This only separates real customer conversions from our own test traffic; '
             'it is not used to identify you or linked to Stripe payment details.</small></span></label>'
         )
-    return """<!doctype html>
+    markup = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -375,7 +377,8 @@ a{color:var(--blue)}
       evidence set, you can customise the sources below before checkout.
     </p>
 
-    <form method="post" action="/monitoring-report/checkout">
+    <form method="post" action="/monitoring-report/checkout" data-require-sources="true">
+      <label>Email for checkout and report recovery <input type="email" name="contact_email" autocomplete="email" maxlength="254" required></label>
       <input type="hidden" name="source_channel" value="{source_channel}">
       <fieldset class="source-list">
         <legend>Official guidance to include</legend>
@@ -410,3 +413,6 @@ a{color:var(--blue)}
 </main>
 </body>
 </html>""".replace("{source_channel}", source_channel).replace("{verification_control}", verification_control)
+    fields = {message: "contact_email" if "email" in message.lower() else "source_ids" for message in (errors or [])}
+    markup = markup.replace('<section class="quick-buy"', error_summary(errors, fields) + '<section class="quick-buy"', 1)
+    return bind_form_values(markup, values or {})

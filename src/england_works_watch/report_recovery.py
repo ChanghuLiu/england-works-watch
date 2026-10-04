@@ -1,3 +1,4 @@
+from .form_feedback import feedback_page, with_form_feedback, bind_form_values, error_summary
 """Human recovery form; only the non-secret order reference may be prefilled."""
 from html import escape
 
@@ -8,6 +9,7 @@ RECOVERY_HEADERS = {
 }
 
 
+@feedback_page
 def render_report_recovery(checkout_id: str = "") -> str:
     return """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">

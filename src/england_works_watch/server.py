@@ -632,7 +632,7 @@ def _monitoring_ids(payload: dict[str, Any]) -> list[str]:
     if isinstance(source_ids, str):
         source_ids = [item.strip() for item in source_ids.split(",") if item.strip()]
     if not isinstance(source_ids, list) or not source_ids or len(source_ids) > 4 or any(not isinstance(item, str) or item not in SOURCE_BY_ID for item in source_ids):
-        raise ValueError("source_ids must contain 1-4 known source IDs")
+        raise ValueError("Monitoring sources: select between 1 and 4 supported sources from the list.")
     return list(dict.fromkeys(source_ids))
 
 
@@ -693,8 +693,19 @@ async def _safe_commercial_event(
         return
 
 
+def _monitoring_input_error(request, payload, detail):
+    if "application/json" in request.headers.get("content-type", "").lower():
+        return JSONResponse({"status": "INVALID_REQUEST", "detail": detail}, status_code=422)
+    classification, owner_test = _monitoring_classification(request, payload)
+    return Response(monitoring_page(origin=PUBLIC_ORIGIN,
+        source_channel=commercial_source_channel(str(payload.get("source_channel") or "direct")),
+        owner_test=owner_test, values=payload, errors=[detail]), status_code=422, media_type="text/html",
+        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+
+
 @mcp.custom_route("/monitoring-report/checkout", methods=["POST"])
 async def monitoring_report_checkout(request):
+    payload = {}
     try:
         payload = await _read_monitoring_request(request)
         source_ids = _monitoring_ids(payload)
@@ -719,7 +730,7 @@ async def monitoring_report_checkout(request):
         )
         contact_email = str(payload.get("contact_email") or "").strip()
         if not contact_email or len(contact_email) > 254 or contact_email.count("@") != 1 or any(ch.isspace() for ch in contact_email):
-            return browser_report_response(request, {"status":"INVALID_REQUEST","detail":"A valid recovery email is required."}, status_code=422)
+            return _monitoring_input_error(request, payload, "Checkout email: enter a valid email address, for example you@example.com.")
         checkout = await COMMERCIAL_CLIENT.create_report_checkout(
             contact_email=contact_email,
             source_channel=row.source_channel,
@@ -760,7 +771,7 @@ async def monitoring_report_checkout(request):
         return browser_report_response(request, result)
 
     except ValueError as exc:
-        return browser_report_response(request, {"status": "INVALID_REQUEST", "detail": str(exc)}, status_code=400)
+        return _monitoring_input_error(request, payload, str(exc))
     except CommercialPlatformError as exc:
         return browser_report_response(request, {"status": "COMMERCIAL_UNAVAILABLE", "detail": str(exc)}, status_code=503)
 
