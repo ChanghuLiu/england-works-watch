@@ -377,7 +377,7 @@ a{color:var(--blue)}
       evidence set, you can customise the sources below before checkout.
     </p>
 
-    <form method="post" action="/monitoring-report/checkout" data-require-sources="true">
+    <form method="post" action="/monitoring-report/checkout">
       <label>Email for checkout and report recovery <input type="email" name="contact_email" autocomplete="email" maxlength="254" required></label>
       <input type="hidden" name="source_channel" value="{source_channel}">
       <fieldset class="source-list">

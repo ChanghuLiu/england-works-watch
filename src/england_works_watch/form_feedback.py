@@ -55,7 +55,7 @@ function summary(form,problems){
  box.append(h,p,ul);box.focus();box.scrollIntoView({block:'center'});
 }
 function enhance(form){
- if(form.dataset.formFeedback)return;form.dataset.formFeedback='true';form.noValidate=true;
+ if(form.dataset.formFeedback)return;form.dataset.formFeedback='true';form.noValidate=true;if(form.querySelector('input[type=checkbox][name=source_ids]'))form.dataset.requireSources='true';
  for(const f of controls(form)){
   if(!f.id)f.id='form-field-'+(++sequence);
   if(f.name==='checkout_id'){f.minLength=32;f.maxLength=64;}
@@ -99,6 +99,8 @@ def with_form_feedback(markup: str) -> str:
         markup = markup.replace('</head>', style + '</head>', 1)
     else:
         markup = markup.replace('<main', style + '<main', 1)
+    if '<form' not in markup and "createElement('form')" not in markup and 'createElement("form")' not in markup:
+        return markup
     script = '<script>' + SCRIPT + '</script>'
     marker = '</body>' if '</body>' in markup else '</html>'
     return markup.replace(marker, script + marker, 1) if marker in markup else markup + script
