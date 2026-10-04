@@ -1,4 +1,5 @@
 from __future__ import annotations
+from .purchase_ui import polish_page, browser_report_response
 
 import argparse
 import os
@@ -41,11 +42,11 @@ NETWORK = os.getenv("EWW_X402_NETWORK", "eip155:8453").strip()
 FACILITATOR = os.getenv("EWW_X402_FACILITATOR_URL", "https://facilitator.payai.network").strip()
 COMMERCIAL_SETTINGS = CommercialSettings.from_env()
 COMMERCIAL_CLIENT = CommercialPlatformClient(COMMERCIAL_SETTINGS)
+CASE_RUNTIME_DIR = os.getenv("EWW_RUNTIME_DIR") or ("/data/england-works-watch" if os.getenv("RAILWAY_ENVIRONMENT") else "/tmp/england-works-watch")
 PENDING_MONITORING_CHECKOUTS = PendingMonitoringCheckoutStore(
     COMMERCIAL_SETTINGS.pending_ttl_seconds,
-    path=os.getenv("EWW_PENDING_STORE_PATH", "").strip() or None,
+    path=os.getenv("EWW_PENDING_STORE_PATH", "").strip() or os.path.join(CASE_RUNTIME_DIR, "pending-monitoring.json"),
 )
-CASE_RUNTIME_DIR = os.getenv("EWW_RUNTIME_DIR") or ("/data/england-works-watch" if os.getenv("RAILWAY_ENVIRONMENT") else "/tmp/england-works-watch")
 DURABLE_CASES = DurableCaseStore(CASE_RUNTIME_DIR, ttl_seconds=int(os.getenv("EWW_CASE_TTL_SECONDS", "86400")))
 SUPPORTED_EVENTS = [
     "worker_start_delay",
@@ -631,7 +632,7 @@ def _monitoring_ids(payload: dict[str, Any]) -> list[str]:
     if isinstance(source_ids, str):
         source_ids = [item.strip() for item in source_ids.split(",") if item.strip()]
     if not isinstance(source_ids, list) or not source_ids or len(source_ids) > 4 or any(not isinstance(item, str) or item not in SOURCE_BY_ID for item in source_ids):
-        raise ValueError("source_ids must contain 1-4 known source IDs")
+        raise ValueError("Monitoring sources: select between 1 and 4 supported sources from the list.")
     return list(dict.fromkeys(source_ids))
 
 
@@ -692,8 +693,19 @@ async def _safe_commercial_event(
         return
 
 
+def _monitoring_input_error(request, payload, detail):
+    if "application/json" in request.headers.get("content-type", "").lower():
+        return JSONResponse({"status": "INVALID_REQUEST", "detail": detail}, status_code=422)
+    classification, owner_test = _monitoring_classification(request, payload)
+    return Response(monitoring_page(origin=PUBLIC_ORIGIN,
+        source_channel=commercial_source_channel(str(payload.get("source_channel") or "direct")),
+        owner_test=owner_test, values=payload, errors=[detail]), status_code=422, media_type="text/html",
+        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+
+
 @mcp.custom_route("/monitoring-report/checkout", methods=["POST"])
 async def monitoring_report_checkout(request):
+    payload = {}
     try:
         payload = await _read_monitoring_request(request)
         source_ids = _monitoring_ids(payload)
@@ -716,13 +728,16 @@ async def monitoring_report_checkout(request):
             classification=classification,
             owner_test=owner_test,
         )
-        checkout = await COMMERCIAL_CLIENT.create_checkout(
-            principal_ref=row.principal_ref,
+        contact_email = str(payload.get("contact_email") or "").strip()
+        if not contact_email or len(contact_email) > 254 or contact_email.count("@") != 1 or contact_email.startswith("@") or contact_email.endswith("@") or any(ch.isspace() for ch in contact_email):
+            return _monitoring_input_error(request, payload, "Checkout email: enter a valid email address, for example you@example.com.")
+        checkout = await COMMERCIAL_CLIENT.create_report_checkout(
+            contact_email=contact_email,
             source_channel=row.source_channel,
             external_classification=row.classification,
             owner_test=row.owner_test,
             success_url=COMMERCIAL_SETTINGS.checkout_success_url(row.return_token),
-            cancel_url=COMMERCIAL_SETTINGS.cancel_url,
+            cancel_url=str(COMMERCIAL_SETTINGS.cancel_url),
         )
         PENDING_MONITORING_CHECKOUTS.attach_checkout(row.return_token, checkout["checkout_id"])
         await _safe_commercial_event(
@@ -735,7 +750,6 @@ async def monitoring_report_checkout(request):
             "status": "CHECKOUT_REQUIRED",
             "checkout_url": checkout["checkout_url"],
             "checkout_id": checkout["checkout_id"],
-            "return_token": row.return_token,
             "monitoring_scope": {
                 "source_ids": source_ids,
                 "stored": "opaque checkpoint only",
@@ -746,27 +760,50 @@ async def monitoring_report_checkout(request):
         # JSON clients retain the existing machine-readable contract.
         content_type = request.headers.get("content-type", "").lower()
         if "application/json" not in content_type:
-            return RedirectResponse(checkout["checkout_url"], status_code=303)
+            response = RedirectResponse(checkout["checkout_url"], status_code=303)
+            response.set_cookie(key=f"report_claim_{checkout['checkout_id']}", value=checkout["report_claim_token"], max_age=1800,
+                                httponly=True, secure=COMMERCIAL_SETTINGS.success_url.startswith("https://"), samesite="lax",
+                                path="/monitoring-report/checkout-success")
+            return response
 
-        return JSONResponse(result)
+        result["report_claim_token"] = checkout["report_claim_token"]
+
+        return browser_report_response(request, result)
 
     except ValueError as exc:
-        return JSONResponse({"status": "INVALID_REQUEST", "detail": str(exc)}, status_code=400)
+        return _monitoring_input_error(request, payload, str(exc))
     except CommercialPlatformError as exc:
-        return JSONResponse({"status": "COMMERCIAL_UNAVAILABLE", "detail": str(exc)}, status_code=503)
+        return browser_report_response(request, {"status": "COMMERCIAL_UNAVAILABLE", "detail": str(exc)}, status_code=503)
 
 
 
-def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], return_token: str) -> str:
+def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], checkout_id: str) -> str:
+    import json
+    from datetime import datetime, timezone
     from html import escape
+    from urllib.parse import urlencode
 
-    status = escape(str(report.get("status") or "UNKNOWN"))
-    checked_at = escape(str(report.get("checked_at") or ""))
+    def display_time(value: Any) -> str:
+        raw = str(value or "")
+        try:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if parsed.tzinfo is not None:
+                return escape(parsed.astimezone(timezone.utc).strftime("%d %b %Y · %H:%M:%S UTC"))
+        except ValueError:
+            pass
+        return escape(raw or "Not recorded")
+
+    raw_status = str(report.get("status") or "UNKNOWN")
+    status = escape(raw_status)
+    status_class = "good" if raw_status == "UNCHANGED" else "review"
+    checked_at = display_time(report.get("checked_at"))
+    report_json = escape(json.dumps(report, indent=2, ensure_ascii=False))
     decision_usable = report.get("decision_usable") is True
     source_gate = report.get("source_gate") is True
     next_action = escape(str(report.get("next_action") or ""))
     disclaimer = escape(str(report.get("disclaimer") or ""))
-    access_link = escape("/monitoring-report/checkout-success?" + urlencode({"return_token": return_token}), quote=True)
+    access_link = "/monitoring-report/checkout-success"
+    recovery_link = escape("/monitoring-report/recover?" + urlencode({"checkout_id": checkout_id}), quote=True)
 
     rows = []
     sources = report.get("sources")
@@ -783,17 +820,19 @@ def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], retu
                 f'{escape(str(official.get("title") or raw_source_id))}</a>'
                 if official_url.startswith("https://www.gov.uk/") else source_id
             )
-            source_status = escape(str(source.get("status") or "UNKNOWN"))
-            version = escape(str(source.get("current_source_version") or ""))
-            observed = escape(str(source.get("current_observed_at") or ""))
+            raw_source_status = str(source.get("status") or "UNKNOWN")
+            source_status = escape(raw_source_status)
+            source_class = "good" if raw_source_status == "UNCHANGED" else "review"
+            version = escape(str(source.get("current_source_version") or "Not recorded"))
+            observed = display_time(source.get("current_observed_at"))
             reason = escape(str(source.get("reason") or ""))
             rows.append(
                 "<tr>"
-                f"<td><strong>{source_label}</strong></td>"
-                f"<td>{source_status}</td>"
-                f"<td>{version}</td>"
-                f"<td>{observed}</td>"
-                f"<td>{reason}</td>"
+                f'<td data-label="Source" class="source-name"><strong>{source_label}</strong></td>'
+                f'<td data-label="Status"><span class="badge {source_class}">{source_status}</span></td>'
+                f'<td data-label="Version">{version}</td>'
+                f'<td data-label="Observed" class="source-time">{observed}</td>'
+                f'<td data-label="Reason" class="source-reason">{reason}</td>'
                 "</tr>"
             )
 
@@ -803,6 +842,9 @@ def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], retu
 
     usable_text = "Yes" if decision_usable else "No"
     gate_text = "Pass" if source_gate else "Review required"
+    usable_class = "good" if decision_usable else "review"
+    gate_class = "good" if source_gate else "review"
+    source_count = sum(isinstance(source, dict) for source in sources) if isinstance(sources, list) else 0
 
     return f"""<!doctype html>
 <html lang="en">
@@ -811,102 +853,61 @@ def _monitoring_paid_page(*, entitlement_code: str, report: dict[str, Any], retu
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Paid sponsor monitoring report — England Works Watch</title>
 <style>
-:root {{
-  --ink:#17202a;
-  --muted:#5d6b78;
-  --blue:#155eef;
-  --green:#137a4b;
-  --line:#dfe6ec;
-  --panel:#f7f9fb;
-  --blue-soft:#eef4ff;
-}}
+:root{{--ink:#172b43;--muted:#586a80;--blue:#155eef;--green:#14532d;--line:#dce4ef;--panel:#f5f8fc;--blue-soft:#edf3ff}}
 *{{box-sizing:border-box}}
-body{{
-  margin:0;
-  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  color:var(--ink);
-  line-height:1.55;
-}}
-main{{
-  max-width:1080px;
-  margin:0 auto;
-  padding:54px 24px 72px;
-}}
-.eyebrow{{
-  color:var(--blue);
-  font-weight:750;
-  font-size:.9rem;
-  letter-spacing:.04em;
-  text-transform:uppercase;
-}}
-h1{{
-  margin:9px 0 18px;
-  font-size:2.35rem;
-  line-height:1.12;
-}}
-.lead{{color:var(--muted);max-width:800px}}
-.summary{{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:12px;
-  margin:28px 0;
-}}
-.metric{{
-  border:1px solid var(--line);
-  border-radius:12px;
-  padding:16px 18px;
-  background:#fff;
-}}
-.metric span{{
-  display:block;
-  color:var(--muted);
-  font-size:.82rem;
-  margin-bottom:4px;
-}}
-.metric strong{{font-size:1.05rem}}
+html{{scroll-behavior:smooth}}
+body{{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);line-height:1.65;background:#f3f6fb}}
+main{{max-width:1140px;margin:0 auto;padding:48px 28px 64px}}
+.eyebrow{{color:var(--blue);font-weight:750;font-size:.78rem;letter-spacing:.09em;text-transform:uppercase}}
+h1{{margin:12px 0 18px;font-size:clamp(1.9rem,4vw,2.8rem);letter-spacing:-.035em;line-height:1.15}}
+h2{{margin:0 0 16px;font-size:1.3rem;letter-spacing:-.02em}}
+p{{margin:12px 0}}
+.lead,.muted{{color:var(--muted)}}
+.lead{{max-width:760px;font-size:1.05rem}}
+.card{{background:#fff;border:1px solid var(--line);border-radius:18px;padding:30px;margin-top:24px;box-shadow:0 8px 30px #172b4308}}
+.report-header{{border-top:4px solid var(--blue)}}
+.summary{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:26px 0}}
+.metric{{border:1px solid var(--line);border-radius:12px;padding:18px 20px;background:var(--panel);min-width:0}}
+.metric span{{display:block;color:var(--muted);font-size:.8rem;font-weight:600;margin-bottom:8px}}
+.metric strong{{display:block;font-size:1.05rem;overflow-wrap:anywhere}}
 .good{{color:var(--green)}}
-.card{{
-  border:1px solid var(--line);
-  border-radius:14px;
-  padding:24px;
-  margin-top:22px;
-  box-shadow:0 8px 28px rgba(23,32,42,.045);
-}}
-table{{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:14px;
-  font-size:.92rem;
-}}
-th,td{{
-  text-align:left;
-  vertical-align:top;
-  padding:11px 10px;
-  border-bottom:1px solid var(--line);
-}}
-th{{background:var(--panel)}}
-.notice{{
-  margin-top:24px;
-  background:var(--blue-soft);
-  border-radius:10px;
-  padding:17px 19px;
-}}
-.links{{
-  margin-top:30px;
-  padding-top:20px;
-  border-top:1px solid var(--line);
-}}
-a{{color:var(--blue)}}
+.review{{color:#92400e}}
+.badge{{display:inline-block;font-size:.72rem;font-weight:750;padding:5px 9px;border-radius:6px;letter-spacing:.02em;white-space:nowrap;overflow-wrap:normal}}
+.badge.good{{background:#ecfdf3;border:1px solid #b5e6c4}}
+.badge.review{{background:#fffbeb;border:1px solid #f3d798}}
+.order-reference{{display:grid;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin-top:22px}}
+.order-reference span{{font-size:.8rem;font-weight:650;color:var(--muted)}}
+code{{font-size:.92rem;overflow-wrap:anywhere}}
+.actions{{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:24px}}
+.button{{display:inline-block;padding:12px 20px;background:var(--blue);color:#fff;border-radius:8px;text-decoration:none;font-weight:700}}
+.button:hover{{background:#124ac0}}
+.button.secondary{{background:#fff;color:var(--blue);border:1px solid #b6c9f2}}
+a{{color:var(--blue);text-underline-offset:3px}}
+:focus-visible{{outline:3px solid #94b9ff;outline-offset:3px}}
+.checked-at{{color:var(--muted);font-size:.88rem;margin:0 0 18px}}
+.explanation{{padding:16px 20px;background:var(--panel);border-radius:10px;font-size:.9rem;color:var(--muted);margin-bottom:22px}}
+table{{width:100%;border-collapse:collapse;font-size:.85rem;line-height:1.6}}
+th,td{{text-align:left;vertical-align:top;padding:16px 12px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}}
+th{{background:var(--panel);font-size:.78rem;color:var(--muted);font-weight:700;white-space:nowrap}}
+.source-name{{width:28%}}.source-time{{min-width:125px;font-size:.8rem;color:var(--muted)}}.source-reason{{width:24%;color:var(--muted)}}
+td[data-label="Status"]{{min-width:108px}}td[data-label="Version"]{{min-width:66px;white-space:nowrap}}
+tbody tr:last-child td{{border-bottom:0}}
+.notice{{border-left:4px solid var(--blue);background:var(--blue-soft)}}
+.notice strong{{display:block;margin-bottom:6px}}
+.recovery-card{{scroll-margin-top:24px}}.recovery-card .eyebrow{{margin:0 0 12px}}
+details.card{{padding:22px 30px}}summary{{font-weight:700;cursor:pointer}}
+pre{{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--panel);padding:20px;border-radius:10px;font-size:.78rem;margin:20px 0 0}}
+.footer{{margin-top:28px;font-size:.85rem;color:var(--muted)}}.footer nav{{display:flex;flex-wrap:wrap;gap:20px;margin-top:20px;padding-top:20px;border-top:1px solid var(--line)}}
 @media(max-width:760px){{
-  .summary{{grid-template-columns:1fr 1fr}}
-  .table-wrap{{overflow-x:auto}}
+  main{{padding:24px 16px 40px}}.card{{padding:22px 18px}}.summary{{grid-template-columns:1fr 1fr;gap:12px}}.metric{{padding:14px}}
+  table,tbody{{display:block}}thead{{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}}
+  tbody tr{{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:20px 0;border-top:1px solid var(--line)}}
+  td{{display:block;padding:0;border:0;min-width:0}}td::before{{content:attr(data-label);display:block;font-size:.72rem;color:var(--muted);font-weight:700;margin-bottom:6px}}
+  .source-name,.source-reason,td[colspan]{{grid-column:1/-1;width:auto}}.source-time{{min-width:0}}details.card{{padding:20px 18px}}
 }}
-
-.metric strong{{
-  display:block;
-  overflow-wrap:anywhere;
-  word-break:break-word;
-}}
+@media(max-width:420px){{.summary{{grid-template-columns:1fr}}.actions{{align-items:stretch}}.button{{width:100%;text-align:center}}}}
+@media(prefers-reduced-motion:reduce){{html{{scroll-behavior:auto}}}}
+@media print{{body{{background:#fff}}main{{padding:0}}.card{{box-shadow:none;break-inside:avoid}}.actions,.recovery-card,.footer nav{{display:none}}}}
 </style>
 </head>
 <body>
@@ -919,29 +920,24 @@ a{{color:var(--blue)}}
     guidance sources.
   </p>
 
-  <section class="summary">
-    <div class="metric">
-      <span>Report status</span>
-      <strong class="good">{status}</strong>
+  <section class="card report-header" aria-label="Report summary">
+    <div class="summary">
+      <div class="metric"><span>Report status</span><strong class="{status_class}">{status}</strong></div>
+      <div class="metric"><span>Decision usable</span><strong class="{usable_class}">{usable_text}</strong></div>
+      <div class="metric"><span>Source gate</span><strong class="{gate_class}">{gate_text}</strong></div>
+      <div class="metric"><span>Selected sources</span><strong>{source_count}</strong></div>
     </div>
-    <div class="metric">
-      <span>Entitlement</span>
-      <strong>{escape(entitlement_code)}</strong>
-    </div>
-    <div class="metric">
-      <span>Decision usable</span>
-      <strong>{usable_text}</strong>
-    </div>
-    <div class="metric">
-      <span>Source gate</span>
-      <strong>{gate_text}</strong>
+    <div class="order-reference"><span>Order reference</span><code>{escape(entitlement_code)}</code></div>
+    <div class="actions">
+      <a class="button" href="{access_link}">Check these sources again</a>
+      <a href="#report-access">Save access for later</a>
     </div>
   </section>
 
   <section class="card">
     <h2>Source monitoring results</h2>
-    <p>Checked at: {checked_at}</p>
-    <p>The comparison starts with a source snapshot saved before checkout. UNCHANGED means no detected change since that snapshot; it does not describe earlier updates. Open each official source to review its current guidance.</p>
+    <p class="checked-at">Last report check: <strong>{checked_at}</strong></p>
+    <p class="explanation">The comparison starts with a source snapshot saved before checkout. UNCHANGED means no detected change since that snapshot; it does not describe earlier updates. Open each official source to review its current guidance.</p>
     <div class="table-wrap">
       <table>
         <thead>
@@ -958,42 +954,79 @@ a{{color:var(--blue)}}
     </div>
   </section>
 
-  <section class="notice">
-    <strong>Next action</strong><br>
+  <section class="card notice">
+    <strong>Next action</strong>
     {next_action or "Continue only with current verified evidence."}
   </section>
 
-  <p>{disclaimer}</p>
+  <details class="card">
+    <summary>Complete monitoring result · JSON</summary>
+    <pre>{report_json}</pre>
+  </details>
 
-  <p class="links">
-    Save this private link to check the selected sources again during your 30-day access period.<br>
-    <a href="{access_link}">Check these sources again</a> ·
-    <a href="/monitoring-report">Start a new purchase</a> ·
-    <a href="/pricing">Pricing</a> ·
-    <a href="/privacy">Privacy</a> ·
-    <a href="/terms">Terms</a> ·
-    <a href="/support">Support</a>
-  </p>
+  <section class="card recovery-card" id="report-access" aria-labelledby="access-heading">
+    <p class="eyebrow">Report access</p>
+    <h2 id="access-heading">Keep access to this report</h2>
+    <p class="muted">Save your order reference. Use it with your checkout email to recover access when you return.</p>
+    <div class="order-reference"><span>Order reference</span><code>{escape(checkout_id)}</code></div>
+    <div class="actions"><a class="button secondary" href="{recovery_link}">Recover access by verified email</a></div>
+  </section>
+
+  <footer class="footer">
+    <p>{disclaimer}</p>
+    <nav aria-label="Service information">
+      <a href="/pricing">Pricing</a><a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a><a href="/support">Support</a>
+    </nav>
+  </footer>
 </main>
 </body>
 </html>"""
 
 
+def _recovery_bootstrap_response():
+    # The recovery credentials arrive in the URL fragment, which browsers do
+    # not send to the server. Always keep a browser-side path available when
+    # an old report-session cookie fails verification.
+    return Response(polish_page("""<!doctype html><html><meta charset=utf-8><meta name=referrer content=no-referrer><title>Recover sponsor report</title><main><h1>Opening your recovered report…</h1><p id=status>Verifying access</p></main><script>(()=>{const p=new URLSearchParams(location.hash.slice(1));history.replaceState(null,'',location.pathname);const checkout_id=p.get('checkout_id'),report_session=p.get('report_session');if(!checkout_id||!report_session){document.getElementById('status').textContent='Recovery link is missing or expired.';return;}fetch('/api/v1/report-access/redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({checkout_id,report_session})}).then(r=>{if(!r.ok)throw Error();location.replace('/monitoring-report/checkout-success?checkout_id='+encodeURIComponent(checkout_id));}).catch(()=>{document.getElementById('status').textContent='Payment may still be processing, or this recovery link is invalid, expired, or already used.';});})();</script></html>"""), media_type="text/html", headers={"Cache-Control":"no-store", "Referrer-Policy":"no-referrer", "Content-Security-Policy":"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"})
+
+
 @mcp.custom_route("/monitoring-report/checkout-success", methods=["GET"])
 async def monitoring_report_success(request):
-    token = request.query_params.get("return_token", "")
-    row = PENDING_MONITORING_CHECKOUTS.get(token)
+    checkout_id = getattr(request, "query_params", {}).get("checkout_id", "") or next((key.removeprefix("report_session_") for key in request.cookies if key.startswith("report_session_")), "")
+    if not checkout_id:
+        checkout_id = next((key.removeprefix("report_claim_") for key in request.cookies if key.startswith("report_claim_")), "")
+    if not checkout_id:
+        return _recovery_bootstrap_response()
+    row = PENDING_MONITORING_CHECKOUTS.get_by_checkout_id(checkout_id)
     if row is None:
-        return JSONResponse({"status": "INVALID_RETURN_TOKEN"}, status_code=400)
+        if "text/html" in request.headers.get("accept", "").lower():
+            return _recovery_bootstrap_response()
+        return browser_report_response(request, {"status": "REPORT_UNAVAILABLE"}, status_code=403)
+    report_session = request.cookies.get(f"report_session_{checkout_id}")
+    if not report_session:
+        claim = request.cookies.get(f"report_claim_{checkout_id}")
+        if not claim:
+            return browser_report_response(request, {"status": "REPORT_UNAVAILABLE"}, status_code=403)
+        try:
+            claimed = await COMMERCIAL_CLIENT.claim_report_access(checkout_id=checkout_id, report_claim_token=claim)
+            report_session = str(claimed["report_session"])
+        except CommercialPlatformError as exc:
+            return browser_report_response(request, {"status": "PAYMENT_PENDING_OR_REPORT_UNAVAILABLE", "detail": str(exc)}, status_code=403)
     try:
-        entitlement = await COMMERCIAL_CLIENT.verify_entitlement(principal_ref=row.principal_ref)
+        verified = await COMMERCIAL_CLIENT.verify_report_access(checkout_id=checkout_id, report_session=report_session)
     except CommercialPlatformError as exc:
-        return JSONResponse({"status": "ENTITLEMENT_UNAVAILABLE", "detail": str(exc)}, status_code=503)
-    if entitlement.get("active") is not True or not isinstance(entitlement.get("token"), str) or not entitlement["token"]:
-        return JSONResponse({"status": "ENTITLEMENT_REQUIRED", "detail": "A verified active shared-commercial entitlement is required."}, status_code=403)
+        return browser_report_response(request, {"status": "REPORT_ACCESS_UNAVAILABLE", "detail": str(exc)}, status_code=503)
+    if not verified:
+        # The browser may carry an expired report-session cookie while opening
+        # a fresh recovery URL. Give the browser shell a chance to redeem the
+        # new fragment token and replace that stale cookie.
+        if "text/html" in request.headers.get("accept", "").lower() and request.cookies.get(f"report_session_{checkout_id}"):
+            return _recovery_bootstrap_response()
+        return browser_report_response(request, {"status": "REPORT_ACCESS_UNAVAILABLE"}, status_code=403)
     # Verified entitlements remain the authority on every visit. The opaque
     # return link is extended only once, so repeat views cannot extend access.
-    first_paid_view = PENDING_MONITORING_CHECKOUTS.activate_paid_access(token)
+    first_paid_view = PENDING_MONITORING_CHECKOUTS.activate_paid_access(row.return_token)
     report = changed_since(row.checkpoint)
     if first_paid_view:
         await _safe_commercial_event(
@@ -1017,7 +1050,7 @@ async def monitoring_report_success(request):
 
     result = {
         "status": "READY",
-        "entitlement_code": entitlement.get("entitlement_code"),
+        "entitlement_code": checkout_id,
         "report": report,
     }
 
@@ -1025,23 +1058,76 @@ async def monitoring_report_success(request):
     # Machine/API clients keep the existing JSON contract.
     accept = request.headers.get("accept", "").lower()
     if "text/html" in accept:
-        return Response(
+        response = Response(
             _monitoring_paid_page(
-                entitlement_code=str(entitlement.get("entitlement_code") or ""),
+                entitlement_code=checkout_id,
                 report=report,
-                return_token=token,
+                checkout_id=checkout_id,
             ),
             media_type="text/html",
             headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"},
         )
+        response.set_cookie(key=f"report_session_{checkout_id}", value=report_session, max_age=86400, httponly=True,
+                            secure=COMMERCIAL_SETTINGS.success_url.startswith("https://"), samesite="lax",
+                            path="/monitoring-report/checkout-success")
+        response.delete_cookie(key=f"report_claim_{checkout_id}", path="/monitoring-report/checkout-success")
+        return response
 
-    return JSONResponse(result, headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"})
+    return browser_report_response(request, result, headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"})
 
 
 @mcp.custom_route("/monitoring-report/checkout-cancelled", methods=["GET"])
 async def monitoring_report_cancelled(request):
-    token = request.query_params.get("return_token", "")
-    return JSONResponse({"status": "CHECKOUT_CANCELLED", "return_token_present": bool(token), "next_action": "Return to /monitoring-report to start again."})
+    return browser_report_response(request, {"status": "CHECKOUT_CANCELLED", "next_action": "Return to /monitoring-report to start again."})
+
+
+@mcp.custom_route("/api/v1/report-access/redeem", methods=["POST"])
+async def redeem_recovered_report(request):
+    try:
+        body = await request.json()
+        checkout_id = str(body.get("checkout_id") or "")
+        report_session = str(body.get("report_session") or "")
+    except Exception:
+        return JSONResponse({"status":"invalid_request"}, status_code=422)
+    row = PENDING_MONITORING_CHECKOUTS.get_by_checkout_id(checkout_id)
+    try:
+        verified = bool(row is not None and await COMMERCIAL_CLIENT.verify_report_access(checkout_id=checkout_id, report_session=report_session))
+    except Exception:
+        verified = False
+    if not verified:
+        return JSONResponse({"status":"report_access_unavailable"}, status_code=403)
+    response = Response(status_code=204, headers={"Cache-Control":"no-store", "Referrer-Policy":"no-referrer"})
+    response.set_cookie(key=f"report_session_{checkout_id}", value=report_session, max_age=86400, httponly=True,
+                        secure=COMMERCIAL_SETTINGS.success_url.startswith("https://"), samesite="lax",
+                        path="/monitoring-report/checkout-success")
+    return response
+
+
+@mcp.custom_route("/api/v1/report-access/recovery", methods=["POST"])
+async def start_report_recovery(request):
+    try:
+        body = await request.json()
+        checkout_id = str(body.get("checkout_id") or "")
+        contact_email = str(body.get("contact_email") or "").strip()
+    except Exception:
+        return JSONResponse({"status":"invalid_request"}, status_code=422)
+    if not 32 <= len(checkout_id) <= 64 or not 5 <= len(contact_email) <= 254 or contact_email.count("@") != 1 or contact_email.startswith("@") or contact_email.endswith("@") or any(ch.isspace() for ch in contact_email):
+        return JSONResponse({"status":"invalid_request"}, status_code=422, headers={"Cache-Control":"no-store"})
+    try:
+        available = await COMMERCIAL_CLIENT.start_report_recovery(checkout_id=checkout_id, contact_email=contact_email)
+    except Exception:
+        available = False
+    if not available:
+        return JSONResponse({"status":"Recovery is temporarily unavailable. Try again shortly."}, status_code=503, headers={"Cache-Control":"no-store"})
+    return JSONResponse({"status":"If a paid report matches those details, a recovery link will be sent."}, headers={"Cache-Control":"no-store"})
+
+
+@mcp.custom_route("/monitoring-report/recover", methods=["GET"])
+async def monitoring_report_recover(request):
+    from .report_recovery import RECOVERY_HEADERS, render_report_recovery
+
+    checkout_id = request.query_params.get("checkout_id", "")
+    return Response(render_report_recovery(checkout_id), media_type="text/html", headers=RECOVERY_HEADERS)
 
 
 @mcp.custom_route("/llms.txt", methods=["GET"])

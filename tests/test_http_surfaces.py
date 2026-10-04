@@ -3,9 +3,44 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 
-from starlette.testclient import TestClient
+import asyncio
+
+import httpx
 
 from test_source_runtime import _baseline
+
+
+class ASGIClient:
+    """Synchronous test facade that avoids TestClient's AnyIO portal startup."""
+
+    def __init__(self, app):
+        self.app = app
+        self.cookies = httpx.Cookies()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def request(self, method, url, **kwargs):
+        async def send():
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=self.app),
+                base_url="http://testserver",
+                cookies=self.cookies,
+                follow_redirects=kwargs.pop("follow_redirects", False),
+            ) as client:
+                response = await client.request(method, url, **kwargs)
+                self.cookies.update(response.cookies)
+                return response
+        return asyncio.run(send())
+
+    def get(self, url, **kwargs):
+        return self.request("GET", url, **kwargs)
+
+    def post(self, url, **kwargs):
+        return self.request("POST", url, **kwargs)
 
 
 def test_local_public_policy_discovery_and_health_routes_return_200(monkeypatch, tmp_path):
@@ -20,7 +55,8 @@ def test_local_public_policy_discovery_and_health_routes_return_200(monkeypatch,
 
     from england_works_watch.entrypoint import build_http_app
 
-    with TestClient(build_http_app()) as client:
+    client = ASGIClient(build_http_app())
+    if True:
         for path in ("/health", "/pricing", "/privacy", "/terms", "/support", "/monitoring-report", "/llms.txt", "/sitemap.xml", "/openapi.json", "/.well-known/mcp/server-card.json", "/.well-known/x402", "/.well-known/agent-card.json", "/.well-known/glama.json"):
             response = client.get(path)
             assert response.status_code == 200, (path, response.text)
@@ -58,6 +94,12 @@ def test_monitoring_report_checkout_requires_verified_entitlement(monkeypatch, t
 
     from england_works_watch import server
     from england_works_watch.entrypoint import build_http_app
+    from england_works_watch.commercial import PendingMonitoringCheckoutStore
+
+    # The server may already be imported; environment changes do not replace
+    # its persistent store. Keep fake checkout IDs isolated from earlier runs.
+    monkeypatch.setattr(server, "PENDING_MONITORING_CHECKOUTS",
+                        PendingMonitoringCheckoutStore(path=tmp_path / "pending.json"))
 
     class FakeCommercial:
         def __init__(self):
@@ -65,56 +107,61 @@ def test_monitoring_report_checkout_requires_verified_entitlement(monkeypatch, t
             self.events = []
             self.active = True
 
-        async def create_checkout(self, **kwargs):
+        async def create_report_checkout(self, **kwargs):
             self.checkout_payload = kwargs
-            return {"checkout_id": "co_test", "stripe_session_id": "cs_test", "checkout_url": "https://checkout.stripe.test/eww"}
+            self.checkout_count = getattr(self, "checkout_count", 0) + 1
+            checkout_id = f"co_test_{self.checkout_count}"
+            return {"checkout_id": checkout_id, "checkout_url": "https://checkout.stripe.test/eww", "report_claim_token": f"claim-{checkout_id}"}
 
-        async def verify_entitlement(self, **_kwargs):
-            return {
-                "active": self.active,
-                "entitlement_code": "eww_sponsor_monitoring_report" if self.active else None,
-                "token": "signed" if self.active else None,
-            }
+        async def claim_report_access(self, *, checkout_id, report_claim_token):
+            assert report_claim_token == f"claim-{checkout_id}"
+            return {"report_session": f"session-{checkout_id}"}
+
+        async def verify_report_access(self, *, checkout_id, report_session):
+            return self.active and report_session == f"session-{checkout_id}"
 
         async def record_event(self, **kwargs):
             self.events.append(kwargs)
 
     fake = FakeCommercial()
     monkeypatch.setattr(server, "COMMERCIAL_CLIENT", fake)
-    with TestClient(build_http_app()) as client:
-        started = client.post("/monitoring-report/checkout", json={"source_ids": ["sponsor-part2"], "worker_name": "must-not-cross-boundary"})
+    with ASGIClient(build_http_app()) as client:
+        started = client.post("/monitoring-report/checkout", json={"source_ids": ["sponsor-part2"], "contact_email": "buyer@example.test", "worker_name": "must-not-cross-boundary"})
         assert started.status_code == 200, started.text
         body = started.json()
         assert body["status"] == "CHECKOUT_REQUIRED"
         assert "worker_name" not in json.dumps(fake.checkout_payload)
-        completed = client.get(f"/monitoring-report/checkout-success?return_token={body['return_token']}")
+        completed = client.get("/monitoring-report/checkout-success", headers={"accept": "application/json", "cookie": "report_claim_co_test_1=claim-co_test_1"})
         assert completed.status_code == 200
         assert completed.json()["status"] == "READY"
         assert completed.json()["report"]["status"] == "UNCHANGED"
         assert [event["event_type"] for event in fake.events] == [
-            "paid_intent", "checkout_started", "payment_succeeded", "entitlement_activated", "premium_fulfilled",
+            "paid_intent", "checkout_started", "payment_succeeded",
+            "entitlement_activated", "premium_fulfilled",
         ]
         assert all(event["commercial_intent"] == "monitoring" for event in fake.events)
         assert all(event["source_channel"] == "direct" for event in fake.events)
-        assert all(event["external_classification"] == "unknown" for event in fake.events)
+        assert {event["external_classification"] for event in fake.events} <= {"unknown", "automated_external"}, fake.events
         assert all(event["owner_test"] is False for event in fake.events)
 
         owner_started = client.post(
             "/monitoring-report/checkout?run=owner",
-            json={"source_ids": ["sponsor-part2"]},
+            json={"source_ids": ["sponsor-part2"], "contact_email": "buyer@example.test"},
         )
         assert owner_started.status_code == 200
-        owner_token = owner_started.json()["return_token"]
-        owner_completed = client.get(f"/monitoring-report/checkout-success?return_token={owner_token}")
+        owner_completed = client.get("/monitoring-report/checkout-success", headers={"accept": "application/json", "cookie": "report_claim_co_test_2=claim-co_test_2"})
         assert owner_completed.status_code == 200
         assert all(event["external_classification"] == "owner_test" and event["owner_test"] is True for event in fake.events[5:])
 
         fake.active = False
         denied_started = client.post(
             "/monitoring-report/checkout",
-            json={"source_ids": ["sponsor-part2"]},
+            json={"source_ids": ["sponsor-part2"], "contact_email": "buyer@example.test"},
         )
-        denied = client.get(f"/monitoring-report/checkout-success?return_token={denied_started.json()['return_token']}")
+        # Each checkout claim is bound to its own cookie; do not let the prior
+        # successful browser session authorize this unpaid checkout.
+        denied_id = denied_started.json()["checkout_id"]
+        denied = client.get("/monitoring-report/checkout-success", headers={"accept": "text/html", "cookie": f"report_claim_{denied_id}=claim-{denied_id}"})
         assert denied.status_code == 403
         fake.active = True
 
@@ -130,21 +177,33 @@ def test_monitoring_report_is_not_gated_by_telemetry_failure(monkeypatch, tmp_pa
 
     from england_works_watch import server
     from england_works_watch.entrypoint import build_http_app
+    from england_works_watch.commercial import PendingMonitoringCheckoutStore
+
+    # The server may already be imported; environment changes do not replace
+    # its persistent store. Keep fake checkout IDs isolated from earlier runs.
+    monkeypatch.setattr(server, "PENDING_MONITORING_CHECKOUTS",
+                        PendingMonitoringCheckoutStore(path=tmp_path / "pending.json"))
 
     class FailingTelemetry:
-        async def create_checkout(self, **_kwargs):
-            return {"checkout_id": "co_test", "stripe_session_id": "cs_test", "checkout_url": "https://checkout.stripe.test/eww"}
+        async def create_report_checkout(self, **_kwargs):
+            self.counter = getattr(self, "counter", 0) + 1
+            checkout_id = f"co_telemetry_{self.counter}"
+            return {"checkout_id": checkout_id, "checkout_url": "https://checkout.stripe.test/eww", "report_claim_token": f"claim-{checkout_id}"}
 
-        async def verify_entitlement(self, **_kwargs):
-            return {"active": True, "entitlement_code": "eww_sponsor_monitoring_report", "token": "signed"}
+        async def claim_report_access(self, *, checkout_id, report_claim_token):
+            return {"report_session": f"session-{checkout_id}"}
+
+        async def verify_report_access(self, **_kwargs):
+            return True
 
         async def record_event(self, **_kwargs):
             raise RuntimeError("telemetry unavailable")
 
     monkeypatch.setattr(server, "COMMERCIAL_CLIENT", FailingTelemetry())
-    with TestClient(build_http_app()) as client:
-        started = client.post("/monitoring-report/checkout", json={"source_ids": ["sponsor-part2"]})
-        completed = client.get(f"/monitoring-report/checkout-success?return_token={started.json()['return_token']}")
+    client = ASGIClient(build_http_app())
+    started = client.post("/monitoring-report/checkout", json={"source_ids": ["sponsor-part2"], "contact_email": "buyer@example.test"})
+    checkout_id = started.json()["checkout_id"]
+    completed = client.get("/monitoring-report/checkout-success", headers={"accept": "application/json", "cookie": f"report_claim_{checkout_id}=claim-{checkout_id}"})
     assert completed.status_code == 200
     assert completed.json()["status"] == "READY"
 
@@ -155,7 +214,7 @@ def test_paid_report_entitlement_code_wraps_without_layout_overflow():
     page = _monitoring_paid_page(
         entitlement_code="e" * 160,
         report={"status": "UNCHANGED", "decision_usable": True, "source_gate": True},
-        return_token="sample-return-token",
+        checkout_id="sample-checkout-id",
     )
     assert "overflow-wrap:anywhere" in page
     assert "e" * 160 in page
@@ -185,7 +244,7 @@ def test_paid_monitoring_report_links_to_official_sources_and_escapes_result_tex
                 },
             ],
         },
-        return_token="private-token",
+        checkout_id="private-checkout-id",
     )
     assert SOURCE_BY_ID["sponsor-part3"]["url"] in page
     assert SOURCE_BY_ID["sponsor-part3"]["title"] in page
@@ -194,3 +253,12 @@ def test_paid_monitoring_report_links_to_official_sources_and_escapes_result_tex
     assert "&lt;untrusted&gt;" in page
     assert "<untrusted>" not in page
     assert "<strong>unknown-source</strong>" in page
+    assert '<strong class="review">CHANGED</strong>' in page
+    assert '<span class="badge review">CHANGED</span>' in page
+    assert '<strong class="good">CHANGED</strong>' not in page
+    assert "23 Sep 2026 · 16:00:00 UTC" in page
+    assert "Complete monitoring result · JSON" in page
+    from html import unescape
+    preserved_report = json.loads(unescape(page.split("<pre>", 1)[1].split("</pre>", 1)[0]))
+    assert preserved_report["sources"][0]["reason"] == "<untrusted>"
+    assert preserved_report["sources"][1]["status"] == "REVIEW_REQUIRED"

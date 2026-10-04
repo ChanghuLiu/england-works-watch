@@ -1,5 +1,6 @@
 """Public policy/distribution copy for the sponsor-compliance product."""
 from __future__ import annotations
+from .form_feedback import feedback_page, with_form_feedback, bind_form_values, error_summary
 
 from html import escape
 
@@ -71,7 +72,8 @@ def render_pricing_page(*, origin: str, prices: dict[str, str]) -> str:
     )
 
 
-def monitoring_page(*, origin: str, source_channel: str = "direct", owner_test: bool = False) -> str:
+@feedback_page
+def monitoring_page(*, origin: str, source_channel: str = "direct", owner_test: bool = False, values=None, errors=None) -> str:
     source_channel = escape(source_channel)
     if owner_test:
         verification_control = (
@@ -87,7 +89,7 @@ def monitoring_page(*, origin: str, source_channel: str = "direct", owner_test: 
             '<small>Tick to continue. This only separates real customer conversions from our own test traffic; '
             'it is not used to identify you or linked to Stripe payment details.</small></span></label>'
         )
-    return """<!doctype html>
+    markup = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -317,6 +319,8 @@ a{color:var(--blue)}
       creates the checkpoint and gives you a private link for repeated checks.
     </p>
     <form method="post" action="/monitoring-report/checkout">
+      <label>Email for checkout and report recovery <input type="email" name="contact_email" autocomplete="email" maxlength="254" required></label>
+      <p>A verified email is enough; registration is not required.</p>
       <input type="hidden" name="source_channel" value="{source_channel}">
       <input type="hidden" name="source_ids" value="sponsor-part2">
       <input type="hidden" name="source_ids" value="sponsor-part3">
@@ -326,6 +330,7 @@ a{color:var(--blue)}
       <button type="submit">Create sponsor decision evidence checkpoint — £49</button>
     </form>
     <p><small>One payment · 30-day access · no worker names or case facts required · Secure Stripe checkout.</small></p>
+    <p><a href="/monitoring-report/recover">Recover an existing report with verified email</a></p>
   </section>
 
   <section class="card">
@@ -373,6 +378,7 @@ a{color:var(--blue)}
     </p>
 
     <form method="post" action="/monitoring-report/checkout">
+      <label>Email for checkout and report recovery <input type="email" name="contact_email" autocomplete="email" maxlength="254" required></label>
       <input type="hidden" name="source_channel" value="{source_channel}">
       <fieldset class="source-list">
         <legend>Official guidance to include</legend>
@@ -407,3 +413,6 @@ a{color:var(--blue)}
 </main>
 </body>
 </html>""".replace("{source_channel}", source_channel).replace("{verification_control}", verification_control)
+    fields = {message: "contact_email" if "email" in message.lower() else "source_ids" for message in (errors or [])}
+    markup = markup.replace('<section class="quick-buy"', error_summary(errors, fields) + '<section class="quick-buy"', 1)
+    return bind_form_values(markup, values or {})

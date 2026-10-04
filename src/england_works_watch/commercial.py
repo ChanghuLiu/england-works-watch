@@ -84,8 +84,8 @@ class CommercialSettings:
             raise ValueError("EWW_COMMERCIAL_PRODUCT_ID must be 1-64 characters")
         return cls(platform_url, product_id, human_origin, success_url, cancel_url, timeout, pending_ttl)
 
-    def checkout_success_url(self, return_token: str) -> str:
-        return _with_query(str(self.success_url), return_token=return_token)
+    def checkout_success_url(self, _return_token: str | None = None) -> str:
+        return str(self.success_url)
 
 
 @dataclass(frozen=True)
@@ -381,6 +381,11 @@ class PendingMonitoringCheckoutStore:
             self._prune_locked()
             return self._rows.get(return_token)
 
+    def get_by_checkout_id(self, checkout_id: str) -> PendingMonitoringCheckout | None:
+        with self._lock:
+            self._prune_locked()
+            return next((row for row in self._rows.values() if row.checkout_id == checkout_id), None)
+
 
 class CommercialPlatformClient:
     def __init__(self, settings: CommercialSettings, *, transport: httpx.AsyncBaseTransport | None = None) -> None:
@@ -423,6 +428,44 @@ class CommercialPlatformClient:
         if not data["checkout_url"].startswith("https://"):
             raise CommercialPlatformError("checkout service returned invalid checkout_url")
         return {key: data[key] for key in ("checkout_id", "stripe_session_id", "checkout_url")}
+
+    async def create_report_checkout(self, *, contact_email: str, source_channel: str, success_url: str, cancel_url: str,
+                                     external_classification: str = "unknown", owner_test: bool = False) -> dict[str, str]:
+        payload = {"product_id": self.settings.product_id, "contact_email": contact_email,
+                   "source_channel": commercial_source_channel(source_channel), "success_url": success_url,
+                   "cancel_url": cancel_url}
+        async with self._client() as client:
+            response = await client.post("/v1/report-checkout/session", headers={"Idempotency-Key": secrets.token_urlsafe(32)}, json=payload)
+        if response.status_code != 200:
+            raise CommercialPlatformError(f"report checkout service returned {response.status_code}")
+        data = response.json()
+        keys = ("checkout_id", "stripe_session_id", "checkout_url", "report_claim_token")
+        if not isinstance(data, dict) or not all(isinstance(data.get(key), str) and data[key] for key in keys) or not data["checkout_url"].startswith("https://"):
+            raise CommercialPlatformError("report checkout service returned incomplete checkout")
+        return {key: data[key] for key in keys}
+
+    async def claim_report_access(self, *, checkout_id: str, report_claim_token: str) -> dict[str, Any]:
+        async with self._client() as client:
+            response = await client.post("/v1/report-access/claim", headers={"X-Report-Claim": report_claim_token}, json={"product_id": self.settings.product_id, "checkout_id": checkout_id})
+        if response.status_code != 200:
+            raise CommercialPlatformError(f"report access claim returned {response.status_code}")
+        data = response.json()
+        if not isinstance(data, dict) or data.get("active") is not True or not isinstance(data.get("report_session"), str):
+            raise CommercialPlatformError("report access claim returned invalid shape")
+        return data
+
+    async def verify_report_access(self, *, checkout_id: str, report_session: str) -> bool:
+        async with self._client() as client:
+            response = await client.post("/v1/report-access/verify", json={"product_id": self.settings.product_id, "checkout_id": checkout_id, "report_session": report_session})
+        if response.status_code != 200:
+            return False
+        data = response.json()
+        return data.get("active") is True and data.get("product_id") == self.settings.product_id and data.get("checkout_id") == checkout_id
+
+    async def start_report_recovery(self, *, checkout_id: str, contact_email: str) -> bool:
+        async with self._client() as client:
+            response = await client.post("/v1/report-access/recovery/start", json={"checkout_id": checkout_id, "contact_email": contact_email})
+        return response.status_code == 200
 
     async def issue_continuation(self, *, case_ref: str, state_ref: str) -> dict[str, Any]:
         async with self._client() as client:

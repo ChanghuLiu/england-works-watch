@@ -38,7 +38,7 @@ def test_commercial_adapter_sends_only_bounded_contract_and_fails_closed():
         principal_ref="eww_human_opaque",
         source_channel="linkedin_post",
         external_classification="confirmed_external",
-        success_url="https://eww.test/success?return_token=opaque",
+        success_url="https://eww.test/success",
     ))
     entitlement = asyncio.run(client.verify_entitlement(principal_ref="eww_human_opaque"))
     for event_type in ("checkout_started", "payment_succeeded", "entitlement_activated", "premium_fulfilled"):
@@ -172,7 +172,7 @@ def test_c7c_monitoring_traffic_quality_classification_is_bounded():
     ) == ("owner_test", True)
 
 
-def test_paid_monitoring_return_requires_entitlement_and_reuses_link(monkeypatch, tmp_path):
+def test_paid_monitoring_return_requires_verified_cookie_claim(monkeypatch, tmp_path):
     from england_works_watch import server
     from england_works_watch.commercial import PendingMonitoringCheckoutStore
 
@@ -191,18 +191,17 @@ def test_paid_monitoring_return_requires_entitlement_and_reuses_link(monkeypatch
     store.attach_checkout(row.return_token, "checkout_paid")
     request = SimpleNamespace(
         headers={"accept": "text/html"},
-        query_params={"return_token": row.return_token},
+        cookies={"report_claim_checkout_paid": "claim"},
     )
 
     class VerifiedCommercial:
         active = False
 
-        async def verify_entitlement(self, **_kwargs):
-            return {
-                "active": self.active,
-                "token": "signed" if self.active else None,
-                "entitlement_code": "eww_sponsor_monitoring_report",
-            }
+        async def claim_report_access(self, **_kwargs):
+            return {"report_session": "session"}
+
+        async def verify_report_access(self, **_kwargs):
+            return self.active
 
     client = VerifiedCommercial()
     events = []
@@ -236,7 +235,7 @@ def test_paid_monitoring_return_requires_entitlement_and_reuses_link(monkeypatch
     assert store.get(row.return_token).expires_at == expiry
     assert first.headers["referrer-policy"] == "no-referrer"
     assert first.headers["cache-control"] == "private, no-store"
-    assert row.return_token in first.body.decode("utf-8")
+    assert row.return_token not in first.body.decode("utf-8")
     assert "Check these sources again" in first.body.decode("utf-8")
     assert events.count("payment_succeeded") == 1
     assert events.count("entitlement_activated") == 1
@@ -288,3 +287,31 @@ def test_commercial_source_status_exposes_contextual_paid_evidence_baseline(monk
     assert baseline["access"] == "30 days"
     assert "four core GOV.UK" in baseline["use_for"]
     assert "worker names" in baseline["boundary"]
+
+
+def test_stale_report_session_cookie_keeps_browser_recovery_path(monkeypatch, tmp_path):
+    from england_works_watch import server
+    from england_works_watch.commercial import PendingMonitoringCheckoutStore
+
+    checkpoint = {"schema_version": "c5-monitoring-v1", "created_at": "2026-09-23T00:00:00Z", "sources": [{"source_id": "sponsor-part2", "source_version": "08/26", "semantic_sha256": "a" * 64, "observed_at": "2026-09-23T00:00:00Z"}]}
+    store = PendingMonitoringCheckoutStore(1800, path=tmp_path / "pending.json")
+    row = store.create(checkpoint=checkpoint, source_channel="direct")
+    store.attach_checkout(row.return_token, "checkout_stale_cookie")
+
+    class ExpiredSession:
+        async def verify_report_access(self, **_kwargs):
+            return False
+
+    request = SimpleNamespace(
+        headers={"accept": "text/html"},
+        cookies={"report_session_checkout_stale_cookie": "expired-session"},
+    )
+    monkeypatch.setattr(server, "PENDING_MONITORING_CHECKOUTS", store)
+    monkeypatch.setattr(server, "COMMERCIAL_CLIENT", ExpiredSession())
+
+    response = asyncio.run(server.monitoring_report_success(request))
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert "location.hash" in body and "/api/v1/report-access/redeem" in body
+    assert response.headers["cache-control"] == "no-store"
+    assert store.get(row.return_token).paid_access_activated is False
