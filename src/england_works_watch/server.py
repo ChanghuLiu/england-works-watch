@@ -27,7 +27,7 @@ from .selection_metadata import (
     SERVER_SELECTION_DESCRIPTION,
 )
 from .source_runtime import ensure_runtime_seeded, production_source_status, start_background_source_monitor
-from .x402_gate import MCP2X402Gate, PaidToolSpec, invoke, meta_to_dict
+from .x402_gate import MCP2X402Gate, PaidToolSpec, invoke, meta_to_dict, public_mcp_facilitator_url
 
 READ = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
 SERVICE_VERSION = "0.1.2"
@@ -38,7 +38,7 @@ PRICE_BATCH = os.getenv("EWW_X402_PRICE_BATCH", "$0.05")
 PAYMENT_ENFORCED = os.getenv("EWW_PAYMENT_ENFORCED", "0").strip().lower() in {"1", "true", "yes", "on"}
 PAY_TO = os.getenv("EWW_X402_PAY_TO", "").strip()
 NETWORK = os.getenv("EWW_X402_NETWORK", "eip155:8453").strip()
-FACILITATOR = os.getenv("EWW_X402_FACILITATOR_URL", "https://facilitator.payai.network").strip()
+FACILITATOR = public_mcp_facilitator_url()
 COMMERCIAL_SETTINGS = CommercialSettings.from_env()
 COMMERCIAL_CLIENT = CommercialPlatformClient(COMMERCIAL_SETTINGS)
 PENDING_MONITORING_CHECKOUTS = PendingMonitoringCheckoutStore(
