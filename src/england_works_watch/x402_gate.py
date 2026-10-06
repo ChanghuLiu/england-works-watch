@@ -4,6 +4,35 @@ from typing import Any, Callable
 import json, logging, os
 
 logger = logging.getLogger("england_works_watch.x402")
+CDP_FACILITATOR_URL = "https://api.cdp.coinbase.com/platform/v2/x402"
+
+
+def mcp_facilitator_mode() -> str:
+    mode = os.getenv("EWW_MCP_X402_FACILITATOR", "payai").strip().lower() or "payai"
+    if mode not in {"payai", "url", "cdp"}:
+        raise RuntimeError("EWW_MCP_X402_FACILITATOR must be one of: payai, url, cdp")
+    return mode
+
+
+def public_mcp_facilitator_url() -> str:
+    if mcp_facilitator_mode() == "cdp":
+        return CDP_FACILITATOR_URL
+    return os.getenv("EWW_X402_FACILITATOR_URL", "https://facilitator.payai.network").strip() or "https://facilitator.payai.network"
+
+
+def _mcp_facilitator_client(mode: str, url: str):
+    from x402.http import FacilitatorConfig, HTTPFacilitatorClientSync
+    if mode == "cdp":
+        if not os.getenv("CDP_API_KEY_ID", "").strip() or not os.getenv("CDP_API_KEY_SECRET", "").strip():
+            raise RuntimeError("CDP_API_KEY_ID and CDP_API_KEY_SECRET are required when EWW_MCP_X402_FACILITATOR=cdp")
+        try:
+            from cdp.x402 import create_facilitator_config
+        except ImportError as exc:
+            raise RuntimeError("Works Watch MCP x402 support requires cdp-sdk") from exc
+        return HTTPFacilitatorClientSync(create_facilitator_config())
+    if not url:
+        raise RuntimeError("EWW_X402_FACILITATOR_URL is required when payment enforcement is enabled")
+    return HTTPFacilitatorClientSync(FacilitatorConfig(url=url))
 
 _BASE_EIP712_TOKEN_NAMES = {
     "eip155:8453": "USD Coin",   # Base mainnet native USDC name()
@@ -102,13 +131,12 @@ def discovery_extensions(spec:PaidToolSpec)->dict[str,Any]:
 class MCP2X402Gate:
     def __init__(self):
         from x402 import x402ResourceServerSync
-        from x402.http import FacilitatorConfig, HTTPFacilitatorClientSync
         from x402.mechanisms.evm.exact import ExactEvmServerScheme
         from x402.extensions.bazaar import bazaar_resource_server_extension
-        self.network=os.getenv('EWW_X402_NETWORK','eip155:8453').strip(); self.pay_to=os.getenv('EWW_X402_PAY_TO','').strip(); self.facilitator_url=os.getenv('EWW_X402_FACILITATOR_URL','https://facilitator.payai.network').strip()
+        self.network=os.getenv('EWW_X402_NETWORK','eip155:8453').strip(); self.pay_to=os.getenv('EWW_X402_PAY_TO','').strip(); self.facilitator_mode=mcp_facilitator_mode(); self.facilitator_url=os.getenv('EWW_X402_FACILITATOR_URL','https://facilitator.payai.network').strip()
         self.token_name,self.token_version=eip712_token_identity(self.network)
         if not self.pay_to: raise RuntimeError('EWW_X402_PAY_TO is required when payment enforcement is enabled')
-        facilitator=HTTPFacilitatorClientSync(FacilitatorConfig(url=self.facilitator_url))
+        facilitator=_mcp_facilitator_client(self.facilitator_mode,self.facilitator_url)
         self.resource_server=x402ResourceServerSync(facilitator)
         self.resource_server.register(self.network,ExactEvmServerScheme())
         self.resource_server.register_extension(bazaar_resource_server_extension)
