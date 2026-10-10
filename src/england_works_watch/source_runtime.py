@@ -90,6 +90,8 @@ def _seed_from_baseline(now: datetime | None = None) -> dict[str, Any]:
         raise RuntimeError(f"source audit baseline mismatch: missing={missing}, extra={extra}")
     if int(baseline.get("blocking_count", 1)) != 0:
         raise RuntimeError("cannot seed runtime from a blocking source audit baseline")
+    if baseline.get("registry_version") != SOURCES.get("registry_version"):
+        raise RuntimeError("source audit baseline has an unreviewed registry version")
 
     sources: dict[str, Any] = {}
     for source_id, meta in registry.items():
@@ -97,6 +99,10 @@ def _seed_from_baseline(now: datetime | None = None) -> dict[str, Any]:
         semantic = item.get("semantic_sha256")
         if not isinstance(semantic, str) or len(semantic) != 64:
             raise RuntimeError(f"baseline missing semantic fingerprint for {source_id}")
+        if semantic != meta.get("reviewed_semantic_sha256"):
+            raise RuntimeError(f"baseline differs from reviewed fingerprint for {source_id}")
+        if item.get("state") != "UNCHANGED" or item.get("missing_markers"):
+            raise RuntimeError(f"baseline contains an unresolved review for {source_id}")
         generated_at = baseline.get("generated_at") or _iso(now)
         sources[source_id] = {
             "source_id": source_id,
@@ -131,6 +137,21 @@ def ensure_runtime_seeded(now: datetime | None = None) -> dict[str, Any]:
             state = _load_json(path)
             if state.get("schema_version") != STATE_SCHEMA_VERSION:
                 raise RuntimeError("unsupported England Works Watch source-state schema")
+            if state.get("registry_version") != SOURCES.get("registry_version"):
+                # A committed review explicitly supersedes one known registry.
+                # Ordinary observations and restarts never clear review flags.
+                previous = SOURCES.get("supersedes_registry_version")
+                if not previous or state.get("registry_version") != previous:
+                    raise RuntimeError("source-state registry requires explicit review")
+                if set(state.get("sources", {})) != set(_registry_by_id()):
+                    raise RuntimeError("source-state coverage requires explicit review")
+                reviewed = _seed_from_baseline(now)
+                archive = path.with_name(f"source_state.reviewed-{previous}.json")
+                if not archive.exists():
+                    _atomic_write(archive, state)
+                reviewed["previous_state_archive"] = str(archive)
+                _atomic_write(path, reviewed)
+                return reviewed
             return state
         state = _seed_from_baseline(now)
         _atomic_write(path, state)
