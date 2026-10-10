@@ -342,6 +342,9 @@ def observe_in_subprocess() -> None:
     subprocess.run(
         [sys.executable, "-m", "england_works_watch.source_runtime", "--observe-once"],
         check=True, timeout=180,
+        # Do not let a fetch worker hold the server's stdio pipes open during
+        # shutdown. The worker records source failures in the atomic state file.
+        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
     )
 
 
