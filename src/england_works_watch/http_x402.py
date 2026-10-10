@@ -100,9 +100,9 @@ def _http_facilitator_config(cfg: dict[str, str | bool]):
                 "EWW_HTTP_X402_FACILITATOR=cdp"
             )
         try:
-            from cdp.x402 import create_facilitator_config
+            from .cdp_facilitator import create_facilitator_config
         except ImportError as exc:
-            raise RuntimeError("CDP HTTP x402 support requires cdp-sdk") from exc
+            raise RuntimeError("CDP HTTP x402 support requires PyJWT and cryptography") from exc
         return create_facilitator_config()
 
     if mode in {"payai", "legacy", "url"}:
@@ -377,3 +377,4 @@ def wrap_http_x402(app: Any) -> Any:
 
     protected = PaymentMiddlewareASGI(app, routes=routes, server=resource_server)
     return HttpX402TelemetryASGI(protected)
+
