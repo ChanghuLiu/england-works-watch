@@ -147,6 +147,8 @@ CHANGE_PROPERTIES: dict[str, dict[str, Any]] = {
     "total_weeks": {"type": "number", "minimum": 0, "description": "For unpaid_or_reduced_pay_absence: total weeks of the absence at unpaid or reduced pay."},
     "valid_exception": {"type": "boolean", "description": "For an absence: whether a listed permitted-absence exception is established."},
     "compelling_reason": {"type": "boolean", "description": "For an absence: whether a compelling reason is established under the sponsor-duty rule."},
+    "modern_slavery_identified": {"type": "boolean", "description": "Whether the worker has been identified as a victim of modern slavery; supplied special circumstances require individual review."},
+    "employment_conditions_lifted": {"type": "boolean", "description": "Whether Skilled Worker employment conditions have been lifted; ordinary employment-change rules require individual review in this case."},
     "direction": {"type": "string", "enum": ["increase", "decrease"], "description": "Whether the salary change increases or decreases pay."},
     "pre_registration_nurse_or_midwife": {"type": "boolean", "description": "For salary_change: whether the worker is a pre-registration nurse or midwife covered by the modeled salary branch."},
     "same_salary_option_still_met": {"type": "boolean", "description": "For salary_change: whether the original Skilled Worker salary option remains met after the change."},
@@ -238,3 +240,4 @@ def apply_selection_metadata(mcp_server: Any) -> None:
         tools[name].description = description
     for name, schema in PAID_TOOL_INPUT_SCHEMAS.items():
         tools[name].parameters = deepcopy(schema)
+
