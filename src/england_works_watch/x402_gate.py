@@ -26,9 +26,9 @@ def _mcp_facilitator_client(mode: str, url: str):
         if not os.getenv("CDP_API_KEY_ID", "").strip() or not os.getenv("CDP_API_KEY_SECRET", "").strip():
             raise RuntimeError("CDP_API_KEY_ID and CDP_API_KEY_SECRET are required when EWW_MCP_X402_FACILITATOR=cdp")
         try:
-            from cdp.x402 import create_facilitator_config
+            from .cdp_facilitator import create_facilitator_config
         except ImportError as exc:
-            raise RuntimeError("Works Watch MCP x402 support requires cdp-sdk") from exc
+            raise RuntimeError("Works Watch MCP x402 support requires PyJWT and cryptography") from exc
         return HTTPFacilitatorClientSync(create_facilitator_config())
     if not url:
         raise RuntimeError("EWW_X402_FACILITATOR_URL is required when payment enforcement is enabled")
@@ -246,3 +246,4 @@ def invoke(wrapped,*,tool_name:str,arguments:dict[str,Any],ctx:Any):
     record(tool_name,'error' if getattr(result,'is_error',False) else 'ok',billable=True,payment_state=payment_state,meta=meta)
     content=[TextContent(type='text',text=str(b.get('text',''))) for b in (getattr(result,'content',[]) or []) if isinstance(b,dict) and b.get('type')=='text'] or [TextContent(type='text',text='')]
     return CallToolResult(content=content,structured_content=getattr(result,'structured_content',None),is_error=bool(getattr(result,'is_error',False)),_meta=getattr(result,'meta',None) or None)
+
