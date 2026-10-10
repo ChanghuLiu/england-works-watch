@@ -1,5 +1,5 @@
 {
-  "registry_version": "2026-09-08.1",
+  "registry_version": "2026-10-10.1",
   "sources": [
     {
       "source_id": "sponsor-part3",
@@ -7,23 +7,46 @@
       "url": "https://www.gov.uk/government/publications/workers-and-temporary-workers-guidance-for-sponsors-part-3-sponsor-duties-and-compliance/workers-and-temporary-workers-guidance-for-sponsors-part-3-sponsor-duties-and-compliance-accessible",
       "version": "08/26",
       "valid_from": "2026-08-28",
-      "last_reviewed": "2026-09-08",
+      "last_reviewed": "2026-10-10",
       "review_after_days": 30,
       "state": "CURRENT",
-      "locators": ["C1.13-C1.16", "C1.17-C1.21", "C1.23-C1.27", "C2.1-C2.5", "C4.5-C4.10"],
-      "expected_markers": ["Version 08/26", "valid from 28 August 2026", "C1.15", "C1.21"]
+      "locators": [
+        "C1.13-C1.16",
+        "C1.17-C1.21",
+        "C1.23-C1.27",
+        "C2.1-C2.5",
+        "C4.5-C4.10"
+      ],
+      "expected_markers": [
+        "Version 08/26",
+        "valid from 28 August 2026",
+        "C1.15",
+        "C1.21"
+      ],
+      "reviewed_semantic_sha256": "c05aa7e359cf1fd173ddc44613b9979144fa3c380db942643e80de7f7725c618"
     },
     {
       "source_id": "sponsor-part2",
       "title": "Workers and Temporary Workers: guidance for sponsors - Part 2: Sponsor a worker",
-      "url": "https://www.gov.uk/government/publications/workers-and-temporary-workers-guidance-for-sponsors-part-2-sponsor-a-worker/workers-and-temporary-workers-guidance-for-sponsors-part-2-sponsor-a-worker-accessible",
-      "version": "08/26",
-      "valid_from": "2026-08-03",
-      "last_reviewed": "2026-09-08",
+      "url": "https://www.gov.uk/government/publications/workers-and-temporary-workers-guidance-for-sponsors-part-2-sponsor-a-worker/workers-and-temporary-workers-guidance-for-sponsors-part-2-sponsor-a-worker-accessible--2",
+      "version": "10/26",
+      "valid_from": "2026-10-08",
+      "last_reviewed": "2026-10-10",
       "review_after_days": 30,
       "state": "CURRENT",
-      "locators": ["S3 start dates", "S4 unpaid/reduced pay", "S9 changes of employment"],
-      "expected_markers": ["Version 08/26", "valid from 03 August 2026", "S4.29", "S9.10"]
+      "locators": [
+        "S3 start dates",
+        "S4 unpaid/reduced pay",
+        "S9 changes of employment",
+        "S8.28-S8.29 lifted employment conditions"
+      ],
+      "expected_markers": [
+        "Version 10/26",
+        "valid from 8 October 2026",
+        "S4.29",
+        "S9.10"
+      ],
+      "reviewed_semantic_sha256": "c89f07c56b74058903f46f02b9b897a7cdbadcdb854ec1741e9276187c2c7017"
     },
     {
       "source_id": "skilled-worker",
@@ -31,23 +54,38 @@
       "url": "https://www.gov.uk/government/publications/sponsor-a-skilled-worker/workers-and-temporary-workers-sponsor-a-skilled-worker-accessible",
       "version": "04/26",
       "valid_from": "2026-04-08",
-      "last_reviewed": "2026-09-08",
+      "last_reviewed": "2026-10-10",
       "review_after_days": 30,
       "state": "CURRENT",
-      "locators": ["SK8 salary reductions and unpaid leave"],
-      "expected_markers": ["Version 04/26", "valid from 8 April 2026", "SK8.5", "SK8.6"]
+      "locators": [
+        "SK8 salary reductions and unpaid leave"
+      ],
+      "expected_markers": [
+        "Version 04/26",
+        "valid from 8 April 2026",
+        "SK8.5",
+        "SK8.6"
+      ],
+      "reviewed_semantic_sha256": "40b64b53dc3f0c861311f66193b578a381e6e32fce9d417d5e06764ba5877b9a"
     },
     {
       "source_id": "appendix-d",
       "title": "Workers and Temporary Workers: guidance for sponsors - Appendix D: keeping records for sponsorship",
       "url": "https://www.gov.uk/government/publications/keep-records-for-sponsorship-appendix-d/workers-and-temporary-workers-guidance-for-sponsors-appendix-d-record-keeping-duties-accessible",
-      "version": "08/26",
-      "valid_from": "2026-08-03",
-      "last_reviewed": "2026-09-08",
+      "version": "10/26",
+      "valid_from": "2026-10-08",
+      "last_reviewed": "2026-10-10",
       "review_after_days": 30,
       "state": "CURRENT",
-      "locators": ["sponsor record-keeping duties"],
-      "expected_markers": ["Version 08/26", "valid from 03 August 2026"]
+      "locators": [
+        "sponsor record-keeping duties"
+      ],
+      "expected_markers": [
+        "Version 10/26",
+        "valid from 8 October 2026"
+      ],
+      "reviewed_semantic_sha256": "f68bec505685dbd2add9dcc7e923b63cec9e1047a1b1c4355c54ead58556e863"
     }
-  ]
+  ],
+  "supersedes_registry_version": "2026-09-08.1"
 }

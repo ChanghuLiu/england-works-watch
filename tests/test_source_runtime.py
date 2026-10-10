@@ -14,7 +14,7 @@ def _baseline(path: Path, generated: datetime) -> dict[str, str]:
     hashes = {}
     rows = []
     for index, source in enumerate(SOURCES["sources"]):
-        digest = f"{index + 1:064x}"[-64:]
+        digest = source["reviewed_semantic_sha256"]
         hashes[source["source_id"]] = digest
         rows.append(
             {
@@ -52,7 +52,7 @@ def _setup(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, now: datetime):
 
 
 def test_seed_has_full_baseline_coverage(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 10, 14, 0, tzinfo=timezone.utc)
     _setup(monkeypatch, tmp_path, now)
     state = sr.ensure_runtime_seeded(now)
     assert len(state["sources"]) == 4
@@ -64,7 +64,7 @@ def test_seed_has_full_baseline_coverage(monkeypatch, tmp_path):
 
 
 def test_unchanged_observation_stays_ready(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 10, 14, 0, tzinfo=timezone.utc)
     hashes = _setup(monkeypatch, tmp_path, now)
 
     def fetcher(source):
@@ -78,7 +78,7 @@ def test_unchanged_observation_stays_ready(monkeypatch, tmp_path):
 
 
 def test_changed_fingerprint_fails_closed_without_promoting_baseline(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 10, 14, 0, tzinfo=timezone.utc)
     hashes = _setup(monkeypatch, tmp_path, now)
     changed_id = SOURCES["sources"][0]["source_id"]
     changed_hash = "f" * 64
@@ -99,7 +99,7 @@ def test_changed_fingerprint_fails_closed_without_promoting_baseline(monkeypatch
 
 
 def test_transient_fetch_error_uses_fresh_last_success_then_stales(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 10, 14, 0, tzinfo=timezone.utc)
     hashes = _setup(monkeypatch, tmp_path, now)
     failed_id = SOURCES["sources"][0]["source_id"]
 
@@ -120,7 +120,7 @@ def test_transient_fetch_error_uses_fresh_last_success_then_stales(monkeypatch, 
 
 
 def test_missing_marker_fails_closed(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 10, 14, 0, tzinfo=timezone.utc)
     hashes = _setup(monkeypatch, tmp_path, now)
     failed_id = SOURCES["sources"][1]["source_id"]
 
@@ -135,3 +135,4 @@ def test_missing_marker_fails_closed(monkeypatch, tmp_path):
     status = sr.production_source_status(now=now + timedelta(hours=1))
     assert status["coverage_complete"] is False
     assert failed_id in status["review_required_sources"]
+

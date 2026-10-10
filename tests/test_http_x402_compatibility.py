@@ -37,6 +37,12 @@ def test_unpaid_http_compatibility_route_stops_at_x402(monkeypatch, tmp_path):
     monkeypatch.setenv("EWW_X402_FACILITATOR_URL", "https://facilitator.payai.network")
     monkeypatch.setenv("EWW_RUNTIME_DIR", str(tmp_path))
 
+    from x402.http import HTTPFacilitatorClient
+    from x402.schemas import SupportedResponse, SupportedKind
+    def supported(_self):
+        return SupportedResponse(kinds=[SupportedKind(x402_version=2, scheme="exact", network="eip155:8453")], extensions=[], signers={})
+    monkeypatch.setattr(HTTPFacilitatorClient, "get_supported", supported)
+
     executed = {"value": False}
 
     async def endpoint(_request):
@@ -58,3 +64,4 @@ def test_unpaid_http_compatibility_route_stops_at_x402(monkeypatch, tmp_path):
     window = analytics._window_summary(24)
     assert window["commercial_funnel"]["paid_challenge"]["raw"] == 1
     assert window["commercial_funnel"]["paid_executed"]["raw"] == 0
+
