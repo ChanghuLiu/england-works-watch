@@ -4,6 +4,8 @@ from collections import Counter
 from datetime import datetime, timezone
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 import tempfile
 import threading
@@ -146,7 +148,9 @@ def fetch_official_source(source: dict[str, Any]) -> dict[str, Any]:
         headers={"User-Agent": "EnglandWorksWatch-runtime-source-monitor/0.1"},
     )
     with urllib.request.urlopen(req, timeout=float(os.getenv("EWW_SOURCE_FETCH_TIMEOUT_SECONDS", "20"))) as response:
-        raw = response.read(2_000_000)
+        raw = response.read(2_000_001)
+        if len(raw) > 2_000_000:
+            raise ValueError("Official source exceeds download size limit")
         status = int(getattr(response, "status", 200))
     html = raw.decode("utf-8", "replace")
     return {
@@ -300,7 +304,7 @@ def start_background_source_monitor() -> bool:
         # Observe immediately after process startup, then on the configured cadence.
         while True:
             try:
-                observe_all()
+                observe_in_subprocess()
             except Exception as exc:
                 print(f"EWW_SOURCE_MONITOR_ERROR {type(exc).__name__}: {exc}", flush=True)
             time.sleep(interval)
@@ -308,3 +312,20 @@ def start_background_source_monitor() -> bool:
     thread = threading.Thread(target=loop, name="eww-source-monitor", daemon=True)
     thread.start()
     return True
+
+
+def observe_in_subprocess() -> None:
+    # Seed in the parent before the child writes an atomic observation receipt.
+    # The parent reads that same file for every freshness/decision check.
+    ensure_runtime_seeded()
+    subprocess.run(
+        [sys.executable, "-m", "england_works_watch.source_runtime", "--observe-once"],
+        check=True, timeout=180,
+    )
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] != ["--observe-once"]:
+        raise SystemExit("Expected --observe-once")
+    observe_all()
+
