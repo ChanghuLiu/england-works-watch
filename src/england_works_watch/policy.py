@@ -44,6 +44,8 @@ def assess_change_impact(q:dict[str,Any])->dict[str,Any]:
     if route!='skilled_worker': return _r(e or 'unknown','REVIEW_REQUIRED','EW-SCOPE-001',[],['This rule pack is limited to Skilled Worker sponsor duties.'],review=['unsupported_route'])
     supported={'worker_start_delay','unauthorised_absence','unpaid_or_reduced_pay_absence','salary_change','role_change','work_location_change','stop_sponsoring','organisation_change','tupe_transfer','merger_takeover'}
     if e not in supported: return _r(e or 'unknown','INSUFFICIENT_INPUT','EW-EVENT-001',[],['A supported sponsor change event_type is required.'],missing=['event_type'])
+    if any(q.get(k) is not None and q.get(k) is not False for k in ('modern_slavery_identified','employment_conditions_lifted')):
+        return _r(e,'REVIEW_REQUIRED','EW-LIFTED-CONDITIONS-REVIEW',['SW-LIFTED-EMPLOYMENT-CONDITIONS'],['The supplied facts may fall under the special Skilled Worker employment-conditions provision.'],['Verify the individual permission and obtain case-specific review before applying ordinary sponsored-employment rules.'],review=['individual_employment_conditions_require_review'])
 
     if e=='worker_start_delay':
         rules=['SW-START-28','SPONSOR-REPORT-10']; g=_gate(e,rules)
@@ -157,3 +159,4 @@ def assess_change_impact(q:dict[str,Any])->dict[str,Any]:
     if m:return _r(e,'INSUFFICIENT_INPUT','EW-MERGER-MISSING',rules,['Structural continuity and licence facts are required.'],missing=m)
     if str(q['change_type']).lower() not in {'complete_takeover','partial_takeover','merger','ownership_change'}:return _r(e,'REVIEW_REQUIRED','EW-MERGER-TYPE',rules,['The transaction type is not recognised by V0.1.'],review=['unclassified_transaction'])
     return _r(e,'AFFECTED','EW-MERGER-REPORT',rules,['A merger/takeover/ownership transaction is reportable and may affect sponsor-licence continuity.'],['Report the structural change.','Review whether the continuing/receiving entity must apply for or extend a sponsor licence.'],deadline={'working_days':20,'trigger':'merger/takeover/ownership change'})
+
