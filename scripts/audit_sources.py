@@ -19,12 +19,16 @@ for src in REGISTRY["sources"]:
             src["url"], headers={"User-Agent": "EnglandWorksWatch-source-audit/0.2"}
         )
         with urllib.request.urlopen(req, timeout=20) as response:
-            raw = response.read(2_000_000)
+            raw = response.read(2_000_001)
+            if len(raw) > 2_000_000:
+                raise ValueError("Official source exceeds download size limit")
             http_status = int(getattr(response, "status", 200))
         body = raw.decode("utf-8", "replace")
         missing = missing_expected_markers(body, src.get("expected_markers", []))
         semantic_text = normalized_guidance_text(body)
-        state = "UNCHANGED" if not missing and semantic_text else "REVIEW_REQUIRED"
+        semantic = semantic_sha256(body)
+        reviewed_match = semantic == src.get("reviewed_semantic_sha256")
+        state = "UNCHANGED" if not missing and semantic_text and reviewed_match and http_status == 200 else "REVIEW_REQUIRED"
         failed += int(state != "UNCHANGED")
         results.append(
             {
@@ -33,7 +37,8 @@ for src in REGISTRY["sources"]:
                 "http_status": http_status,
                 "http_bytes": len(raw),
                 "sha256": hashlib.sha256(raw).hexdigest(),
-                "semantic_sha256": semantic_sha256(body),
+                "semantic_sha256": semantic,
+                "reviewed_fingerprint_matches": reviewed_match,
                 "semantic_chars": len(semantic_text),
                 "missing_markers": missing,
                 "source_version": src["version"],
@@ -58,8 +63,9 @@ report = {
     "blocking_count": failed,
 }
 # This file is intentionally created during the Docker build after a successful
-# live official-source audit. It becomes the reviewed immutable seed for the
+# live official-source audit against the committed reviewed fingerprints. It becomes the immutable seed for the
 # production persistent runtime monitor.
 (ROOT / "data/source_audit_baseline.json").write_text(json.dumps(report, indent=2) + "\n")
 print(json.dumps(report, indent=2))
 raise SystemExit(1 if failed else 0)
+
