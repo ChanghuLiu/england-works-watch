@@ -64,5 +64,15 @@ def semantic_sha256(html: str) -> str:
 
 
 def missing_expected_markers(html: str, markers: Iterable[str]) -> list[str]:
-    lowered = html.lower()
-    return [marker for marker in markers if marker.lower() not in lowered]
+    visible = normalized_guidance_text(html).lower()
+    current_version = re.search(r"\bversion\s+(\d{2}/\d{2})\b", visible)
+    missing = []
+    for marker in markers:
+        version = re.fullmatch(r"version\s+(\d{2}/\d{2})", marker.lower())
+        if version:
+            if not current_version or version[1] != current_version[1]:
+                missing.append(marker)
+        elif marker.lower() not in visible:
+            missing.append(marker)
+    return missing
+
