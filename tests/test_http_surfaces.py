@@ -9,7 +9,7 @@ from test_source_runtime import _baseline
 
 
 def test_local_public_policy_discovery_and_health_routes_return_200(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 10, 14, 0, tzinfo=timezone.utc)
     from england_works_watch import source_runtime
     monkeypatch.setattr(source_runtime, "_utc_now", lambda: now)
     baseline = tmp_path / "baseline.json"
@@ -50,7 +50,7 @@ def test_local_public_policy_discovery_and_health_routes_return_200(monkeypatch,
 
 
 def test_monitoring_report_checkout_requires_verified_entitlement(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 10, 14, 0, tzinfo=timezone.utc)
     baseline = tmp_path / "baseline.json"
     _baseline(baseline, now)
     monkeypatch.setenv("EWW_SOURCE_BASELINE_PATH", str(baseline))
@@ -122,7 +122,7 @@ def test_monitoring_report_checkout_requires_verified_entitlement(monkeypatch, t
 
 
 def test_monitoring_report_is_not_gated_by_telemetry_failure(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 10, 14, 0, tzinfo=timezone.utc)
     baseline = tmp_path / "baseline.json"
     _baseline(baseline, now)
     monkeypatch.setenv("EWW_SOURCE_BASELINE_PATH", str(baseline))
