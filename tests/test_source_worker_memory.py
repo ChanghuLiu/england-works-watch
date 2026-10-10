@@ -21,7 +21,8 @@ def test_worker_seeds_state_and_has_bounded_lifetime(monkeypatch, tmp_path):
     def run(args, **kwargs):
         assert sr.state_path().exists()
         assert args[1:] == ['-m', 'england_works_watch.source_runtime', '--observe-once']
-        assert kwargs == {'check': True, 'timeout': 180}
+        assert kwargs == {'check': True, 'timeout': 180, 'stdin': subprocess.DEVNULL,
+                          'stdout': subprocess.PIPE, 'stderr': subprocess.STDOUT}
         called.append(args)
     monkeypatch.setattr(sr.subprocess, 'run', run)
     sr.observe_in_subprocess()
