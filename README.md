@@ -4,6 +4,13 @@
 
 This product converts current UK Home Office sponsor guidance into deterministic, evidence-linked change-impact decisions for **Skilled Worker sponsors**. It is designed for employer HR/People Ops agents, HRIS/payroll/recruitment workflows, sponsor-compliance tooling, and regulated adviser tooling. It is not an individual visa-advice chatbot.
 
+## Free entry and customer checkpoint
+
+- Product page: [RegEvidenceHub England Works Watch](https://regevidencehub.com/products/works.html).
+- Free MCP entry: service information, official-source status, and supported change-event discovery.
+- Customer checkpoint: [create a sponsor evidence checkpoint](https://works.regevidencehub.com/monitoring-report) for **£49 / 30 days**. The period allows re-checks of the same evidence; there is no auto-renewal or alert subscription.
+- Commercial MCP decisions use separate x402 charges; see [x402](#x402).
+
 ## Public service
 
 Canonical RegEvidenceHub product page:
