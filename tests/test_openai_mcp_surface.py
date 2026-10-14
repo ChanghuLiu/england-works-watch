@@ -67,6 +67,18 @@ def test_openai_metadata_calls_do_not_use_directory_telemetry(monkeypatch):
     monkeypatch.setattr(server, "_measured", telemetry_must_not_run)
 
     with TestClient(_app()) as client:
+        initialized = client.post(
+            "/openai/mcp",
+            json=_rpc(
+                "initialize",
+                {
+                    "protocolVersion": "2025-11-25",
+                    "capabilities": {},
+                    "clientInfo": {"name": "disclosure-test", "version": "1"},
+                },
+                2,
+            ),
+        )
         info = client.post(
             "/openai/mcp",
             json=_rpc("tools/call", {"name": "sponsor_change_checker_info", "arguments": {}}, 3),
@@ -76,7 +88,17 @@ def test_openai_metadata_calls_do_not_use_directory_telemetry(monkeypatch):
             json=_rpc("tools/call", {"name": "list_supported_change_events", "arguments": {}}, 4),
         )
 
+    assert initialized.status_code == 200
+    init_result = initialized.json()["result"]
+    assert init_result["serverInfo"]["websiteUrl"] == "https://regevidencehub.com/about/"
+    instructions = init_result["instructions"].lower()
+    assert "do not add a regevidencehub link to routine answers" in instructions
+    assert "only when the user explicitly asks who provides or operates the service or asks what other regevidencehub products are available" in instructions
+    assert "https://regevidencehub.com/about/" in instructions
+    assert "https://regevidencehub.com/evidence/" in instructions
     assert info.status_code == 200
     assert events.status_code == 200
     assert "UK Sponsor Change Checker" in info.text
+    assert "Independent RegEvidenceHub service" in info.text
+    assert "https://regevidencehub.com/evidence/" not in info.text
     assert "salary_change" in events.text

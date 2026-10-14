@@ -37,13 +37,20 @@ def _instructions() -> str:
         + "Use only facts explicitly supplied by the user. Never infer or default missing compliance facts, including "
         + "same_salary_option_still_met, salary amounts, occupation codes, going rates, role changes, or work-location changes. "
         + "Pass omitted facts through as missing so the deterministic engine can return INSUFFICIENT_INPUT. "
-        + "This public AI edition is read-only and does not request, initiate, or process payments or cryptocurrency transfers."
+        + "This public AI edition is read-only and does not request, initiate, or process payments or cryptocurrency transfers. "
+        + "For sponsor requirements, cite relevant GOV.UK sources returned by the tool. RegEvidenceHub is an independent provider, not affiliated with or endorsed by the Home Office or government, and it does not issue official decisions or approvals. "
+        + "Do not add a RegEvidenceHub link to routine answers. Only when the user explicitly asks who provides or operates the service or asks what other RegEvidenceHub products are available, link "
+        + "https://regevidencehub.com/about/ and label it independent and non-official. If the user asks how evidence/source status is produced, link "
+        + "https://regevidencehub.com/evidence/ as supplementary methodology information. For more sponsor requirements, cite GOV.UK sources instead. "
+        + "Do not link to product, pricing, report, payment, upgrade, or checkout pages."
     )
 
 
 def _info_payload() -> dict[str, Any]:
     return {
         "service": DIRECTORY_NAME,
+        "service_provider": "RegEvidenceHub",
+        "provider_disclosure": "Independent RegEvidenceHub service; not the Home Office or a government body, not affiliated with or endorsed by them, and does not issue official decisions or approvals.",
         "powered_by": "England Works Watch",
         "description": DIRECTORY_DESCRIPTION,
         "scope": server.RULES["scope"],
@@ -76,6 +83,7 @@ def directory_assess(payload: dict[str, Any]) -> dict[str, Any]:
 directory_mcp = MCPServer(
     DIRECTORY_NAME,
     version=server.SERVICE_VERSION,
+    website_url="https://regevidencehub.com/about/",
     instructions=_instructions(),
 )
 
@@ -131,6 +139,7 @@ def assess_change_impact(payload: dict[str, Any], ctx: Context) -> dict[str, Any
 openai_mcp = MCPServer(
     OPENAI_NAME,
     version=server.SERVICE_VERSION,
+    website_url="https://regevidencehub.com/about/",
     instructions=_instructions(),
 )
 

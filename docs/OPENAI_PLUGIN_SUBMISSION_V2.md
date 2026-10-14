@@ -22,7 +22,7 @@ The OpenAI endpoint is intentionally telemetry-free so its `readOnlyHint=true` a
 - Display name: `RegEvidenceHub Sponsor`
 - Subtitle: `Sponsor change checks`
 - Category: `BUSINESS`
-- Website: `https://regevidencehub.com/products/works.html`
+- Website: `https://regevidencehub.com/about/`
 - Support: `https://regevidencehub.com/support/`
 - Privacy: `https://regevidencehub.com/privacy/`
 - Terms: `https://regevidencehub.com/terms/`
