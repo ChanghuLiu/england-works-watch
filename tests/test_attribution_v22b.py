@@ -63,3 +63,9 @@ def test_eww_v23_common_commercial_envelope():
     assert paid["source_bucket"] == "agent402"
     assert paid["request_id"] == "corr-1"
     assert paid["payment_status"] == "paid"
+
+
+def test_works_staging_service_is_owner_test(monkeypatch):
+    monkeypatch.setenv("RAILWAY_SERVICE_NAME", "sponsor-exec-staging")
+    from england_works_watch.attribution import external_classification
+    assert external_classification({"englandworkswatch/actor": "declared_external"}) == ("owner_test", True)

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 import re
+import os
 from typing import Any, Mapping
 from urllib.parse import parse_qs
 from uuid import uuid4
@@ -152,7 +153,8 @@ def owner_test_from_meta(meta: Mapping[str, Any] | None, *, deployment_mode: Any
     marker = meta.get("owner_test_marker") or meta.get("englandworkswatch/owner_test_marker")
     actor = str(meta.get("englandworkswatch/actor") or meta.get("mcp-commercial-actor") or "").strip().lower()
     mode = deployment_mode.strip().lower() if isinstance(deployment_mode, str) else "production"
-    return marker in OWNER_TEST_MARKERS or actor in OWNER_TEST_ACTORS or mode in OWNER_TEST_MODES
+    staging_service = os.getenv("RAILWAY_SERVICE_NAME", "").strip().lower().endswith("-staging")
+    return staging_service or marker in OWNER_TEST_MARKERS or actor in OWNER_TEST_ACTORS or mode in OWNER_TEST_MODES
 
 
 def external_classification(meta: Mapping[str, Any] | None, *, actor: str | None = None) -> tuple[str, bool]:
