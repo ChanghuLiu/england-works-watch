@@ -129,10 +129,81 @@ def ensure_runtime_seeded(now: datetime | None = None) -> dict[str, Any]:
             state = _load_json(path)
             if state.get("schema_version") != STATE_SCHEMA_VERSION:
                 raise RuntimeError("unsupported England Works Watch source-state schema")
+            _migrate_reviewed_baseline(state)
             return state
         state = _seed_from_baseline(now)
         _atomic_write(path, state)
         return state
+
+
+def _migrate_reviewed_baseline(state: dict[str, Any]) -> None:
+    """Promote only runtime observations independently confirmed by a new audited build baseline.
+
+    Railway volumes survive deployments. When a new image has passed the live GOV.UK
+    source audit, the persisted state can still contain a review flag raised against
+    the previous release. Clear that flag only when the last observed page fingerprint
+    exactly matches the new zero-blocker build baseline. A mismatch remains fail-closed.
+    """
+    current_registry = str(SOURCES.get("registry_version") or "")
+    if not current_registry or state.get("registry_version") == current_registry:
+        return
+    try:
+        baseline = _load_json(baseline_path())
+    except (OSError, ValueError, RuntimeError):
+        return
+    if baseline.get("registry_version") != current_registry or int(baseline.get("blocking_count", 1)) != 0:
+        return
+
+    registry = _registry_by_id()
+    audited = {
+        item.get("source_id"): item
+        for item in baseline.get("sources", [])
+        if isinstance(item, dict)
+    }
+    persisted = state.get("sources")
+    if set(audited) != set(registry) or not isinstance(persisted, dict):
+        return
+
+    for source_id, source in registry.items():
+        item = persisted.get(source_id)
+        baseline_item = audited[source_id]
+        if not isinstance(item, dict):
+            continue
+        reviewed_hash = baseline_item.get("semantic_sha256")
+        if (
+            baseline_item.get("state") != "UNCHANGED"
+            or baseline_item.get("missing_markers")
+            or not isinstance(reviewed_hash, str)
+            or item.get("last_semantic_sha256") != reviewed_hash
+            or item.get("missing_markers")
+        ):
+            continue
+
+        item.update(
+            {
+                "source_version": source["version"],
+                "valid_from": source["valid_from"],
+                "official_url": source["url"],
+                "baseline_semantic_sha256": reviewed_hash,
+                "review_required": False,
+                "changed_at": None,
+                "last_fetch_status": "UNCHANGED",
+                "missing_markers": [],
+            }
+        )
+
+    if all(
+        isinstance(persisted.get(source_id), dict)
+        and persisted[source_id].get("source_version") == source["version"]
+        and persisted[source_id].get("valid_from") == source["valid_from"]
+        and persisted[source_id].get("official_url") == source["url"]
+        and not persisted[source_id].get("review_required")
+        for source_id, source in registry.items()
+    ):
+        state["registry_version"] = current_registry
+        state["seeded_from"] = str(baseline_path())
+        state["baseline_migrated_at"] = _iso(_utc_now())
+        _atomic_write(state_path(), state)
 
 
 def load_state() -> dict[str, Any]:

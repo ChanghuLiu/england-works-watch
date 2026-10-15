@@ -76,6 +76,72 @@ def test_seed_has_full_baseline_coverage(monkeypatch, tmp_path):
     assert status["blocking_sources"] == []
 
 
+def test_persisted_review_flags_migrate_only_when_new_audited_hash_matches(monkeypatch, tmp_path):
+    now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
+    hashes = _setup(monkeypatch, tmp_path, now)
+    state = sr._seed_from_baseline(now)
+    state["registry_version"] = "2026-09-08.1"
+    for source_id in ("sponsor-part2", "appendix-d"):
+        item = state["sources"][source_id]
+        item.update(
+            {
+                "source_version": "08/26",
+                "valid_from": "2026-08-03",
+                "official_url": "https://www.gov.uk/previous-guidance",
+                "baseline_semantic_sha256": "0" * 64,
+                "last_semantic_sha256": hashes[source_id],
+                "review_required": True,
+                "changed_at": "2026-10-08T10:15:48Z",
+                "last_fetch_status": "CHANGED_PENDING_REVIEW",
+            }
+        )
+    sr._atomic_write(sr.state_path(), state)
+
+    status = sr.production_source_status(now=now)
+
+    assert status["coverage_complete"] is True
+    assert status["review_required_sources"] == []
+    migrated = sr.load_state()
+    assert migrated["registry_version"] == SOURCES["registry_version"]
+    for source_id in ("sponsor-part2", "appendix-d"):
+        item = migrated["sources"][source_id]
+        source = next(row for row in SOURCES["sources"] if row["source_id"] == source_id)
+        assert item["baseline_semantic_sha256"] == hashes[source_id]
+        assert item["source_version"] == source["version"]
+        assert item["valid_from"] == source["valid_from"]
+        assert item["review_required"] is False
+
+
+def test_persisted_review_flag_stays_blocking_when_audited_hash_differs(monkeypatch, tmp_path):
+    now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
+    hashes = _setup(monkeypatch, tmp_path, now)
+    state = sr._seed_from_baseline(now)
+    state["registry_version"] = "2026-09-08.1"
+    changed_id = "sponsor-part2"
+    item = state["sources"][changed_id]
+    item.update(
+        {
+            "source_version": "08/26",
+            "valid_from": "2026-08-03",
+            "official_url": "https://www.gov.uk/previous-guidance",
+            "baseline_semantic_sha256": "0" * 64,
+            "last_semantic_sha256": "f" * 64,
+            "review_required": True,
+            "changed_at": "2026-10-08T10:15:48Z",
+            "last_fetch_status": "CHANGED_PENDING_REVIEW",
+        }
+    )
+    sr._atomic_write(sr.state_path(), state)
+
+    status = sr.production_source_status(now=now)
+
+    assert status["coverage_complete"] is False
+    assert changed_id in status["blocking_sources"]
+    persisted = sr.load_state()["sources"][changed_id]
+    assert persisted["last_semantic_sha256"] == "f" * 64
+    assert persisted["review_required"] is True
+
+
 def test_unchanged_observation_stays_ready(monkeypatch, tmp_path):
     now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
     hashes = _setup(monkeypatch, tmp_path, now)
