@@ -10,7 +10,7 @@ from test_source_runtime import _setup
 
 
 def test_checkpoint_round_trip_is_unchanged(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
     _setup(monkeypatch, tmp_path, now)
     checkpoint = make_checkpoint(["sponsor-part2", "skilled-worker"])
     result = changed_since(checkpoint, now=now)
@@ -20,7 +20,7 @@ def test_checkpoint_round_trip_is_unchanged(monkeypatch, tmp_path):
 
 
 def test_changed_checkpoint_is_review_signal_with_existing_categories(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
     hashes = _setup(monkeypatch, tmp_path, now)
     checkpoint = make_checkpoint(["sponsor-part3"])
     source = next(item for item in SOURCES["sources"] if item["source_id"] == "sponsor-part3")
@@ -34,7 +34,7 @@ def test_changed_checkpoint_is_review_signal_with_existing_categories(monkeypatc
 
 
 def test_stale_checkpoint_and_evidence_unavailable_fail_closed(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
     _setup(monkeypatch, tmp_path, now)
     checkpoint = make_checkpoint(["sponsor-part2"])
     stale = changed_since(checkpoint, now=now + timedelta(hours=25))
@@ -48,7 +48,7 @@ def test_stale_checkpoint_and_evidence_unavailable_fail_closed(monkeypatch, tmp_
 
 
 def test_prior_decision_without_or_with_stale_checkpoint_cannot_be_clearance(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
     hashes = _setup(monkeypatch, tmp_path, now)
     checkpoint = make_checkpoint(["sponsor-part2"])
     decision = {"status": "AFFECTED", "decision_code": "example", "evidence_checkpoint": checkpoint}
@@ -64,7 +64,7 @@ def test_prior_decision_without_or_with_stale_checkpoint_cannot_be_clearance(mon
 
 
 def test_malformed_checkpoint_is_review_required(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
     _setup(monkeypatch, tmp_path, now)
     result = changed_since({"sources": [{"source_id": "unknown", "semantic_sha256": "0" * 64, "source_version": "x"}]})
     assert result["status"] == "REVIEW_REQUIRED"

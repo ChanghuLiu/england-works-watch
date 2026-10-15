@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from england_works_watch import source_runtime as sr
-from england_works_watch.policy import SOURCES
+from england_works_watch.policy import RULES, SOURCES
 
 
 def _baseline(path: Path, generated: datetime) -> dict[str, str]:
@@ -51,8 +51,21 @@ def _setup(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, now: datetime):
     return hashes
 
 
+def test_registry_tracks_october_official_guidance_and_neonatal_leave():
+    sources = {source["source_id"]: source for source in SOURCES["sources"]}
+    part2 = sources["sponsor-part2"]
+    appendix_d = sources["appendix-d"]
+    assert part2["version"] == appendix_d["version"] == "10/26"
+    assert part2["valid_from"] == appendix_d["valid_from"] == "2026-10-08"
+    assert part2["url"].endswith("sponsor-a-worker-accessible--2")
+    assert "S4.26" in part2["expected_markers"]
+    exceptions = next(rule for rule in RULES["rules"] if rule["rule_id"] == "SW-UNPAID-EXCEPTIONS")
+    assert exceptions["source_id"] == "sponsor-part2"
+    assert "neonatal care leave" in exceptions["proposition"]
+
+
 def test_seed_has_full_baseline_coverage(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
     _setup(monkeypatch, tmp_path, now)
     state = sr.ensure_runtime_seeded(now)
     assert len(state["sources"]) == 4
@@ -64,7 +77,7 @@ def test_seed_has_full_baseline_coverage(monkeypatch, tmp_path):
 
 
 def test_unchanged_observation_stays_ready(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
     hashes = _setup(monkeypatch, tmp_path, now)
 
     def fetcher(source):
@@ -78,7 +91,7 @@ def test_unchanged_observation_stays_ready(monkeypatch, tmp_path):
 
 
 def test_changed_fingerprint_fails_closed_without_promoting_baseline(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
     hashes = _setup(monkeypatch, tmp_path, now)
     changed_id = SOURCES["sources"][0]["source_id"]
     changed_hash = "f" * 64
@@ -99,7 +112,7 @@ def test_changed_fingerprint_fails_closed_without_promoting_baseline(monkeypatch
 
 
 def test_transient_fetch_error_uses_fresh_last_success_then_stales(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
     hashes = _setup(monkeypatch, tmp_path, now)
     failed_id = SOURCES["sources"][0]["source_id"]
 
@@ -120,7 +133,7 @@ def test_transient_fetch_error_uses_fresh_last_success_then_stales(monkeypatch, 
 
 
 def test_missing_marker_fails_closed(monkeypatch, tmp_path):
-    now = datetime(2026, 9, 8, 14, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
     hashes = _setup(monkeypatch, tmp_path, now)
     failed_id = SOURCES["sources"][1]["source_id"]
 

@@ -7,7 +7,7 @@ from test_source_runtime import _baseline
 
 def _healthy(monkeypatch, tmp_path):
     baseline = tmp_path / "baseline.json"
-    _baseline(baseline, datetime(2026, 9, 29, 12, 0, tzinfo=timezone.utc))
+    _baseline(baseline, datetime(2026, 10, 15, 12, 0, tzinfo=timezone.utc))
     monkeypatch.setenv("EWW_SOURCE_BASELINE_PATH", str(baseline))
     monkeypatch.setenv("EWW_RUNTIME_DIR", str(tmp_path / "runtime"))
     monkeypatch.setenv("EWW_SOURCE_MAX_AGE_HOURS", "1000")
