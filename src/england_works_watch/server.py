@@ -1065,6 +1065,11 @@ async def llms(_request):
     )
 
 
+@mcp.custom_route("/a811982d0614e8f60a0df530af7ad1ed.txt", methods=["GET"])
+async def indexnow_key(_request):
+    return PlainTextResponse("a811982d0614e8f60a0df530af7ad1ed\n", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @mcp.custom_route("/robots.txt", methods=["GET"])
 async def robots(_request):
     return PlainTextResponse(f"User-agent: *\nAllow: /\nSitemap: {PUBLIC_ORIGIN}/sitemap.xml\n")
