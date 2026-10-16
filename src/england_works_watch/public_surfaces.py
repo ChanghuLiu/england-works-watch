@@ -92,7 +92,13 @@ def monitoring_page(*, origin: str, source_channel: str = "direct", owner_test: 
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sponsor decision evidence check — England Works Watch</title>
+<title>Skilled Worker Sponsor Change Check | RegEvidenceHub</title>
+<meta name="description" content="Create a dated UK Skilled Worker sponsor decision evidence check before acting on a role, salary, work-location or sponsorship change.">
+<link rel="canonical" href="https://works.regevidencehub.com/monitoring-report">
+<meta property="og:title" content="Skilled Worker Sponsor Change Check">
+<meta property="og:description" content="Evidence-linked GOV.UK guidance checkpoint before a sponsor decision.">
+<meta property="og:url" content="https://works.regevidencehub.com/monitoring-report">
+<meta name="twitter:card" content="summary">
 <meta name="eww-offer-experiment" content="sponsor-offer-v3-2026-09-25">
 <style>
 :root{
