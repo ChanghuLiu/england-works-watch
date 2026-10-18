@@ -127,7 +127,8 @@ def build_http_app():
     async def lifespan(_app):
         async with AsyncExitStack() as stack:
             await stack.enter_async_context(server.mcp.session_manager.run())
-            await stack.enter_async_context(directory_mcp.session_manager.run())
+            await stack.enter_async_context(directory_app.router.lifespan_context(directory_app))
+            await stack.enter_async_context(ai_app.router.lifespan_context(ai_app))
             await stack.enter_async_context(openai_mcp.session_manager.run())
             yield
 
