@@ -11,7 +11,6 @@
 - Upload signing is configured to read credentials from an external mode-0600 properties file. No app-specific properties or upload keystore was present, so no release AAB was generated.
 - `.github/workflows` diff: empty. No production deploy, Play purchase, email, or customer contact occurred.
 
-
 ## Production mobile API check
 
 - Read-only GET `https://works.regevidencehub.com/api/mobile/v1/catalog` returned HTTP 404 (`Not Found`) on 2026-10-18. The mobile API route is not currently available on the production host, so this build cannot complete a production-backed flow until the backend route is promoted through the normal release process. No deploy was performed.
@@ -20,12 +19,10 @@
 
 ## Play Console state
 
-not inspected: Play Console browser session unavailable; app/product/service-account state unknown
+Reviewed in the authenticated account on 2026-10-18. Only the separate Taxi / PHV Preflight entry (package com.regevidencehub.taxi) appeared among the ten apps in this developer account. This app package has no matching Play Console entry; product, track, and Android Publisher access are therefore not configured/verified for this app.
 
-The Chrome automation could not enumerate browser tabs because the browser request-header policy failed. Play Console app/product/service-account state remains unknown. No account credentials or service-account key was created or downloaded.
+The Create app form requires the account holder to confirm Developer Programme Policy compliance and personally acknowledge/certify US export-law compliance. I did not submit those declarations. No service-account key was created or downloaded.
 
 ## Next human action
 
-Open the existing Play Console app or create package com.regevidencehub.workswatch; verify/create works_watch_30d / one-watch as a one-time 30-day item (not a subscription), grant the existing Android Publisher service account access, and configure EWW_PLAY_SERVICE_ACCOUNT_JSON in Railway.
-
-Then add internal/license testers, publish only to Internal Testing, install from Play, and run the billing recovery/consume tests in `docs/PLAY_INTERNAL_TESTING.md`.
+In Play Console, the account holder must complete the required Developer Programme Policy and US export-law declarations before creating this package entry. A per-app upload signing properties file/keystore is also missing; create/provide it securely at the documented external path. Once the production mobile API route is live, create/verify the one-time product and Android Publisher access, then upload a signed AAB to Internal Testing.
