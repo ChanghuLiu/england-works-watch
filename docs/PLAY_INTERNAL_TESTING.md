@@ -39,6 +39,16 @@ Unknown: no Play Console session or app/product listing was exposed for inspecti
 4. Verify the localized price is read from Play `ProductDetails`, then test purchase, pending/cancelled purchase, app restart/recovery, idempotent replay, grant-before-consume, and consume retry.
 5. Verify the release listing, privacy/terms/support links, Data Safety form, phone screenshots, and review declarations. Do not submit a production rollout as part of internal testing.
 
+## Phone screenshots and smoke checklist
+
+- Capture a clean home screen with the app name and independent-preflight scope visible.
+- Capture one representative input/check screen with no real customer or sensitive data.
+- Capture the free result with source/findings and any uncertainty or unsupported-input notice visible.
+- Capture the purchase offer only from an Internal Testing install after Play returns its localized `ProductDetails` price; do not use a sideloaded build for this screenshot.
+- Capture the recovered report or watch state after a license-tester flow, with test data only.
+- Before store upload, review screenshots for personal information, debug banners, stale prices, and claims of approval, certification, compliance, or official affiliation.
+- Smoke on a physical phone: cold launch, rotate/relaunch where supported, navigate all tabs, perform one safe free flow, confirm offline/API errors are understandable, background/restore, and check `adb logcat` for crashes. Do not make a real purchase.
+
 ## Console access and next human action
 
 Console inspection was not possible: the available Chrome browser automation failed to expose tabs, and no Play Console connector is available. Unknown: no Play Console session or app/product listing was exposed for inspection. Verify or create the app/package and the one-time product `works_watch_30d` with option `one-watch`; do not configure it as a subscription. Grant the existing Android Publisher service account access.
