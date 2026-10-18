@@ -27,7 +27,6 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
-        buildConfigField("String", "API_BASE_URL", "\"https://works.regevidencehub.com\"")
     }
     buildFeatures { compose = true; buildConfig = true }
     signingConfigs {
@@ -41,10 +40,15 @@ android {
         }
     }
     buildTypes {
-        debug { manifestPlaceholders["usesCleartextTraffic"] = "true" }
+        debug {
+            isDebuggable = true
+            buildConfigField("String", "API_BASE_URL", "\"http://127.0.0.1:8000\"")
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
+        }
         release {
             if (worksWatchUploadSigningReady) signingConfig = signingConfigs.getByName("upload")
             isMinifyEnabled = false
+            buildConfigField("String", "API_BASE_URL", "\"https://works.regevidencehub.com\"")
             manifestPlaceholders["usesCleartextTraffic"] = "false"
         }
     }

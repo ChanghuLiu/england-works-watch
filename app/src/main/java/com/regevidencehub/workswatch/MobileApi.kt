@@ -49,11 +49,7 @@ object MobileApi {
         try {
             val stream = if (connection.responseCode in 200..299) connection.inputStream else connection.errorStream
             val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            val result = if (text.isBlank()) JSONObject() else JSONObject(text)
-            if (connection.responseCode !in 200..299) {
-                throw IllegalStateException(result.optString("message", result.optString("status", "Service unavailable")))
-            }
-            result
+            decodeMobileApiResponse(text, connection.responseCode)
         } finally { connection.disconnect() }
     }
 
@@ -106,6 +102,23 @@ object MobileApi {
         return WatchReport(status, label, report.optString("checked_at"), report.optBoolean("source_gate"), sources)
     }
 
+}
+
+internal fun decodeMobileApiResponse(text: String, statusCode: Int): JSONObject {
+    val result = if (text.isBlank()) JSONObject() else try {
+        JSONObject(text)
+    } catch (_: org.json.JSONException) {
+        if (statusCode in 200..299) {
+            throw IllegalStateException("The mobile service returned an invalid response.")
+        }
+        JSONObject()
+    }
+    if (statusCode !in 200..299) {
+        val message = result.optString("message").ifBlank { result.optString("status") }
+            .ifBlank { "Service unavailable. Try again shortly." }
+        throw IllegalStateException(message)
+    }
+    return result
 }
 
 internal fun boundedStatusLabel(status: String): String = when (status) {
