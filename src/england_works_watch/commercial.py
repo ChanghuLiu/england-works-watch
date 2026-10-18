@@ -16,6 +16,8 @@ import httpx
 
 from .attribution import normalize_source_bucket
 
+MONITORING_ACCESS_SECONDS = 30 * 24 * 60 * 60
+
 
 class CommercialPlatformError(RuntimeError):
     """The shared commercial platform could not satisfy its public contract."""
@@ -99,6 +101,8 @@ class PendingMonitoringCheckout:
     checkout_id: str | None
     expires_at: float
     paid_access_activated: bool = False
+    purchase_token_sha256: str | None = None
+    consume_pending: bool = False
 
 
 class PendingMonitoringCheckoutStore:
@@ -176,6 +180,8 @@ class PendingMonitoringCheckoutStore:
             "checkout_id": row.checkout_id,
             "expires_at": row.expires_at,
             "paid_access_activated": row.paid_access_activated,
+            "purchase_token_sha256": row.purchase_token_sha256,
+            "consume_pending": row.consume_pending,
         }
 
     @staticmethod
@@ -189,6 +195,8 @@ class PendingMonitoringCheckoutStore:
         checkout_id = item.get("checkout_id")
         expires_at = item.get("expires_at")
         paid_access_activated = item.get("paid_access_activated", False)
+        purchase_token_sha256 = item.get("purchase_token_sha256")
+        consume_pending = item.get("consume_pending", False)
 
         if not isinstance(return_token, str) or not return_token:
             raise ValueError("invalid persisted return_token")
@@ -208,6 +216,13 @@ class PendingMonitoringCheckoutStore:
             raise ValueError("invalid persisted expires_at")
         if not isinstance(paid_access_activated, bool):
             raise ValueError("invalid persisted paid_access_activated")
+        if purchase_token_sha256 is not None and (
+            not isinstance(purchase_token_sha256, str) or len(purchase_token_sha256) != 64
+            or any(ch not in "0123456789abcdef" for ch in purchase_token_sha256)
+        ):
+            raise ValueError("invalid persisted purchase token fingerprint")
+        if not isinstance(consume_pending, bool) or (consume_pending and not paid_access_activated):
+            raise ValueError("invalid persisted consume_pending")
 
         return PendingMonitoringCheckout(
             return_token=return_token,
@@ -219,6 +234,8 @@ class PendingMonitoringCheckoutStore:
             checkout_id=checkout_id,
             expires_at=float(expires_at),
             paid_access_activated=paid_access_activated,
+            purchase_token_sha256=purchase_token_sha256,
+            consume_pending=consume_pending,
         )
 
     def _persist_locked(self) -> None:
@@ -358,9 +375,9 @@ class PendingMonitoringCheckoutStore:
             self._persist_locked()
             return updated
 
-    def activate_paid_access(self, return_token: str, *, duration_seconds: int = 2592000) -> bool:
+    def activate_paid_access(self, return_token: str, *, duration_seconds: int = MONITORING_ACCESS_SECONDS) -> bool:
         """Extend a verified paid return link once; each visit still rechecks entitlement."""
-        if duration_seconds < 60 or duration_seconds > 2592000:
+        if duration_seconds < 60 or duration_seconds > MONITORING_ACCESS_SECONDS:
             raise ValueError("paid access duration must be at most 30 days")
         with self._lock:
             self._prune_locked()
@@ -370,6 +387,41 @@ class PendingMonitoringCheckoutStore:
             self._rows[return_token] = replace(
                 row, expires_at=time.time() + duration_seconds, paid_access_activated=True
             )
+            self._persist_locked()
+            return True
+
+    def activate_play_purchase(self, return_token: str, token_fingerprint: str) -> str:
+        """Bind one verified Play purchase to one watch and persist its access first."""
+        if len(token_fingerprint) != 64 or any(ch not in "0123456789abcdef" for ch in token_fingerprint):
+            raise ValueError("purchase fingerprint must be lowercase SHA-256")
+        with self._lock:
+            self._prune_locked()
+            row = self._rows.get(return_token)
+            if row is None:
+                return "case_unavailable"
+            owner = next((item for item in self._rows.values() if item.purchase_token_sha256 == token_fingerprint), None)
+            if owner is not None and owner.return_token != return_token:
+                return "purchase_already_bound"
+            if row.purchase_token_sha256 is not None and row.purchase_token_sha256 != token_fingerprint:
+                return "case_already_purchased"
+            if row.paid_access_activated:
+                return "already_active"
+            self._rows[return_token] = replace(
+                row,
+                expires_at=time.time() + MONITORING_ACCESS_SECONDS,
+                paid_access_activated=True,
+                purchase_token_sha256=token_fingerprint,
+                consume_pending=True,
+            )
+            self._persist_locked()
+            return "activated"
+
+    def mark_play_purchase_consumed(self, return_token: str, token_fingerprint: str) -> bool:
+        with self._lock:
+            row = self._rows.get(return_token)
+            if row is None or row.purchase_token_sha256 != token_fingerprint or not row.consume_pending:
+                return False
+            self._rows[return_token] = replace(row, consume_pending=False)
             self._persist_locked()
             return True
 

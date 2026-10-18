@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
+import hashlib
 import os
 import secrets
 import time
@@ -17,6 +19,15 @@ from .commercial import CommercialPlatformClient, CommercialPlatformError, Comme
 from .case_state import DurableCaseStore
 from .entitlement_token import verify_entitlement_token
 from .monitoring import changed_since, make_checkpoint
+from .play_billing import (
+    PACKAGE_NAME as PLAY_PACKAGE_NAME,
+    PRODUCT_ID as PLAY_PRODUCT_ID,
+    PURCHASE_OPTION_ID as PLAY_PURCHASE_OPTION_ID,
+    PlayPurchaseRejected,
+    PlayVerifierUnavailable,
+    consume_purchase,
+    verify_purchase,
+)
 from .ops_contract import build_alerts, health_payload, status_payload, version_payload
 from .policy import RULES, SOURCE_BY_ID, assess_change_impact as decide
 from .public_surfaces import monitoring_page, policy_copy, render_policy_page, render_pricing_page
@@ -41,11 +52,11 @@ NETWORK = os.getenv("EWW_X402_NETWORK", "eip155:8453").strip()
 FACILITATOR = public_mcp_facilitator_url()
 COMMERCIAL_SETTINGS = CommercialSettings.from_env()
 COMMERCIAL_CLIENT = CommercialPlatformClient(COMMERCIAL_SETTINGS)
+CASE_RUNTIME_DIR = os.getenv("EWW_RUNTIME_DIR") or ("/data/england-works-watch" if os.getenv("RAILWAY_ENVIRONMENT") else "/tmp/england-works-watch")
 PENDING_MONITORING_CHECKOUTS = PendingMonitoringCheckoutStore(
     COMMERCIAL_SETTINGS.pending_ttl_seconds,
-    path=os.getenv("EWW_PENDING_STORE_PATH", "").strip() or None,
+    path=os.getenv("EWW_PENDING_STORE_PATH", "").strip() or os.path.join(CASE_RUNTIME_DIR, "pending-monitoring.json"),
 )
-CASE_RUNTIME_DIR = os.getenv("EWW_RUNTIME_DIR") or ("/data/england-works-watch" if os.getenv("RAILWAY_ENVIRONMENT") else "/tmp/england-works-watch")
 DURABLE_CASES = DurableCaseStore(CASE_RUNTIME_DIR, ttl_seconds=int(os.getenv("EWW_CASE_TTL_SECONDS", "86400")))
 SUPPORTED_EVENTS = [
     "worker_start_delay",
@@ -754,6 +765,160 @@ async def monitoring_report_checkout(request):
         return JSONResponse({"status": "INVALID_REQUEST", "detail": str(exc)}, status_code=400)
     except CommercialPlatformError as exc:
         return JSONResponse({"status": "COMMERCIAL_UNAVAILABLE", "detail": str(exc)}, status_code=503)
+
+
+async def _mobile_json(request) -> dict[str, Any]:
+    try:
+        value = await request.json()
+    except Exception as exc:
+        raise ValueError("Expected a JSON object.") from exc
+    if not isinstance(value, dict):
+        raise ValueError("Expected a JSON object.")
+    return value
+
+
+def _mobile_report(checkpoint: Mapping[str, Any]) -> dict[str, Any]:
+    result = changed_since(checkpoint)
+    result["status_label"] = {
+        "UNCHANGED": "No verified change",
+        "CHANGED": "Change detected",
+        "REVIEW_REQUIRED": "Source unavailable or review needed",
+    }.get(result.get("status"), "Review needed")
+    return result
+
+
+@mcp.custom_route("/api/mobile/v1/catalog", methods=["GET"])
+async def mobile_catalog(request):
+    lifecycle = production_source_status()
+    current = {item["source_id"]: item for item in lifecycle["sources"]}
+    return JSONResponse({
+        "product": "England Works Watch",
+        "scope": "Four official GOV.UK sponsor guidance sources",
+        "question": "Which official sources would you like to watch?",
+        "sources": [{
+            "source_id": source_id,
+            "title": SOURCE_BY_ID[source_id]["title"],
+            "url": SOURCE_BY_ID[source_id]["url"],
+            "status": "SOURCE_UNAVAILABLE" if current[source_id].get("blocking") else "CURRENT",
+        } for source_id in SOURCE_BY_ID],
+        "source_gate": lifecycle["coverage_complete"],
+        "package_name": PLAY_PACKAGE_NAME,
+        "product_id": PLAY_PRODUCT_ID,
+        "purchase_option_id": PLAY_PURCHASE_OPTION_ID,
+        "service_days": 30,
+        "payment_type": "one_time",
+        "auto_renew": False,
+    }, headers={"Cache-Control": "no-store"})
+
+
+@mcp.custom_route("/api/mobile/v1/cases", methods=["POST"])
+async def mobile_create_case(request):
+    try:
+        payload = await _mobile_json(request)
+        source_ids = _monitoring_ids(payload)
+        checkpoint = make_checkpoint(source_ids)
+        row = PENDING_MONITORING_CHECKOUTS.create(
+            checkpoint=checkpoint, source_channel="direct", classification="unknown"
+        )
+        report = _mobile_report(row.checkpoint)
+        payable = report.get("status") == "UNCHANGED" and report.get("source_gate") is True
+        return JSONResponse({
+            "case_token": row.return_token,
+            "created_at": checkpoint["created_at"],
+            "sources": source_ids,
+            "status": report["status"],
+            "status_label": "Ready to watch" if payable else report["status_label"],
+            "report": report,
+            "purchase_available": payable,
+        }, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+    except (ValueError, RuntimeError):
+        return JSONResponse({"status": "SOURCE_UNAVAILABLE", "message": "Current official source evidence is not available."}, status_code=503)
+
+
+@mcp.custom_route("/api/mobile/v1/status", methods=["POST"])
+async def mobile_status(request):
+    try:
+        payload = await _mobile_json(request)
+    except ValueError:
+        return JSONResponse({"status": "CASE_UNAVAILABLE"}, status_code=400)
+    token = payload.get("case_token")
+    if not isinstance(token, str) or not token or len(token) > 128:
+        return JSONResponse({"status": "CASE_UNAVAILABLE"}, status_code=404)
+    row = PENDING_MONITORING_CHECKOUTS.get(token)
+    if row is None:
+        return JSONResponse({"status": "CASE_UNAVAILABLE"}, status_code=404)
+    report = _mobile_report(row.checkpoint)
+    return JSONResponse({
+        "status": "ACTIVE" if row.paid_access_activated else "FREE",
+        "status_label": report["status_label"],
+        "report": report,
+        "source_ids": [source["source_id"] for source in row.checkpoint["sources"]],
+        "access_expires_at": row.expires_at if row.paid_access_activated else None,
+        "consume_pending": row.consume_pending,
+        "purchase_available": not row.paid_access_activated and report.get("status") == "UNCHANGED" and report.get("source_gate") is True,
+    }, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+
+
+@mcp.custom_route("/api/mobile/v1/purchases/verify", methods=["POST"])
+async def mobile_verify_purchase(request):
+    try:
+        payload = await _mobile_json(request)
+    except ValueError:
+        return JSONResponse({"status": "PURCHASE_INVALID"}, status_code=400)
+    case_token, purchase_token = payload.get("case_token"), payload.get("purchase_token")
+    if not isinstance(case_token, str) or not case_token or len(case_token) > 128:
+        return JSONResponse({"status": "CASE_UNAVAILABLE"}, status_code=404)
+    if not isinstance(purchase_token, str) or not purchase_token or len(purchase_token) > 4096:
+        return JSONResponse({"status": "PURCHASE_INVALID"}, status_code=400)
+    row = PENDING_MONITORING_CHECKOUTS.get(case_token)
+    if row is None:
+        return JSONResponse({"status": "CASE_UNAVAILABLE"}, status_code=404)
+    if not row.paid_access_activated:
+        report = _mobile_report(row.checkpoint)
+        if report.get("status") != "UNCHANGED" or report.get("source_gate") is not True:
+            return JSONResponse({"status": "SOURCE_REVIEW_REQUIRED", "report": report}, status_code=409)
+    fingerprint = hashlib.sha256(purchase_token.encode("utf-8")).hexdigest()
+    bound_to_this_watch = row.paid_access_activated and row.purchase_token_sha256 == fingerprint
+    try:
+        purchase = await asyncio.to_thread(verify_purchase, purchase_token)
+    except PlayVerifierUnavailable:
+        return JSONResponse({"status": "VERIFICATION_UNAVAILABLE"}, status_code=503)
+    except PlayPurchaseRejected:
+        return JSONResponse({"status": "PURCHASE_NOT_VERIFIED"}, status_code=403)
+
+    items = purchase.get("productLineItem") or []
+    offer = (items[0].get("productOfferDetails") or {}) if items and isinstance(items[0], dict) else {}
+    consumption = offer.get("consumptionState")
+    if consumption in {"CONSUMED", "CONSUMPTION_STATE_CONSUMED"}:
+        if not bound_to_this_watch:
+            return JSONResponse({"status": "PURCHASE_NOT_VERIFIED"}, status_code=403)
+        if row.consume_pending:
+            PENDING_MONITORING_CHECKOUTS.mark_play_purchase_consumed(case_token, fingerprint)
+        active = PENDING_MONITORING_CHECKOUTS.get(case_token)
+        return JSONResponse({
+            "status": "ACTIVE",
+            "access_expires_at": active.expires_at if active else None,
+            "consume_pending": bool(active and active.consume_pending),
+        }, headers={"Cache-Control": "no-store"})
+    if consumption not in {"YET_TO_BE_CONSUMED", "CONSUMPTION_STATE_YET_TO_BE_CONSUMED"}:
+        return JSONResponse({"status": "PURCHASE_NOT_VERIFIED"}, status_code=403)
+
+    outcome = PENDING_MONITORING_CHECKOUTS.activate_play_purchase(case_token, fingerprint)
+    if outcome in {"case_unavailable", "purchase_already_bound", "case_already_purchased"}:
+        status = 404 if outcome == "case_unavailable" else 409
+        return JSONResponse({"status": outcome.upper()}, status_code=status)
+    active = PENDING_MONITORING_CHECKOUTS.get(case_token)
+    if outcome == "already_active" and active is not None and not active.consume_pending:
+        return JSONResponse({"status": "ACTIVE", "access_expires_at": active.expires_at, "consume_pending": False}, headers={"Cache-Control": "no-store"})
+    consumed = await asyncio.to_thread(consume_purchase, purchase_token)
+    if consumed:
+        PENDING_MONITORING_CHECKOUTS.mark_play_purchase_consumed(case_token, fingerprint)
+    active = PENDING_MONITORING_CHECKOUTS.get(case_token)
+    return JSONResponse({
+        "status": "ACTIVE",
+        "access_expires_at": active.expires_at if active else None,
+        "consume_pending": bool(active and active.consume_pending),
+    }, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
 
 
 
