@@ -17,6 +17,11 @@
 - WorksWatch phone check: the debug app starts; production-backed behavior remains blocked by the 404 above. No purchase was initiated.
 - Local phone verification: debug build was pointed to `127.0.0.1:8000` through `adb reverse`, and a temporary test baseline/runtime directory supported the local backend. The app loaded the catalog, created a free checkpoint, and displayed “No verified change”. Non-JSON HTTP errors now produce a safe service-unavailable message. The production route remains 404.
 
+## Export compliance declaration
+
+- The Play Console form asks the exporter to certify compliance with US export laws. Google says the rules depend on the particular app and does not provide legal advice. BIS says encryption software classification and reporting can depend on the product and the applicable EAR path. No CCATS, self-classification report, or legal classification record for these apps was found in the local project files. I did not submit this certification.
+- References: [Google Play export compliance](https://support.google.com/googleplay/android-developer/answer/113770?hl=en), [BIS mass-market encryption guidance](https://www.bis.gov/learn-support/encryption-controls/mass-market), [BIS encryption items not subject to the EAR](https://www.bis.gov/learn-support/encryption-controls/encryption-items-not-subject-to-ear).
+
 ## Play Console state
 
 Reviewed in the authenticated account on 2026-10-18. Only the separate Taxi / PHV Preflight entry (package com.regevidencehub.taxi) appeared among the ten apps in this developer account. This app package has no matching Play Console entry; product, track, and Android Publisher access are therefore not configured/verified for this app.
