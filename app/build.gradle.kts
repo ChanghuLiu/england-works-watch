@@ -1,8 +1,21 @@
+import java.io.File
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+val worksWatchUploadPropertiesPath = providers.gradleProperty("worksWatchUploadProperties").orElse("${System.getProperty("user.home")}/.config/regevidencehub/workswatch-upload.properties").get()
+val worksWatchUploadPropertiesFile = file(worksWatchUploadPropertiesPath)
+val worksWatchUploadProperties = Properties().apply { if (worksWatchUploadPropertiesFile.isFile) worksWatchUploadPropertiesFile.inputStream().use { load(it) } }
+val worksWatchUploadValues = listOf("storeFile", "storePassword", "keyAlias", "keyPassword").map(worksWatchUploadProperties::getProperty)
+val worksWatchUploadStoreFile = worksWatchUploadValues.firstOrNull()?.let { candidate ->
+    val store = file(candidate)
+    if (store.isAbsolute) store else File(worksWatchUploadPropertiesFile.parentFile, candidate)
+}
+val worksWatchUploadSigningReady = worksWatchUploadValues.all { !it.isNullOrBlank() } && worksWatchUploadPropertiesFile.isFile && worksWatchUploadStoreFile?.isFile == true
 
 android {
     namespace = "com.regevidencehub.workswatch"
@@ -17,9 +30,20 @@ android {
         buildConfigField("String", "API_BASE_URL", "\"https://works.regevidencehub.com\"")
     }
     buildFeatures { compose = true; buildConfig = true }
+    signingConfigs {
+        create("upload") {
+            if (worksWatchUploadSigningReady) {
+                storeFile = worksWatchUploadStoreFile
+                storePassword = worksWatchUploadValues[1]
+                keyAlias = worksWatchUploadValues[2]
+                keyPassword = worksWatchUploadValues[3]
+            }
+        }
+    }
     buildTypes {
         debug { manifestPlaceholders["usesCleartextTraffic"] = "true" }
         release {
+            if (worksWatchUploadSigningReady) signingConfig = signingConfigs.getByName("upload")
             isMinifyEnabled = false
             manifestPlaceholders["usesCleartextTraffic"] = "false"
         }
