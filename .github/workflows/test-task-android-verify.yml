@@ -1,0 +1,36 @@
+name: TEST TASK Android verification
+on:
+  pull_request:
+    branches: [codex/android-client-v1]
+permissions:
+  contents: read
+jobs:
+  debug-build-test-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build and verify the isolated Android candidate
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:lintDebug --no-daemon --console=plain --stacktrace
+      - name: Summarize test and lint results without publishing APKs
+        if: always()
+        run: |
+          python3 - <<'PYRESULT'
+          from pathlib import Path
+          import json,xml.etree.ElementTree as E
+          tests=[]
+          for p in Path('.').glob('**/build/test-results/testDebugUnitTest/TEST-*.xml'):
+              r=E.parse(p).getroot()
+              tests.append({k:r.get(k) for k in ('name','tests','failures','errors','skipped')})
+          lint=[]
+          for p in Path('.').glob('**/build/reports/lint-results-debug.xml'):
+              issues=E.parse(p).getroot().findall('issue')
+              lint.append({'report':str(p),'errors':sum(i.get('severity') in ('Error','Fatal') for i in issues),'warnings':sum(i.get('severity')=='Warning' for i in issues)})
+          print('TEST_TASK_ANDROID_RESULTS='+json.dumps({'tests':tests,'lint':lint},sort_keys=True))
+          PYRESULT
