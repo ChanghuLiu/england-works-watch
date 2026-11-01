@@ -17,6 +17,8 @@ class PlayBilling(context: Context, private val purchaseToken: (String) -> Unit)
     private var detail: ProductDetails? = null
     private var offer: ProductDetails.OneTimePurchaseOfferDetails? = null
     private var activeCaseToken: String? = null
+    private var activeProductId: String = ""
+    private var activeOptionId: String = ""
     var localizedPrice: String? = null
         private set
     var message: String? = null
@@ -24,11 +26,18 @@ class PlayBilling(context: Context, private val purchaseToken: (String) -> Unit)
     var onUpdate: (() -> Unit)? = null
 
     private val listener = PurchasesUpdatedListener { result, purchases ->
+        val diagnostic = billingLookupDiagnostic(
+            result = result,
+            productId = activeProductId,
+            optionId = activeOptionId,
+            productFound = detail != null,
+            offerFound = offer != null,
+        )
         if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
             purchases.filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
                 .forEach { purchase -> purchaseToken(purchase.purchaseToken) }
         } else if (result.responseCode != BillingClient.BillingResponseCode.USER_CANCELED) {
-            message = "Google Play could not complete the purchase. Try again."
+            message = "Google Play could not complete this one-time offer. Free checkpoints remain available. $diagnostic"
             onUpdate?.invoke()
         }
     }
@@ -40,6 +49,8 @@ class PlayBilling(context: Context, private val purchaseToken: (String) -> Unit)
 
     fun connect(caseToken: String?, productId: String, optionId: String) {
         activeCaseToken = caseToken
+        activeProductId = productId
+        activeOptionId = optionId
         if (client.isReady) {
             queryPrice(productId, optionId)
             restorePurchases()
@@ -50,7 +61,7 @@ class PlayBilling(context: Context, private val purchaseToken: (String) -> Unit)
                         queryPrice(productId, optionId)
                         restorePurchases()
                     } else {
-                        message = "Google Play is not available right now."
+                        message = "Google Play setup did not finish. Free checkpoints remain available. Product $productId / option $optionId; Billing response ${result.responseCode}."
                         onUpdate?.invoke()
                     }
                 }
@@ -72,7 +83,13 @@ class PlayBilling(context: Context, private val purchaseToken: (String) -> Unit)
             detail = selected
             offer = selectedOffer
             localizedPrice = selectedOffer?.formattedPrice
-            if (localizedPrice == null) message = "This one-time watch is not available in Google Play yet."
+            message = billingLookupDiagnostic(
+                result = result,
+                productId = productId,
+                optionId = optionId,
+                productFound = selected != null,
+                offerFound = selectedOffer != null,
+            )
             onUpdate?.invoke()
         }
     }
@@ -95,7 +112,7 @@ class PlayBilling(context: Context, private val purchaseToken: (String) -> Unit)
         val flow = BillingFlowParams.newBuilder().setProductDetailsParamsList(listOf(productParams)).build()
         val result = client.launchBillingFlow(activity, flow)
         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-            message = "Google Play could not start the purchase. Try again."
+            message = "Google Play could not open this offer. Your free checkpoint remains available. Product $productId / option $optionId; Billing response ${result.responseCode}."
             onUpdate?.invoke()
         }
     }
@@ -112,6 +129,24 @@ class PlayBilling(context: Context, private val purchaseToken: (String) -> Unit)
     }
 
     fun close() { if (client.isReady) client.endConnection() }
+}
+
+internal fun billingLookupDiagnostic(
+    result: BillingResult,
+    productId: String,
+    optionId: String,
+    productFound: Boolean,
+    offerFound: Boolean,
+): String? {
+    // Billing debug messages are opaque provider text and must not reach the UI.
+    val responseCode = result.responseCode
+    if (responseCode == BillingClient.BillingResponseCode.OK && productFound && offerFound) return null
+    val reason = when {
+        responseCode != BillingClient.BillingResponseCode.OK -> "Google Play could not load the offer."
+        !productFound -> "Google Play did not return the configured product."
+        else -> "The product was returned without the configured one-time purchase option."
+    }
+    return "$reason Product $productId / option $optionId; Billing response $responseCode. The free checkpoint remains available."
 }
 
 abstract class BillingClientStateListenerAdapter : com.android.billingclient.api.BillingClientStateListener {

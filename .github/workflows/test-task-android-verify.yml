@@ -1,0 +1,109 @@
+name: TEST TASK Android verification
+on:
+  pull_request:
+    branches: [codex/android-client-v1]
+permissions:
+  contents: read
+jobs:
+  debug-build-test-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build and verify the isolated Android candidate
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:assembleDeviceTest :app:lintDeviceTest --no-daemon --console=plain --stacktrace -PworksWatchUploadProperties=/tmp/test-task-no-release-signing.properties
+      - name: Summarize test and lint results
+        if: always()
+        run: |
+          python3 - <<'PYRESULT'
+          from pathlib import Path
+          import json,xml.etree.ElementTree as E
+          tests=[]
+          for result_dir in ('testDebugUnitTest','testDeviceTestUnitTest'):
+              for p in Path('.').glob(f'**/build/test-results/{result_dir}/TEST-*.xml'):
+                  r=E.parse(p).getroot()
+                  tests.append({k:r.get(k) for k in ('name','tests','failures','errors','skipped')})
+          lint=[]
+          reports=list(Path('.').glob('**/build/reports/lint-results-debug.xml'))+list(Path('.').glob('**/build/reports/lint-results-deviceTest.xml'))
+          for p in reports:
+              issues=E.parse(p).getroot().findall('issue')
+              lint.append({'report':str(p),'errors':sum(i.get('severity') in ('Error','Fatal') for i in issues),'warnings':sum(i.get('severity')=='Warning' for i in issues)})
+          print('TEST_TASK_ANDROID_RESULTS='+json.dumps({'tests':tests,'lint':lint},sort_keys=True))
+          PYRESULT
+      - name: Create production-connected test APK build record
+        if: success()
+        env:
+          APP_MODULE: app
+          EXPECTED_APPLICATION_ID: com.regevidencehub.workswatch.test
+          EXPECTED_SERVICE_ADDRESS: https://works.regevidencehub.com
+          EXPECTED_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 - <<'PYBUILD'
+          import hashlib, json, os, re, subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+          module = Path(os.environ["APP_MODULE"])
+          apk_dir = module / "build/outputs/apk/deviceTest"
+          apks = list(apk_dir.glob("*.apk"))
+          assert len(apks) == 1, f"expected one APK, found {len(apks)}"
+          apk = apks[0]
+          metadata = json.loads((apk_dir / "output-metadata.json").read_text())
+          assert metadata["variantName"] == "deviceTest"
+          element = metadata["elements"][0]
+          app_id = metadata["applicationId"]
+          assert app_id == os.environ["EXPECTED_APPLICATION_ID"], app_id
+          config_files = list((module / "build/generated/source/buildConfig/deviceTest").rglob("BuildConfig.java"))
+          assert len(config_files) == 1, f"expected one generated BuildConfig, found {len(config_files)}"
+          match = re.search(r'API_BASE_URL\s*=\s*"([^"]+)"', config_files[0].read_text())
+          assert match, "API_BASE_URL missing from generated deviceTest BuildConfig"
+          service = match.group(1)
+          assert service == os.environ["EXPECTED_SERVICE_ADDRESS"], service
+          assert service.startswith("https://") and "localhost" not in service and "127.0.0.1" not in service
+          commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          assert commit == os.environ["EXPECTED_COMMIT_SHA"], (commit, os.environ["EXPECTED_COMMIT_SHA"])
+          sdk = Path(os.environ.get("ANDROID_SDK_ROOT") or os.environ["ANDROID_HOME"])
+          signers = sorted((sdk / "build-tools").glob("*/apksigner"), key=lambda p: tuple(int(x) for x in p.parent.name.split(".") if x.isdigit()))
+          assert signers, "apksigner not found in Android SDK"
+          verified = subprocess.run([str(signers[-1]), "verify", "--verbose", "--print-certs", str(apk)], check=True, capture_output=True, text=True)
+          cert_output = verified.stdout + verified.stderr
+          cert_match = re.search(r"certificate SHA-256 digest:\s*([0-9a-f]{64})", cert_output, re.IGNORECASE)
+          assert cert_match, f"APK signer SHA-256 fingerprint missing; apksigner output: {cert_output}"
+          apk_sha = hashlib.sha256(apk.read_bytes()).hexdigest()
+          record = "\n".join([
+              "# Android device-test build record",
+              "",
+              f"- Built at (UTC): {datetime.now(timezone.utc).isoformat()}",
+              f"- Source commit SHA: {commit}",
+              "- Variant: deviceTest (debug-key signed; parallel-install package)",
+              f"- applicationId: {app_id}",
+              f"- versionCode: {element['versionCode']}",
+              f"- versionName: {element['versionName']}",
+              f"- Service address: {service}",
+              f"- APK file: {apk.name}",
+              f"- APK SHA-256: {apk_sha}",
+              f"- Signer certificate SHA-256: {cert_match.group(1).lower()}",
+              "- Release signing material: not used",
+              "",
+          ])
+          Path("BUILD-RECORD.md").write_text(record)
+          print(record)
+          PYBUILD
+      - name: Upload test APK and build record
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-task-device-${{ github.event.repository.name }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            app/build/outputs/apk/deviceTest/*.apk
+            BUILD-RECORD.md
+          if-no-files-found: error
+          retention-days: 14
+
