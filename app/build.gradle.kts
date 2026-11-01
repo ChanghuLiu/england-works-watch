@@ -51,6 +51,15 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"https://works.regevidencehub.com\"")
             manifestPlaceholders["usesCleartextTraffic"] = "false"
         }
+        create("deviceTest") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".test"
+            isDebuggable = true
+            signingConfig = signingConfigs.getByName("debug")
+            buildConfigField("String", "API_BASE_URL", "\"https://works.regevidencehub.com\"")
+            isMinifyEnabled = false
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -75,3 +84,4 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
+
