@@ -73,8 +73,9 @@ jobs:
           signers = sorted((sdk / "build-tools").glob("*/apksigner"), key=lambda p: tuple(int(x) for x in p.parent.name.split(".") if x.isdigit()))
           assert signers, "apksigner not found in Android SDK"
           verified = subprocess.run([str(signers[-1]), "verify", "--verbose", "--print-certs", str(apk)], check=True, capture_output=True, text=True)
-          cert_match = re.search(r"Signer #1 certificate SHA-256 digest:\s*([0-9a-fA-F]+)", verified.stdout + verified.stderr)
-          assert cert_match, "APK signer SHA-256 fingerprint missing"
+          cert_output = verified.stdout + verified.stderr
+          cert_match = re.search(r"certificate SHA-256 digest:\s*([0-9a-f]{64})", cert_output, re.IGNORECASE)
+          assert cert_match, f"APK signer SHA-256 fingerprint missing; apksigner output: {cert_output}"
           apk_sha = hashlib.sha256(apk.read_bytes()).hexdigest()
           record = "\n".join([
               "# Android device-test build record",
