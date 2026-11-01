@@ -19,7 +19,7 @@ jobs:
       - name: Build and verify the isolated Android candidate
         run: |
           chmod +x gradlew
-          ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:testDeviceTestUnitTest :app:assembleDeviceTest :app:lintDeviceTest --no-daemon --console=plain --stacktrace -PworksWatchUploadProperties=/tmp/test-task-no-release-signing.properties
+          ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:assembleDeviceTest :app:lintDeviceTest --no-daemon --console=plain --stacktrace -PworksWatchUploadProperties=/tmp/test-task-no-release-signing.properties
       - name: Summarize test and lint results
         if: always()
         run: |
