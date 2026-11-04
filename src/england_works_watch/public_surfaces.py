@@ -82,7 +82,7 @@ def render_employer_landing_page(*, origin: str) -> str:
         '<li>Clear handling of missing information, unsupported situations and source changes.</li>'
         '<li>A free, single-event interactive preflight; no payment is required for this public AI edition.</li></ul></section>'
         '<section><h2>Use it safely</h2><p>Use a fictional case for initial evaluation. Do not enter worker names, immigration identifiers, sponsor licence numbers, salary records or internal case documents. If a source has changed or a fact is missing, the result can require review; it is not clearance.</p>'
-        '<p>England Works Watch is an independent service. It is not the Home Office, UKVI or the Environment Agency, is not endorsed by a government body, and does not provide immigration legal advice or make Home Office decisions.</p></section>'
+        '<p>England Works Watch is an independent service. It is not the Home Office or UKVI, is not endorsed by a government body, and does not provide immigration legal advice or make Home Office decisions.</p></section>'
         '<p class="fine"><a href="/pricing">Pricing and paid-use information</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/support">Support</a></p>'
         '</main></body></html>'
     )
