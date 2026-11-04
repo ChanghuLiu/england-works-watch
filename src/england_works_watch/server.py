@@ -19,7 +19,7 @@ from .entitlement_token import verify_entitlement_token
 from .monitoring import changed_since, make_checkpoint
 from .ops_contract import build_alerts, health_payload, status_payload, version_payload
 from .policy import RULES, SOURCE_BY_ID, assess_change_impact as decide
-from .public_surfaces import monitoring_page, policy_copy, render_policy_page, render_pricing_page
+from .public_surfaces import monitoring_page, policy_copy, render_employer_landing_page, render_policy_page, render_pricing_page
 from .selection_metadata import (
     FREE_PAID_BOUNDARY,
     PAID_RESULT_PREVIEW,
@@ -559,6 +559,11 @@ async def analytics_summary(_request):
     return JSONResponse(summary())
 
 
+@mcp.custom_route("/employers", methods=["GET"])
+async def employers(_request):
+    return PlainTextResponse(render_employer_landing_page(origin=PUBLIC_ORIGIN), media_type="text/html")
+
+
 @mcp.custom_route("/pricing", methods=["GET"])
 async def pricing(_request):
     return PlainTextResponse(
@@ -1078,7 +1083,7 @@ async def robots(_request):
 @mcp.custom_route("/sitemap.xml", methods=["GET"])
 async def sitemap(_request):
     urls = [
-        "/", "/pricing", "/privacy", "/terms", "/support", "/monitoring-report",
+        "/", "/employers", "/pricing", "/privacy", "/terms", "/support", "/monitoring-report",
         "/llms.txt", "/openapi.json", "/.well-known/mcp.json", "/.well-known/agent-card.json", "/.well-known/x402",
     ]
     body = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(
