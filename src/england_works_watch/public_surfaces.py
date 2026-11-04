@@ -45,6 +45,49 @@ def render_policy_page(kind: str, *, origin: str) -> str:
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escape(title) + '</title><style>body{font-family:system-ui,sans-serif;max-width:860px;margin:0 auto;padding:32px 20px;line-height:1.55;color:#17202a}.muted{color:#53636f}.links{margin-top:32px}a{color:#155eef}</style></head><body><main>' + "".join(body) + "</main></body></html>"
 
 
+def render_employer_landing_page(*, origin: str) -> str:
+    base = escape(origin.rstrip("/"))
+    return (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="description" content="A practical, evidence-linked preflight for UK Skilled Worker sponsor changes. Check what facts and official guidance to review before deciding what to report.">'
+        f'<link rel="canonical" href="{base}/employers">'
+        '<meta property="og:type" content="website">'
+        '<meta property="og:title" content="UK Skilled Worker Sponsor Change Preflight — England Works Watch">'
+        '<meta property="og:description" content="Check the facts and official guidance to review when sponsored-worker details change.">'
+        f'<meta property="og:url" content="{base}/employers">'
+        '<title>UK Skilled Worker Sponsor Change Preflight — England Works Watch</title>'
+        '<style>'
+        'body{font-family:system-ui,sans-serif;max-width:920px;margin:0 auto;padding:clamp(20px,5vw,56px);line-height:1.6;color:#17202a;background:#fff}'
+        '.eyebrow{color:#53636f;font-size:.95rem}.hero{max-width:760px;padding:24px 0 20px}'
+        'h1{font-size:clamp(2rem,5vw,3.2rem);line-height:1.1;letter-spacing:-.03em;margin:.5rem 0 1rem}'
+        '.lead{font-size:1.2rem;color:#344054}.actions{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}'
+        '.button{display:inline-block;padding:12px 18px;border-radius:8px;background:#155eef;color:#fff;text-decoration:none;font-weight:650}'
+        '.button.secondary{background:#eef4ff;color:#1546a0}.panel{background:#f5f8fa;border-left:4px solid #155eef;padding:16px 20px;margin:24px 0}'
+        'h2{margin-top:34px;font-size:1.45rem}li{margin:.45rem 0}.fine{font-size:.94rem;color:#53636f}'
+        'code{overflow-wrap:anywhere;background:#f2f4f7;padding:2px 5px;border-radius:4px}a{color:#155eef}'
+        '</style></head><body><main>'
+        '<p class="eyebrow">England Works Watch · Independent RegEvidenceHub service</p>'
+        '<section class="hero"><h1>Check a sponsor change before you decide what to do</h1>'
+        '<p class="lead">An evidence-linked preflight for UK employers and advisers handling Skilled Worker sponsor duties. Use it to identify the facts and official guidance to review when a sponsored worker’s circumstances change.</p>'
+        '<div class="actions"><a class="button" href="mailto:selena@regevidencehub.com?subject=Free%20Works%20Watch%20fictional-case%20instructions&body=Please%20send%20me%20the%20self-guided%20fictional%20case%20and%20free%20Works%20Watch%20instructions.%20I%20will%20not%20send%20real%20worker%20or%20sponsor%20data.">Email for the free fictional-case instructions</a>'
+        '<a class="button secondary" href="/llms.txt">AI connection details</a></div>'
+        '<p class="fine">The public AI edition supports one interactive event preflight through an AI assistant that supports remote MCP. Its endpoint is <code>/ai/mcp</code>. If you prefer, email us and we will send the self-guided fictional case by email.</p></section>'
+        '<section><h2>Changes the preflight is designed to cover</h2><ul>'
+        '<li>Delayed worker starts and unauthorised absence</li><li>Salary, role or occupation-code changes</li>'
+        '<li>Work-location or home-working changes</li><li>Stopping sponsorship or a worker leaving</li>'
+        '<li>Organisation changes, TUPE transfers, mergers and takeovers</li></ul></section>'
+        '<section class="panel"><strong>What you get</strong><ul>'
+        '<li>A bounded result with evidence-linked reasoning and the next facts or actions to review.</li>'
+        '<li>Clear handling of missing information, unsupported situations and source changes.</li>'
+        '<li>A free, single-event interactive preflight; no payment is required for this public AI edition.</li></ul></section>'
+        '<section><h2>Use it safely</h2><p>Use a fictional case for initial evaluation. Do not enter worker names, immigration identifiers, sponsor licence numbers, salary records or internal case documents. If a source has changed or a fact is missing, the result can require review; it is not clearance.</p>'
+        '<p>England Works Watch is an independent service. It is not the Home Office, UKVI or the Environment Agency, is not endorsed by a government body, and does not provide immigration legal advice or make Home Office decisions.</p></section>'
+        '<p class="fine"><a href="/pricing">Pricing and paid-use information</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/support">Support</a></p>'
+        '</main></body></html>'
+    )
+
+
 def render_pricing_page(*, origin: str, prices: dict[str, str]) -> str:
     rows = "".join(f"<li><strong>{escape(name)}:</strong> {escape(price)}</li>" for name, price in prices.items())
     return (
