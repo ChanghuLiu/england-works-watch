@@ -41,7 +41,7 @@ def render_policy_page(kind: str, *, origin: str) -> str:
     for heading, paragraphs in sections:
         body.append(f"<h2>{escape(heading)}</h2>")
         body.extend(f"<p>{paragraph}</p>" for paragraph in paragraphs)
-    body.append('<p class="links"><a href="/pricing">Pricing</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/support">Support</a> · <a href="/monitoring-report">Monitoring report</a></p>')
+    body.append('<p class="links"><a href="/employers">For employers</a> · <a href="/pricing">Pricing</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/support">Support</a> · <a href="/monitoring-report">Monitoring report</a></p>')
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escape(title) + '</title><style>body{font-family:system-ui,sans-serif;max-width:860px;margin:0 auto;padding:32px 20px;line-height:1.55;color:#17202a}.muted{color:#53636f}.links{margin-top:32px}a{color:#155eef}</style></head><body><main>' + "".join(body) + "</main></body></html>"
 
 
@@ -97,7 +97,7 @@ def render_pricing_page(*, origin: str, prices: dict[str, str]) -> str:
         '.price,.compare{background:#f5f8fa;border-left:4px solid #155eef;padding:14px 20px;margin:18px 0}'
         '.compare{border-left-color:#137a4b}a{color:#155eef}h2{margin-top:30px}'
         '</style></head><body><main>'
-        '<p>England Works Watch — sponsor compliance/change intelligence</p><h1>Pricing</h1>'
+        '<p>England Works Watch — sponsor compliance/change intelligence · <a href="/employers">For employers</a></p><h1>Pricing</h1>'
         '<p><strong>A one-off interactive sponsor-change preflight is available on the public AI edition.</strong> '
         'Paid products are designed for repeated business use, automation, batch processing, or continued evidence monitoring.</p>'
         '<div class="compare"><strong>Choose the paid path when the work is bigger than one interactive check.</strong>'
