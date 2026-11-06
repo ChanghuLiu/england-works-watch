@@ -7,7 +7,7 @@
       "url": "https://www.gov.uk/government/publications/workers-and-temporary-workers-guidance-for-sponsors-part-3-sponsor-duties-and-compliance/workers-and-temporary-workers-guidance-for-sponsors-part-3-sponsor-duties-and-compliance-accessible",
       "version": "08/26",
       "valid_from": "2026-08-28",
-      "last_reviewed": "2026-10-10",
+      "last_reviewed": "2026-11-06",
       "review_after_days": 30,
       "state": "CURRENT",
       "locators": [
@@ -23,7 +23,7 @@
         "C1.15",
         "C1.21"
       ],
-      "reviewed_semantic_sha256": "c05aa7e359cf1fd173ddc44613b9979144fa3c380db942643e80de7f7725c618"
+      "reviewed_semantic_sha256": "e921eac893f3cc1a3eacbd793fd5c9ada20ede907002846ec21868fa16caf295"
     },
     {
       "source_id": "sponsor-part2",

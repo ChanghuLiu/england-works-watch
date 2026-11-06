@@ -136,3 +136,64 @@ def test_missing_marker_fails_closed(monkeypatch, tmp_path):
     assert status["coverage_complete"] is False
     assert failed_id in status["review_required_sources"]
 
+def _put_reviewed_changed_source_state(now: datetime):
+    state = sr.ensure_runtime_seeded(now)
+    source = next(item for item in SOURCES["sources"] if item["source_id"] == "sponsor-part3")
+    item = state["sources"]["sponsor-part3"]
+    item.update(
+        {
+            "baseline_semantic_sha256": "c05aa7e359cf1fd173ddc44613b9979144fa3c380db942643e80de7f7725c618",
+            "last_semantic_sha256": "e921eac893f3cc1a3eacbd793fd5c9ada20ede907002846ec21868fa16caf295",
+            "last_fetch_status": "CHANGED_PENDING_REVIEW",
+            "last_http_status": 200,
+            "last_success_at": now.isoformat().replace("+00:00", "Z"),
+            "review_required": True,
+            "changed_at": now.isoformat().replace("+00:00", "Z"),
+            "missing_markers": [],
+        }
+    )
+    sr._atomic_write(sr.state_path(), state)
+    return source
+
+
+def test_reviewed_source_migration_requires_fresh_exact_match(monkeypatch, tmp_path):
+    now = datetime(2026, 11, 6, 19, 0, tzinfo=timezone.utc)
+    hashes = _setup(monkeypatch, tmp_path, now)
+    _put_reviewed_changed_source_state(now)
+
+    def fetcher(source):
+        return {
+            "http_status": 200,
+            "semantic_sha256": source["reviewed_semantic_sha256"],
+            "missing_markers": [],
+        }
+
+    state = sr.observe_all(fetcher, now=now + timedelta(minutes=1))
+    item = state["sources"]["sponsor-part3"]
+
+    assert item["baseline_semantic_sha256"] == "e921eac893f3cc1a3eacbd793fd5c9ada20ede907002846ec21868fa16caf295"
+    assert item["previous_baseline_semantic_sha256"] == "c05aa7e359cf1fd173ddc44613b9979144fa3c380db942643e80de7f7725c618"
+    assert item["baseline_reviewed_at"] == "2026-11-06T19:08:29Z"
+    assert item["review_required"] is False
+    assert item["last_fetch_status"] == "UNCHANGED"
+    assert sr.production_source_status(now=now + timedelta(minutes=1))["coverage_complete"] is True
+
+
+def test_reviewed_source_migration_does_not_apply_to_different_live_hash(monkeypatch, tmp_path):
+    now = datetime(2026, 11, 6, 19, 0, tzinfo=timezone.utc)
+    _setup(monkeypatch, tmp_path, now)
+    _put_reviewed_changed_source_state(now)
+
+    def fetcher(source):
+        digest = "f" * 64 if source["source_id"] == "sponsor-part3" else source["reviewed_semantic_sha256"]
+        return {"http_status": 200, "semantic_sha256": digest, "missing_markers": []}
+
+    state = sr.observe_all(fetcher, now=now + timedelta(minutes=1))
+    item = state["sources"]["sponsor-part3"]
+
+    assert item["baseline_semantic_sha256"] == "c05aa7e359cf1fd173ddc44613b9979144fa3c380db942643e80de7f7725c618"
+    assert item["review_required"] is True
+    assert item["last_fetch_status"] == "CHANGED_PENDING_REVIEW"
+    assert "sponsor-part3" in sr.production_source_status(now=now + timedelta(minutes=1))["blocking_sources"]
+
+

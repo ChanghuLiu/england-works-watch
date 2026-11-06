@@ -78,6 +78,50 @@ def _registry_by_id() -> dict[str, dict[str, Any]]:
     return {item["source_id"]: item for item in SOURCES["sources"]}
 
 
+# Each entry is a one-time, exact-match semantic review. It is applied only
+# after a fresh successful fetch matches the reviewed fingerprint exactly.
+REVIEWED_RUNTIME_SOURCE_MIGRATIONS: dict[str, dict[str, str]] = {
+    "sponsor-part3": {
+        "previous": "c05aa7e359cf1fd173ddc44613b9979144fa3c380db942643e80de7f7725c618",
+        "reviewed": "e921eac893f3cc1a3eacbd793fd5c9ada20ede907002846ec21868fa16caf295",
+        "reviewed_at": "2026-11-06T19:08:29Z",
+        "basis": "Reviewed GOV.UK Part 3 version 08/26 update history and current clauses on 2026-11-06. Listed changes cover SMS Level 2 user phasing, inactive sponsor licences, the expanded right-to-work scheme, and related revocation/MFA references. The modeled sponsor-change rules (worker reporting, absence, location, ending sponsorship, organisation changes and mergers/TUPE) remain consistent with current clauses. The tool does not assess SMS user access or right-to-work checks.",
+    },
+}
+
+
+def _apply_reviewed_runtime_source_migration(
+    state: dict[str, Any],
+    source: dict[str, Any],
+    observation: dict[str, Any] | None,
+) -> bool:
+    """Promote one reviewed source only when a fresh fetch exactly matches it."""
+    source_id = str(source.get("source_id", ""))
+    migration = REVIEWED_RUNTIME_SOURCE_MIGRATIONS.get(source_id)
+    item = state.get("sources", {}).get(source_id)
+    if not migration or not isinstance(item, dict) or not isinstance(observation, dict):
+        return False
+    if item.get("baseline_semantic_sha256") != migration["previous"]:
+        return False
+    if item.get("review_required") is not True or item.get("last_fetch_status") != "CHANGED_PENDING_REVIEW":
+        return False
+    if (
+        observation.get("http_status") != 200
+        or observation.get("semantic_sha256") != migration["reviewed"]
+        or observation.get("missing_markers")
+    ):
+        return False
+    item["previous_baseline_semantic_sha256"] = migration["previous"]
+    item["baseline_semantic_sha256"] = migration["reviewed"]
+    item["baseline_reviewed_at"] = migration["reviewed_at"]
+    item["baseline_review_note"] = migration["basis"]
+    item["source_version"] = source.get("version")
+    item["valid_from"] = source.get("valid_from")
+    item["review_required"] = False
+    item["changed_at"] = None
+    return True
+
+
 def _seed_from_baseline(now: datetime | None = None) -> dict[str, Any]:
     now = now or _utc_now()
     baseline = _load_json(baseline_path())
@@ -243,6 +287,7 @@ def observe_all(
         for source_id, source in registry.items():
             try:
                 observation = fetcher(source)
+                _apply_reviewed_runtime_source_migration(state, source, observation)
                 apply_observation(state, source, observation, now=now)
             except Exception as exc:
                 apply_observation(state, source, None, error=exc, now=now)
