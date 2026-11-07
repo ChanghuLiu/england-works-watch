@@ -1025,12 +1025,19 @@ async def monitoring_report_success(request):
     # Machine/API clients keep the existing JSON contract.
     accept = request.headers.get("accept", "").lower()
     if "text/html" in accept:
+        paid_html = _monitoring_paid_page(
+            entitlement_code=str(entitlement.get("entitlement_code") or ""),
+            report=report,
+            return_token=token,
+        )
+        paid_html = paid_html.replace(
+            "<body>",
+            '<body data-ga4-confirmed-product="works_monitoring">'
+            '<script src="https://regevidencehub.com/assets/analytics-consent.js?v=20261107-1" defer></script>',
+            1,
+        )
         return Response(
-            _monitoring_paid_page(
-                entitlement_code=str(entitlement.get("entitlement_code") or ""),
-                report=report,
-                return_token=token,
-            ),
+            paid_html,
             media_type="text/html",
             headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"},
         )
