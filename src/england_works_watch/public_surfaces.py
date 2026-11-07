@@ -411,5 +411,6 @@ a{color:var(--blue)}
     <a href="/support">Support</a>
   </p>
 </main>
+<script src="https://regevidencehub.com/assets/analytics-consent.js?v=20261107-1" defer></script>
 </body>
 </html>""".replace("{source_channel}", source_channel).replace("{verification_control}", verification_control)
