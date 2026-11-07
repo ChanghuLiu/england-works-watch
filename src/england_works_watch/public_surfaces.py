@@ -322,7 +322,7 @@ a{color:var(--blue)}
       absence or organisation change. No worker details are required. Checkout
       creates the checkpoint and gives you a private link for repeated checks.
     </p>
-    <form method="post" action="/monitoring-report/checkout">
+    <form method="post" action="/monitoring-report/checkout" data-ga4-funnel-product="works_monitoring">
       <input type="hidden" name="source_channel" value="{source_channel}">
       <input type="hidden" name="source_ids" value="sponsor-part2">
       <input type="hidden" name="source_ids" value="sponsor-part3">
@@ -411,5 +411,6 @@ a{color:var(--blue)}
     <a href="/support">Support</a>
   </p>
 </main>
+<script src="https://regevidencehub.com/assets/analytics-consent.js?v=20261107-1" defer></script>
 </body>
 </html>""".replace("{source_channel}", source_channel).replace("{verification_control}", verification_control)
