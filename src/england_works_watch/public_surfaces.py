@@ -322,7 +322,7 @@ a{color:var(--blue)}
       absence or organisation change. No worker details are required. Checkout
       creates the checkpoint and gives you a private link for repeated checks.
     </p>
-    <form method="post" action="/monitoring-report/checkout" data-ga4-funnel-product="works_monitoring">
+    <form method="post" action="/monitoring-report/checkout">
       <input type="hidden" name="source_channel" value="{source_channel}">
       <input type="hidden" name="source_ids" value="sponsor-part2">
       <input type="hidden" name="source_ids" value="sponsor-part3">
