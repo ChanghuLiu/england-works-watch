@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -227,102 +228,98 @@ def _parse_time(value: str) -> datetime | None:
 
 
 def _load_rows(hours: int | None = None):
+    """Stream events so summary memory does not grow with the full event history."""
+    cutoff = None if hours is None else datetime.now(UTC) - timedelta(hours=hours)
     try:
-        with _db() as c:
-            rows = c.execute(
+        with closing(_db()) as connection:
+            rows = connection.execute(
                 """SELECT occurred_at,tool,outcome,billable,payment_state,actor_class,declared_client,latency_ms,
                 event_type,source_bucket,external_classification,owner_test,deployment_revision,request_id,payment_status
                 FROM events ORDER BY id ASC"""
-            ).fetchall()
+            )
+            for row in rows:
+                if cutoff is not None:
+                    when = _parse_time(row[0])
+                    if when is None or when < cutoff:
+                        continue
+                yield row
     except sqlite3.Error:
-        return []
-    if hours is None:
-        return rows
-    cutoff = datetime.now(UTC) - timedelta(hours=hours)
-    selected = []
-    for row in rows:
-        when = _parse_time(row[0])
-        if when is not None and when >= cutoff:
-            selected.append(row)
-    return selected
+        return
 
 
 def _window_summary(hours: int | None) -> dict[str, Any]:
-    rows = _load_rows(hours)
-    normalized = [
-        {
-            "occurred_at": row[0],
-            "tool": row[1],
-            "outcome": row[2],
-            "billable": bool(row[3]),
-            "payment_state": row[4] or "none",
-            "actor": _effective_actor(row[5], row[6]),
-            "client": _safe(row[6]),
-            "latency_ms": row[7],
-            "event_type": row[8] or "unknown",
-            "source_bucket": _effective_source_bucket(row[9], row[6]),
-            "external_classification": row[10] or "unknown",
-            "owner_test": bool(row[11]),
-            "deployment_revision": row[12] or "unknown",
-            "request_id": _safe(row[13], 96),
-            "payment_status": row[14] or "unknown",
-        }
-        for row in rows
-    ]
-    discovery_rows = [row for row in normalized if row["tool"] == DISCOVERY_TOOL]
-    free_rows = [row for row in normalized if row["tool"] in FREE_TOOLS and not row["billable"]]
-    paid_rows = [row for row in normalized if row["billable"] and row["tool"] in BUSINESS_TOOLS]
-    challenge_rows = [row for row in paid_rows if row["payment_state"] == "challenge"]
-    executed_rows = [row for row in paid_rows if row["payment_state"] == "paid_executed"]
-    payment_error_rows = [row for row in paid_rows if row["payment_state"] == "payment_error"]
+    total_events = discovery_count = free_count = challenge_count = executed_count = payment_error_count = 0
+    external_free_count = external_challenge_count = external_executed_count = 0
+    by_actor, by_tool, by_payment_status, discovery_by_route, paid_funnel = (Counter() for _ in range(5))
+    external_free_by_tool, external_challenge_by_tool, external_executed_by_tool = (Counter() for _ in range(3))
+    external_free_by_source, external_challenge_by_source, external_executed_by_source = (Counter() for _ in range(3))
+    external_free_by_software_family, external_challenge_by_software_family, external_executed_by_software_family = (Counter() for _ in range(3))
+    external_free_clients, external_challenge_clients, external_executed_clients = set(), set(), set()
+    paid_by_external_client = Counter()
+    paid_funnel_by_actor: dict[str, dict[str, int]] = {}
+    source_attribution: dict[str, dict[str, int]] = {}
 
-    external_free = [row for row in free_rows if row["actor"] == "declared_external"]
-    external_challenge = [row for row in challenge_rows if row["actor"] == "declared_external"]
-    external_executed = [row for row in executed_rows if row["actor"] == "declared_external"]
-    external_free_by_tool = Counter(row["tool"] for row in external_free)
-    external_challenge_by_tool = Counter(row["tool"] for row in external_challenge)
-    external_executed_by_tool = Counter(row["tool"] for row in external_executed)
-    external_free_by_source = Counter(row["source_bucket"] for row in external_free)
-    external_challenge_by_source = Counter(row["source_bucket"] for row in external_challenge)
-    external_executed_by_source = Counter(row["source_bucket"] for row in external_executed)
-    external_free_by_software_family = Counter(_declared_software_family(row["client"]) for row in external_free)
-    external_challenge_by_software_family = Counter(_declared_software_family(row["client"]) for row in external_challenge)
-    external_executed_by_software_family = Counter(_declared_software_family(row["client"]) for row in external_executed)
+    for row in _load_rows(hours):
+        tool, outcome, billable = row[1], row[2], bool(row[3])
+        payment_state = row[4] or "none"
+        actor, client = _effective_actor(row[5], row[6]), _safe(row[6])
+        event_type, source_bucket = row[8] or "unknown", _effective_source_bucket(row[9], row[6])
+        total_events += 1
+        by_actor[actor] += 1
+        by_tool[tool] += 1
+        by_payment_status[row[14] or "unknown"] += 1
+        is_discovery = tool == DISCOVERY_TOOL
+        is_free = tool in FREE_TOOLS and not billable
+        is_paid = billable and tool in BUSINESS_TOOLS
+        if is_discovery:
+            discovery_count += 1
+            discovery_by_route[outcome] += 1
+        if is_free:
+            free_count += 1
+            if actor == "declared_external":
+                external_free_count += 1
+                external_free_by_tool[tool] += 1
+                external_free_by_source[source_bucket] += 1
+                external_free_by_software_family[_declared_software_family(client)] += 1
+                if client:
+                    external_free_clients.add(client)
+        if is_paid:
+            paid_funnel[payment_state] += 1
+            bucket = paid_funnel_by_actor.setdefault(actor, {})
+            bucket[payment_state] = bucket.get(payment_state, 0) + 1
+            if payment_state == "challenge":
+                challenge_count += 1
+                if actor == "declared_external":
+                    external_challenge_count += 1
+                    external_challenge_by_tool[tool] += 1
+                    external_challenge_by_source[source_bucket] += 1
+                    external_challenge_by_software_family[_declared_software_family(client)] += 1
+                    if client:
+                        external_challenge_clients.add(client)
+            elif payment_state == "paid_executed":
+                executed_count += 1
+                if actor == "declared_external":
+                    external_executed_count += 1
+                    external_executed_by_tool[tool] += 1
+                    external_executed_by_source[source_bucket] += 1
+                    external_executed_by_software_family[_declared_software_family(client)] += 1
+                    if client:
+                        external_executed_clients.add(client)
+                        paid_by_external_client[client] += 1
+            elif payment_state == "payment_error":
+                payment_error_count += 1
+        # Exactly the same three disjoint commercial populations as before.
+        if is_discovery or is_free or is_paid:
+            bucket = source_attribution.setdefault(source_bucket, {})
+            bucket[event_type] = bucket.get(event_type, 0) + 1
 
-    external_free_clients = {row["client"] for row in external_free if row["client"]}
-    external_challenge_clients = {row["client"] for row in external_challenge if row["client"]}
-    external_executed_clients = {row["client"] for row in external_executed if row["client"]}
-
-    paid_by_external_client = Counter(row["client"] for row in external_executed if row["client"])
     repeat_clients = {name: count for name, count in paid_by_external_client.items() if count >= 2}
     repeat_integrations = len(repeat_clients)
     repeat_executions = sum(count - 1 for count in repeat_clients.values())
 
-    by_actor = Counter(row["actor"] for row in normalized)
-    by_tool = Counter(row["tool"] for row in normalized)
-    by_payment_status = Counter(row["payment_status"] for row in normalized)
-    discovery_by_route = Counter(row["outcome"] for row in discovery_rows)
-    paid_funnel = Counter(row["payment_state"] for row in paid_rows)
-    paid_funnel_by_actor: dict[str, dict[str, int]] = {}
-    for row in paid_rows:
-        bucket = paid_funnel_by_actor.setdefault(row["actor"], {})
-        state = row["payment_state"]
-        bucket[state] = bucket.get(state, 0) + 1
-
-    source_attribution: dict[str, dict[str, int]] = {}
-    # Keep source totals aligned with the commercial funnel stage population.
-    # The prior all-event view included non-business MCP rows, which made the
-    # dashboard's source reconciliation appear inconsistent for Sponsor.
-    commercial_rows = [*discovery_rows, *free_rows, *paid_rows]
-    for row in commercial_rows:
-        source = row["source_bucket"]
-        bucket = source_attribution.setdefault(source, {})
-        event_name = row["event_type"]
-        bucket[event_name] = bucket.get(event_name, 0) + 1
-
     return {
         "hours": hours,
-        "total_events": len(normalized),
+        "total_events": total_events,
         "by_tool": dict(by_tool),
         "by_actor_class": dict(by_actor),
         "by_payment_status": dict(by_payment_status),
@@ -364,26 +361,26 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
         "source_attribution_scope": "commercial_funnel_rows_only",
         "commercial_funnel": {
             "discovery": {
-                "raw": len(discovery_rows),
+                "raw": discovery_count,
                 "confirmed_external": None,
                 "measured": True,
                 "note": "Privacy-minimal machine discovery observations; raw discovery is not a customer count.",
             },
             "free_business_call": {
-                "raw": len(free_rows),
-                "confirmed_external": len(external_free),
+                "raw": free_count,
+                "confirmed_external": external_free_count,
                 "measured": True,
                 "note": "Confirmed external requires a non-owned declared software identity.",
             },
             "paid_challenge": {
-                "raw": len(challenge_rows),
-                "confirmed_external": len(external_challenge),
+                "raw": challenge_count,
+                "confirmed_external": external_challenge_count,
                 "measured": True,
                 "note": "x402 challenges; owner CI and unattributed traffic are excluded from confirmed external.",
             },
             "paid_executed": {
-                "raw": len(executed_rows),
-                "confirmed_external": len(external_executed),
+                "raw": executed_count,
+                "confirmed_external": external_executed_count,
                 "measured": True,
                 "note": "Settled/verified paid business executions; owner validation is technical proof only.",
             },
@@ -395,7 +392,7 @@ def _window_summary(hours: int | None) -> dict[str, Any]:
                 "note": "Non-owned declared software integrations with at least two successful paid executions.",
             },
         },
-        "payment_errors": len(payment_error_rows),
+        "payment_errors": payment_error_count,
         "privacy": (
             "No employer/worker facts, raw MCP metadata, payment signatures, wallet addresses, private keys, seed phrases, discovery IPs, user-agents or raw query strings are stored. "
             "Only bounded source/request correlation and sanitized self-declared software identifiers are retained."

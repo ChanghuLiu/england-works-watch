@@ -11,7 +11,7 @@ from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 
-from .analytics import record, summary
+from .analytics import _window_summary, record, summary
 from .attribution import OWNER_TEST_MARKERS, is_automated_user_agent
 from .commercial import CommercialPlatformClient, CommercialPlatformError, CommercialSettings, PendingMonitoringCheckoutStore, commercial_source_channel
 from .case_state import DurableCaseStore
@@ -455,8 +455,10 @@ async def product_page(_request):
 
 def _ops_snapshot():
     source = production_source_status()
-    analytics = summary()
-    window = ((analytics.get("windows") or {}).get("24h") or {}) if isinstance(analytics, dict) else {}
+    # Health/status expose only the 24-hour view. Do not build lifetime and
+    # seven-day cohort reports on every readiness probe.
+    window = _window_summary(24)
+    analytics = {"windows": {"24h": window}}
     payment_errors = int(window.get("payment_errors") or 0) if isinstance(window, dict) else 0
     source_issue_count = (
         len(source.get("blocking_sources") or [])

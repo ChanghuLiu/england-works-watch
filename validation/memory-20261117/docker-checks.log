@@ -1,0 +1,9 @@
+#12 38.75   "blocking_count": 0
+#12 43.04 104 passed, 1 warning in 3.46s
+#12 43.48   "passed": 25,
+#12 43.51 ENGLAND_TOOL_SELECTION_BENCHMARK=PASS baseline=14/25 effective=25/25
+#13 [ 9/10] RUN ln -s /app/data /usr/local/lib/python3.12/data  && python -c "from england_works_watch.policy import source_status; s=source_status(); assert s['coverage_complete']; print('installed-runtime-import=PASS', s['rule_pack_version'])"  && python scripts/mcp_transport_smoke.py  && python scripts/x402_unpaid_smoke.py
+#13 0.138 installed-runtime-import=PASS 2026-10-10.1
+#13 1.516   "mcp_transport_smoke": "PASS",
+#13 4.574   "x402_unpaid_smoke": "PASS"
+#15 writing image sha256:7d0e4f7638a19fd4ae5cb8768934174c1ce1f18c853f60e4a21d810049ed23f3 done

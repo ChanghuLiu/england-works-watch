@@ -1,0 +1,8 @@
+
+.venv/
+.git/
+.pytest_cache/
+**/__pycache__/
+**/*.egg-info/
+runtime/
+validation/memory-20261117/
