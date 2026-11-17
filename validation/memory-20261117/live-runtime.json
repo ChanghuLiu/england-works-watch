@@ -1,0 +1,52 @@
+{
+  "container_memory": "172371968",
+  "monitor": {
+    "enabled": "default1",
+    "interval": "default21600"
+  },
+  "processes": [
+    {
+      "pid": "4",
+      "status": [
+        "Name:\tengland-works-w",
+        "VmRSS:\t  134460 kB",
+        "RssAnon:\t  100648 kB"
+      ]
+    }
+  ],
+  "source_hashes": {
+    "data/source_registry.json": "2c2158ff8e599e71db04980e2b9f00b4b3a09a3ad1de96427f6b59686d303852",
+    "src/england_works_watch/analytics.py": "433006c7644dc134ad73d2a72ea4648cc6ec0804ef0be5f3b732cc8cd62ca013",
+    "src/england_works_watch/server.py": "d9d265d139aca147d3d2c52bf920331c844737cb436a3e7ee8dee70b542a82a0"
+  },
+  "sources": {
+    "appendix-d": {
+      "baseline_semantic_sha256": "f68bec505685dbd2add9dcc7e923b63cec9e1047a1b1c4355c54ead58556e863",
+      "last_checked_at": "2026-11-17T15:50:49Z",
+      "last_fetch_status": "UNCHANGED",
+      "last_semantic_sha256": "f68bec505685dbd2add9dcc7e923b63cec9e1047a1b1c4355c54ead58556e863",
+      "review_required": false
+    },
+    "skilled-worker": {
+      "baseline_semantic_sha256": "40b64b53dc3f0c861311f66193b578a381e6e32fce9d417d5e06764ba5877b9a",
+      "last_checked_at": "2026-11-17T15:50:49Z",
+      "last_fetch_status": "UNCHANGED",
+      "last_semantic_sha256": "40b64b53dc3f0c861311f66193b578a381e6e32fce9d417d5e06764ba5877b9a",
+      "review_required": false
+    },
+    "sponsor-part2": {
+      "baseline_semantic_sha256": "c89f07c56b74058903f46f02b9b897a7cdbadcdb854ec1741e9276187c2c7017",
+      "last_checked_at": "2026-11-17T15:50:49Z",
+      "last_fetch_status": "UNCHANGED",
+      "last_semantic_sha256": "c89f07c56b74058903f46f02b9b897a7cdbadcdb854ec1741e9276187c2c7017",
+      "review_required": false
+    },
+    "sponsor-part3": {
+      "baseline_semantic_sha256": "e921eac893f3cc1a3eacbd793fd5c9ada20ede907002846ec21868fa16caf295",
+      "last_checked_at": "2026-11-17T15:50:49Z",
+      "last_fetch_status": "UNCHANGED",
+      "last_semantic_sha256": "e921eac893f3cc1a3eacbd793fd5c9ada20ede907002846ec21868fa16caf295",
+      "review_required": false
+    }
+  }
+}
