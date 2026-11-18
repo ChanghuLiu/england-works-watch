@@ -63,7 +63,15 @@ def test_special_employment_conditions_require_review(flag):
     assert result['affected_rules'][0]['locator'] == 'S8.28-S8.29'
 
 
-def test_review_date_still_expires():
-    from england_works_watch.policy import source_status
-    assert source_status('2026-10-10')['coverage_complete']
-    assert not source_status('2026-11-10')['coverage_complete']
+def test_review_date_still_expires(monkeypatch):
+    from copy import deepcopy
+    from england_works_watch import policy
+    sources = deepcopy(policy.SOURCES)
+    for source in sources['sources']:
+        source['last_reviewed'] = '2026-11-17'
+        source['review_after_days'] = 30
+    monkeypatch.setattr(policy, 'SOURCES', sources)
+    assert policy.source_status('2026-12-17')['coverage_complete']
+    expired = policy.source_status('2026-12-18')
+    assert not expired['coverage_complete']
+    assert set(expired['blocking_sources']) == {source['source_id'] for source in sources['sources']}

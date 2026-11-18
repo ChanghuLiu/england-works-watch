@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-11-17T15:43:13Z",
+  "registry_version": "2026-10-10.1",
+  "sources": [
+    {
+      "source_id": "sponsor-part3",
+      "state": "UNCHANGED",
+      "http_status": 200,
+      "http_bytes": 429796,
+      "sha256": "35ddc5dbf04a287b5d662a00edd4530fe63cc4ebdef2f8715c4a62284d73d8c6",
+      "semantic_sha256": "e921eac893f3cc1a3eacbd793fd5c9ada20ede907002846ec21868fa16caf295",
+      "reviewed_fingerprint_matches": true,
+      "semantic_chars": 134678,
+      "missing_markers": [],
+      "source_version": "08/26",
+      "valid_from": "2026-08-28"
+    },
+    {
+      "source_id": "sponsor-part2",
+      "state": "UNCHANGED",
+      "http_status": 200,
+      "http_bytes": 524698,
+      "sha256": "af90e55a6f61bd4af0b23a32c050e36fb1e9818fe2d4d2dd144b5d6eabe1ad7d",
+      "semantic_sha256": "c89f07c56b74058903f46f02b9b897a7cdbadcdb854ec1741e9276187c2c7017",
+      "reviewed_fingerprint_matches": true,
+      "semantic_chars": 152030,
+      "missing_markers": [],
+      "source_version": "10/26",
+      "valid_from": "2026-10-08"
+    },
+    {
+      "source_id": "skilled-worker",
+      "state": "UNCHANGED",
+      "http_status": 200,
+      "http_bytes": 473268,
+      "sha256": "149f5c4bdd46b48dc5dd0faabf53f8cfb9f2b96b1b0c03f740fd8657fb7611a8",
+      "semantic_sha256": "40b64b53dc3f0c861311f66193b578a381e6e32fce9d417d5e06764ba5877b9a",
+      "reviewed_fingerprint_matches": true,
+      "semantic_chars": 139005,
+      "missing_markers": [],
+      "source_version": "04/26",
+      "valid_from": "2026-04-08"
+    },
+    {
+      "source_id": "appendix-d",
+      "state": "UNCHANGED",
+      "http_status": 200,
+      "http_bytes": 170711,
+      "sha256": "8cafc635416cc89c1936cef2785b154a4ed197433e12bf25aa2884e82023e256",
+      "semantic_sha256": "f68bec505685dbd2add9dcc7e923b63cec9e1047a1b1c4355c54ead58556e863",
+      "reviewed_fingerprint_matches": true,
+      "semantic_chars": 37984,
+      "missing_markers": [],
+      "source_version": "10/26",
+      "valid_from": "2026-10-08"
+    }
+  ],
+  "blocking_count": 0
+}

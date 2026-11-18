@@ -1,0 +1,13 @@
+{
+  "date": "2026-11-17",
+  "renewed": [
+    "sponsor-part2",
+    "skilled-worker",
+    "appendix-d"
+  ],
+  "basis": "Exact normalized visible text matches the previously reviewed content for every official source; no interpretation or rule change",
+  "rules_changed": false,
+  "fingerprints_changed": false,
+  "review_after_days_changed": false,
+  "audit": "source-audit-preflight.json"
+}
